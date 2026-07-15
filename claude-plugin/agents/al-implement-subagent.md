@@ -4,7 +4,7 @@ description: >
   Internal TDD implementation subagent. Only invoked by al-conductor via Task tool.
   Executes RED-GREEN-REFACTOR cycle: writes tests FIRST, then minimal code to pass,
   then refactors. Creates AL objects following strict TDD methodology.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, mcp__al-mcp
 model: sonnet
 color: yellow
 maxTurns: 30
@@ -126,7 +126,7 @@ tableextension <id> "<prefix> <Name>" extends <BaseTable>
 - `TryFunction` for operations that may fail
 - Event subscribers: `[EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", 'OnAfterPostSalesDoc', '', false, false)]`
 - Event publishers: `[IntegrationEvent(false, false)] local procedure OnAfterMyEvent(...)`
-- Event subscriber parameters MUST match publisher signature exactly — **resolve the exact signature from symbols** (**al-symbols-mcp** `al_search_object_members` on the publisher), don't guess it. The spec's §5 names *which* event (source of truth); symbols own the *signature*. If you genuinely cannot resolve a signature from symbols, **surface it as an open question** in your Phase Summary rather than inventing parameters — flag it, don't fabricate.
+- Event subscriber parameters MUST match publisher signature exactly — **resolve the exact signature from symbols** (the AL LSP server (document symbols) or al-mcp `al_symbolsearch` on the publisher), don't guess it. The spec's §5 names *which* event (source of truth); symbols own the *signature*. If you genuinely cannot resolve a signature from symbols, **surface it as an open question** in your Phase Summary rather than inventing parameters — flag it, don't fabricate.
 
 **Page (API):**
 ```al
@@ -243,7 +243,7 @@ end;
 - You **MUST** follow the spec and architecture documents provided by the Conductor
 - You **MUST** report back: objects created, **event subscribers (exact base object + event name + signature)**, tests created, test results, build status, any issues
 - **Don't re-read a file already in context.** If you already read a spec/architecture excerpt, a source file, or a skill this invocation, reuse it — do not issue another `Read` for the same path.
-- **Resolve base-app symbols from symbols — and if you can't, ask; don't hunt.** Resolve event signatures and base-object members via **al-symbols-mcp** (`al_search_object_members`, `al_get_object_definition`) against the symbol packages (authoritative for symbol facts). If a symbol or event the spec names **cannot be resolved** (e.g. the event does not exist in this BC version), **stop and surface it as a blocker / end-of-phase open question** in your return to the Conductor — don't burn turns guessing it via web searches, and never invent a signature.
+- **Resolve base-app symbols from symbols — and if you can't, ask; don't hunt.** Resolve event signatures and base-object members via the AL LSP server (document symbols, hover / go-to-definition) or al-mcp `al_symbolsearch` against the symbol packages (authoritative for symbol facts). If a symbol or event the spec names **cannot be resolved** (e.g. the event does not exist in this BC version), **stop and surface it as a blocker / end-of-phase open question** in your return to the Conductor — don't burn turns guessing it via web searches, and never invent a signature.
 
 </boundary_rules>
 
@@ -417,7 +417,7 @@ search. Omit the section if no subscribers were added this phase.)*
 
 **CAN:**
 - Read files, search codebase (`Grep`/`Glob`), analyze code
-- Query AL symbols, definitions, and references via **al-symbols-mcp**
+- Query AL symbols, definitions, and references via **al-mcp** and the AL LSP server
 - Create AL files (production and test)
 - Edit existing AL files
 - Create directories for AL-Go structure

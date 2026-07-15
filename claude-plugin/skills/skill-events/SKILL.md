@@ -33,8 +33,8 @@ Before writing any subscriber, discover which events are raised during the busin
 6. Identify the OnBefore/OnAfter event closest to your extension point
 ```
 
-Use `al_search_objects` and `al_get_object_definition` to inspect publisher signatures.
-Use `al_find_references` to see who else subscribes to the same event.
+Use al-mcp `al_symbolsearch` and the AL LSP server (hover / go-to-definition) to inspect publisher signatures.
+Use the AL LSP server (find-references) to see who else subscribes to the same event.
 
 ### Pattern 2: Event Subscriber
 
@@ -170,8 +170,8 @@ end;
 1. Open the Event Recorder in the BC client / VS Code (a human step — no agent tool here)
 2. Execute the target business process in BC
 3. Review recorded events — filter by relevant object
-4. Use `al_get_object_definition` to inspect publisher signatures
-5. Use `al_find_references` to check existing subscribers (avoid conflicts)
+4. Use the AL LSP server (hover / go-to-definition) to inspect publisher signatures
+5. Use the AL LSP server (find-references) to check existing subscribers (avoid conflicts)
 
 ### Step 2: Design Event Architecture
 

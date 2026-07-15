@@ -74,3 +74,5 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 ## Rules Injection
 
 Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/aldc:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
+
+A `SessionStart` hook (`tools/rules/precondition_hook.sh`, wired in `hooks/hooks.json`) checks deterministically whether `.claude/rules/al-guidelines.md` exists and injects the result as `additionalContext` — so agents don't have to independently guess whether init has run. If it hasn't, agents are instructed to tell the user and offer to run `/aldc:al-initialize` before touching AL code, while still applying the rules from `rules-templates/` as a fallback for that session. This never blocks the task — it's a human-in-the-loop nudge, matching the BCQuality precondition-hook pattern.

@@ -5,7 +5,7 @@ description: >
   project planning, cost estimation (time and budget), feasibility analysis,
   SWOT/risk assessment, and technical documentation. Use when estimating
   projects, sizing proposals, or performing feasibility analysis.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
 model: sonnet
 color: red
 maxTurns: 50
@@ -106,8 +106,8 @@ Technical_PreSales/
 - ✅ Use Context7 for up-to-date library docs (`mcp_context7/*`, `mcp_upstash_conte/*`)
 - ✅ Web search for market research (`websearch`)
 - ✅ Invoke `al-architect` agent for architectural design
-- ✅ Execute `/al-spec.create` workflow for specifications
-- ✅ Analyze AL symbols for complexity estimation (`al-symbols-mcp/*`)
+- ✅ Execute `/al-spec-create` workflow for specifications
+- ✅ Analyze AL symbols for complexity estimation (`al-mcp/*`)
 - ✅ Manage project memory and context (`memory`)
 - ✅ Track tasks with todo lists (`todo`)
 
@@ -145,7 +145,7 @@ Technical_PreSales/
 │  7. DESIGN              8. DOCUMENTATION      9. PROPOSAL               │
 │  ──────────             ─────────────────     ──────────                │
 │  • Call AL Arch. Spec. • All docs in folder  • 00-executive updated    │
-│  • Call al-spec.create  • Best practices      • GitHub Pages proposal   │
+│  • Call al-spec-create  • Best practices      • GitHub Pages proposal   │
 │  • Architecture draft   • 07-github-pages.md  • Ready for presentation  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -262,7 +262,7 @@ Use AL Symbols MCP if available:
 ```markdown
 ## Complexity Metrics
 
-**Object Analysis** (use al-symbols-mcp/al_search_objects):
+**Object Analysis** (use al-mcp/al_symbolsearch):
 - Tables: [count] - Complexity: [Low/Med/High per table]
 - Pages: [count] - Complexity: [Low/Med/High per page]
 - Codeunits: [count] - Complexity: [Low/Med/High per codeunit]
@@ -712,12 +712,12 @@ After completing the presales analysis, **ALWAYS** append a summary to `.github/
 - Estimated effort and cost range
 - Handoff recommendation (which agent/workflow next)
 
-### Invoke al-spec.create
+### Invoke al-spec-create
 
 For detailed specifications:
 
 ```markdown
-**Action**: Execute /al-spec.create
+**Action**: Execute /al-spec-create
 
 Parameters:
 - FeatureName: [project-name from intake]
@@ -730,7 +730,7 @@ Output: .github/plans/{req_name}.spec.md
 
 When handing off to other agents, ensure requirement contracts exist in `.github/plans/`:
 - `{req_name}.architecture.md` → Created by agent `al-architect` (COPY from `docs/templates/architecture-template.md`)
-- `{req_name}.spec.md` → Created by al-spec.create (COPY from `docs/templates/spec-template.md`)
+- `{req_name}.spec.md` → Created by al-spec-create (COPY from `docs/templates/spec-template.md`)
 - `{req_name}.test-plan.md` → Created during implementation planning
 
 ---
@@ -881,7 +881,7 @@ Before delivering final proposal:
 - [ ] 07-github-pages-proposal.md created
 - [ ] MCP tools verified (or user informed of missing tools)
 - [ ] al-architect invoked for architecture (if needed)
-- [ ] al-spec.create executed for specifications (if needed)
+- [ ] al-spec-create executed for specifications (if needed)
 - [ ] All documents include confidentiality header
 - [ ] Risk mitigation strategies defined
 - [ ] Final recommendation provided

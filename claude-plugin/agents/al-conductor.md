@@ -4,8 +4,8 @@ description: >
   Orchestrates Planning, Implementation, Review, and Commit cycle for AL Development.
   Enforces TDD and quality gates for Business Central extensions. Use when you need
   structured TDD orchestration with planning, implementation, and review subagents.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch
-model: haiku
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+model: opus
 color: purple
 maxTurns: 50
 ---
@@ -38,7 +38,7 @@ Before starting, consider if you have:
 
 **Benefit**: Faster start, but may require architectural adjustments during implementation.
 
-### Option C: Specification from al-spec.create
+### Option C: Specification from al-spec-create
 
 **If you have a .spec.md file:**
 1. ✅ **Use spec as foundation** for planning
@@ -51,21 +51,21 @@ Before starting, consider if you have:
 
 ```
 LOW complexity (isolated changes, single phase):
-  al-spec.create → agent `al-developer` (direct implementation)
+  al-spec-create → agent `al-developer` (direct implementation)
 
 MEDIUM complexity (2-3 phases, internal integrations):
-  agent `al-architect` → al-spec.create → agent `al-conductor` (TDD orchestration)
+  agent `al-architect` → al-spec-create → agent `al-conductor` (TDD orchestration)
 
 HIGH complexity (4+ phases, external integrations, architecture critical):
-  agent `al-architect` → al-spec.create → agent `al-conductor` (TDD orchestration)
+  agent `al-architect` → al-spec-create → agent `al-conductor` (TDD orchestration)
 
 Specialized domains (MEDIUM/HIGH):
-  - API integration:     agent `al-architect` (loads skill-api) → al-spec.create → agent `al-conductor`
-  - Copilot features:   agent `al-architect` (loads skill-copilot) → al-spec.create → agent `al-conductor`
-  - Performance issues: agent `al-architect` (loads skill-performance) → al-spec.create → agent `al-conductor`
+  - API integration:     agent `al-architect` (loads skill-api) → al-spec-create → agent `al-conductor`
+  - Copilot features:   agent `al-architect` (loads skill-copilot) → al-spec-create → agent `al-conductor`
+  - Performance issues: agent `al-architect` (loads skill-performance) → al-spec-create → agent `al-conductor`
 ```
 
-> 💡 **You are step 3 in the MEDIUM/HIGH flow.** If you receive a request without spec.md or architecture.md, recommend the user starts with `agent al-architect` and `/al-spec.create` first.
+> 💡 **You are step 3 in the MEDIUM/HIGH flow.** If you receive a request without spec.md or architecture.md, recommend the user starts with `agent al-architect` and `/al-spec-create` first.
 
 ---
 ---
@@ -83,7 +83,7 @@ Strictly follow the **Planning → Implementation → Review → Commit** proces
 
 2. **Check for Input Documents**: Before delegating research, check if you have:
    - Architectural design from al-architect → Use to guide planning
-   - Specification from al-spec.create → Reference object structure
+   - Specification from al-spec-create → Reference object structure
    - Requirements document → Use as basis for research
 
 3. **Delegate Research**: Use the `Task` tool to invoke the **agent `al-planning-subagent`** for comprehensive context gathering.
@@ -249,7 +249,7 @@ Build success ≠ review approval. NEVER skip review.
 1. Use the `Task` tool to invoke the **agent `al-review-subagent`** with:
    - The phase objective and acceptance criteria
    - Files that were modified/created
-   - **The event-subscriber list the implement-subagent returned** (each subscriber's exact base object + event name + signature). Pass it inline so the reviewer **validates against it** and does not re-discover base events via **al-symbols-mcp** (a measured token sink — trial-and-error symbol searches). Tell it to query symbols only to spot-confirm a single signature it cannot resolve from the list.
+   - **The event-subscriber list the implement-subagent returned** (each subscriber's exact base object + event name + signature). Pass it inline so the reviewer **validates against it** and does not re-discover base events via **al-mcp** (a measured token sink — trial-and-error symbol searches). Tell it to query symbols only to spot-confirm a single signature it cannot resolve from the list.
    - **The BCQuality task-context, built inline.** You already hold `app.json` and this phase's changed objects, so build the task-context (per the BCQuality task-context template; OMIT unknown dimensions; pilot skills from `aldc.yaml`) and pass it — the review subagent consumes it instead of re-deriving `bc-version`/`application-area`. It still reads the external BCQuality clone itself for the knowledge files.
    - AL-specific validation requirements:
      - Event-driven patterns (no base modifications)
@@ -334,7 +334,7 @@ When invoking subagents:
 - The user's request and any relevant context
 - Requirements document (if available)
 - Architectural design (if available from al-architect)
-- Specification document (if available from al-spec.create)
+- Specification document (if available from al-spec-create)
 - AL-specific requirements (base objects, extension type, AL-Go structure)
 
 **Instruct to:**
@@ -654,7 +654,7 @@ During planning or implementation, if you identify specialized needs:
 - **Complex architecture needed** → Recommend: "agent `al-architect` to design the architecture"
 - **API-heavy feature** → Recommend: "agent `al-architect` (loads skill-api) for API contract design"
 - **AI/Copilot capabilities** → Recommend: "agent `al-architect` (loads skill-copilot) for AI feature design"
-- **No specification exists** → Recommend: "/al-spec.create to document requirements"
+- **No specification exists** → Recommend: "/al-spec-create to document requirements"
 
 **During implementation (if issues arise):**
 - **Implementation bugs** → agent `al-developer` loads `skill-debug` (but continue with review cycle first)
@@ -677,8 +677,7 @@ During planning or implementation, if you identify specialized needs:
 - 💡 agent `al-developer` (after completion, for quick adjustments, debugging, or enhancements)
 
 **You recommend workflows** (user invokes):
-- 💡 /al-spec.create (before starting)
-- 💡 /al-performance (after completion, if needed)
+- 💡 /al-spec-create (before starting)
 - 💡 /al-pr-prepare (after all commits)
 </orchestration_workflow>
 
@@ -897,7 +896,7 @@ Before starting orchestration, **ALWAYS check for existing context** in `.github
 Checking for context:
 1. .github/plans/memory.md → Global memory (decisions, context, cross-session state — append-only)
 2. .github/plans/{req_name}/{req_name}.architecture.md → Architectural design (from agent `al-architect`)
-3. .github/plans/{req_name}/{req_name}.spec.md → Technical specification (from al-spec.create)
+3. .github/plans/{req_name}/{req_name}.spec.md → Technical specification (from al-spec-create)
 4. .github/plans/{req_name}/{req_name}.test-plan.md → Test strategy
 ```
 
@@ -914,7 +913,7 @@ Checking for context:
 - ✅ **Validate alignment** - Ensure implementation matches design
 - ✅ **Document architecture compliance** in phase completion files
 
-**If specification exists (from al-spec.create)**:
+**If specification exists (from al-spec-create)**:
 - ✅ **Use defined object IDs** - From spec, not random
 - ✅ **Follow structure** - Tables, fields, integration points
 - ✅ **Pass spec to subagents** - For consistent implementation
@@ -929,7 +928,7 @@ Instead, **pass phase-relevant excerpts inline** in the `Task` instruction:
 - **Architecture decisions** — only the decisions/constraints this phase must honor, not the full document.
 - **Test-plan excerpt** — only the tests scoped to this phase.
 - **Memory** — only the cross-session decisions that bear on this phase.
-- **The 7 always-on instruction micro-rules** (`instructions/al-*.instructions.md`) — `Read` them **once** at run start and pass them inline to **every** code-touching subagent (implement, review). They are tiny (~1.3K tokens total) hard-rule baselines, and in the Claude Code harness there is **no editor-attached-files auto-apply** — the `applyTo` glob never fires in subagent runtime — so injecting them is the only way they take effect. **Not optional, not per-domain**: pass all seven on every code phase. They are the floor; the depth lives in the skills they point to.
+- **The 7 always-on instruction micro-rules** — authored in `claude-plugin/rules-templates/al-*.md` and copied into the project's `.claude/rules/al-*.md` by `/aldc:al-initialize`; excluding the conditional `al-agent-toolkit`. `tools/rules/precondition_hook.sh` already told you at SessionStart whether that copy exists for this project; if it reported the rules as **NOT installed**, surface that to the user and offer to run `/aldc:al-initialize` before the first code phase, instead of quietly orchestrating every phase off the plugin fallback. `Read` them **once** at run start (from whichever of the two locations the hook confirmed) and pass them inline to **every** code-touching subagent (implement, review). They are tiny (~1.3K tokens total) hard-rule baselines, and in the Claude Code harness there is **no editor-attached-files auto-apply** — a rule's path glob never fires in subagent runtime — so injecting them is the only way they take effect. **Not optional, not per-domain**: pass all seven on every code phase. They are the floor; the depth lives in the skills they point to.
 - **Domain skill *hints*** — name the skills likely relevant to this phase's domain (e.g. `skill-events` for an event phase). These are **hints, not mandates**: the subagent loads the `SKILL.md` (reads it) on demand when it enters the domain, and may load a skill you didn't hint if it finds it needs one.
 
 Tell the subagent: **the excerpts are authoritative for this phase; read the full file under `.github/plans/` only if a referenced detail is missing from the excerpt.** Always include the file path so that escape hatch works.
@@ -945,7 +944,7 @@ At plan completion, create `.github/plans/<task-name>/<task-name>-complete.md` s
 **Integration Pattern (MEDIUM / HIGH):**
 ```markdown
 1. agent `al-architect` designs → Creates .github/plans/{req_name}/{req_name}.architecture.md  ← MANDATORY GATE
-2. /al-spec.create → Reads architecture → Creates .github/plans/{req_name}/{req_name}.spec.md  ← MANDATORY GATE
+2. /al-spec-create → Reads architecture → Creates .github/plans/{req_name}/{req_name}.spec.md  ← MANDATORY GATE
 3. User invokes agent `al-conductor` → Reads spec + architecture from .github/plans/{req_name}/, starts orchestration
 4. al-planning-subagent → References architecture/spec during research + creates test-plan
 5. Plan approval gate → MANDATORY user confirmation
@@ -957,7 +956,7 @@ At plan completion, create `.github/plans/<task-name>/<task-name>-complete.md` s
 
 **Integration Pattern (LOW):**
 ```markdown
-1. /al-spec.create → Creates {req_name}.spec.md
+1. /al-spec-create → Creates {req_name}.spec.md
 2. agent `al-developer` → Direct implementation using spec as blueprint
    (no agent `al-conductor` needed for LOW complexity)
 ```

@@ -4,7 +4,7 @@ description: >
   Internal quality assurance subagent for Business Central AL code. Only invoked
   by al-conductor via Task tool. Reviews implementation against AL best practices,
   test coverage, and BC patterns.
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, mcp__al-mcp
 model: sonnet
 color: yellow
 maxTurns: 30
@@ -31,9 +31,9 @@ You are an **AL CODE REVIEW SUBAGENT** called by a parent **agent `al-conductor`
 
 ### 0. Consult BCQuality (external citable knowledge — probe, don't assume)
 
-BCQuality is a curated, citable BC knowledge base consumed from an **external** clone (multi-root, per `aldc.yaml`). It is a citation/audit layer — it does **not** replace the A–G checklist or the auto-applied instructions; it adds findings backed by a knowledge file.
+BCQuality is a curated, citable BC knowledge base consumed from an **external** clone (multi-root, per `aldc.yaml`). It is a citation/audit layer — it does **not** replace the A–G checklist or the always-on rules (`.claude/rules/al-*.md`); it adds findings backed by a knowledge file.
 
-Resolve the home from `aldc.yaml → external.bcquality.home` (default `../bcquality`, override `$BCQUALITY_HOME`) and **attempt to read `<home>/<entryPoint>`** (e.g. `../bcquality/skills/entry.md`) **before** deciding. The external root lives outside the project and won't surface unless you read its path explicitly — a successful read **is** the mounted signal: consult BCQuality scoped to this phase's changed objects and **cite each finding to its knowledge file** in the review. If the probe **fails** (entry point absent — the default until installed), record BCQuality as `not-applicable`, note `"BCQuality unavailable — reviewed via ALDC skills + auto-applied instructions"`, and review against the **full A–G** checklist below. A missing knowledge layer **never** blocks the review.
+Resolve the home from `aldc.yaml → external.bcquality.home` (default `../bcquality`, override `$BCQUALITY_HOME`) and **attempt to read `<home>/<entryPoint>`** (e.g. `../bcquality/skills/entry.md`) **before** deciding. The external root lives outside the project and won't surface unless you read its path explicitly — a successful read **is** the mounted signal: consult BCQuality scoped to this phase's changed objects and **cite each finding to its knowledge file** in the review. If the probe **fails** (entry point absent — the default until installed), record BCQuality as `not-applicable`, note `"BCQuality unavailable — reviewed via ALDC skills + always-on rules"`, and review against the **full A–G** checklist below. A missing knowledge layer **never** blocks the review.
 
 > The Conductor builds the BCQuality task-context (it already holds `app.json` + the phase's changed objects) and passes it inline — consume that rather than re-deriving it.
 
@@ -43,12 +43,12 @@ Review the AL code changes using available tools:
 
 **Use:**
 - `Bash: git diff` / `git status` - See what was modified/created
-- **al-symbols-mcp** `al_find_references` - Check how AL objects are referenced
+- The AL LSP server (find-references) - Check how AL objects are referenced
 - `Bash: al compile` (read the output) - Identify compilation issues
-- `Grep`/`Glob` + **al-symbols-mcp** `al_search_objects` - Find related AL code and patterns
+- `Grep`/`Glob` + **al-mcp** `al_symbolsearch` - Find related AL code and patterns
 - Read the test-run output passed by the Conductor - Check if any tests failed
 
-> **Consume the event-subscriber list — don't re-discover events.** The Conductor passes the implement-subagent's list of subscribers (each with its **exact base object + event name + signature**). **Validate against that list.** Use **al-symbols-mcp** **only** to spot-confirm a single signature you genuinely cannot resolve from the list — **not** to enumerate or guess base events. (Measured: blind trial-and-error symbol searches, with name-variant duplicates, were a top token sink in review.)
+> **Consume the event-subscriber list — don't re-discover events.** The Conductor passes the implement-subagent's list of subscribers (each with its **exact base object + event name + signature**). **Validate against that list.** Use **al-mcp** **only** to spot-confirm a single signature you genuinely cannot resolve from the list — **not** to enumerate or guess base events. (Measured: blind trial-and-error symbol searches, with name-variant duplicates, were a top token sink in review.)
 
 > **Don't re-read a file already in context.** If you read a source `.al`, an excerpt, the BCQuality skill, or `memory.md` earlier in this invocation, reuse it — never `Read` the same path twice.
 
@@ -421,6 +421,7 @@ Use this checklist during review:
 - [ ] All object names ≤ 26 characters
 - [ ] PascalCase naming throughout
 - [ ] Feature-based folder organization (/CustomerManagement, /SalesWorkflow)
+- [ ] Namespace declared in every file, mirroring the feature folder (`[AppName].[Feature].[SubFeature]`), with required `using` directives — runtime ≥ 13.0 / BC 24+ (al-code-style Rule 5 / al-naming Rule 6)
 - [ ] AL-Go structure: App code in /app, tests in /test
 - [ ] Object IDs in appropriate range (50000-99999 for custom)
 
@@ -542,7 +543,7 @@ Use this checklist during review:
 - Analyze code changes and diffs (`Bash: git diff`)
 - Confirm compilation by reading `al compile` output
 - Verify test results from the run output the Conductor passes
-- Search for patterns and usages (`Grep`/`Glob` + **al-symbols-mcp**)
+- Search for patterns and usages (`Grep`/`Glob` + **al-mcp**)
 - Review against architecture/spec
 
 **CANNOT:**
