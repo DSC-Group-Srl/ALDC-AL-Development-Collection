@@ -1,9 +1,7 @@
 name: Release
 
+# Disabled (upstream workflow): manual dispatch only.
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:

@@ -8,14 +8,8 @@ name: BCQuality Evidence
 # at the pin rather than checking out an in-repo submodule.
 # A hallucinated citation or a drifted pin fails this check.
 
+# Disabled (upstream workflow): manual dispatch only.
 on:
-  pull_request:
-    paths:
-      - '.github/plans/**'
-      - '.github/audits/**'
-      - 'aldc.yaml'
-      - 'tools/bcquality/**'
-      - '.github/workflows/bcquality-evidence.yaml'
   workflow_dispatch:
 
 permissions:
