@@ -164,7 +164,7 @@ Check `app.json` dependencies version alignment.
 - `AL0185` — Object ID conflict: check ID range in `app.json`, no duplicates
 - `AL0118` — Field length mismatch: align extension field length with base table
 
-**Publishing failures**: check environment connectivity, extension version increment, dependency resolution via `app.json` `dependencies` plus **al-symbols-mcp** `al_packages`.
+**Publishing failures**: check environment connectivity, extension version increment, dependency resolution via `app.json` `dependencies` plus **al-mcp** `al_getpackagedependencies`.
 
 ### Step 3: Diagnose Root Cause
 

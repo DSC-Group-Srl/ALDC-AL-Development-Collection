@@ -127,7 +127,7 @@ claude-plugin/
 ├── commands/              # 10 slash commands (/aldc:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /aldc:al-initialize
-├── hooks/hooks.json       # PostToolUse + Stop reminders
+├── hooks/hooks.json       # SessionStart preconditions (rules, BCQuality, AL CLI) + PostToolUse/Stop reminders
 ├── .mcp.json              # MCP server config (al-symbols, context7, microsoft-docs)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code
 └── README.md              # This file

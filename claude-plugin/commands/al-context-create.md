@@ -30,8 +30,8 @@ This enables AI assistants to load complete project context quickly and make inf
 # Get app.json configuration
 Read app.json
 
-# Understand dependencies (app.json `dependencies` + al-symbols-mcp al_packages)
-al-symbols-mcp: al_packages
+# Understand dependencies (app.json `dependencies` + al-mcp al_getpackagedependencies)
+al-mcp: al_getpackagedependencies
 
 # Map directory structure
 Glob src/**

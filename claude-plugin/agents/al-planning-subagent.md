@@ -4,7 +4,7 @@ description: >
   Internal AL-aware research and context gathering subagent for Business Central
   development. Only invoked by al-conductor via Task tool. Returns structured
   findings to Conductor for plan creation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
 model: sonnet
 color: yellow
 maxTurns: 30
@@ -46,10 +46,10 @@ Research Business Central AL codebases to understand:
 - Review app.json for dependencies
 
 **Use These Tools (Claude Code harness):**
-- `Grep`/`Glob` + **al-symbols-mcp** `al_search_objects` - Search for AL patterns and object names
-- **al-symbols-mcp** `al_find_references` - Find where AL objects are referenced
-- read `app.json` `dependencies` + **al-symbols-mcp** `al_packages` - Analyze extension dependencies
-- **al-symbols-mcp** `al_get_object_definition` / `al_search_object_members` - Examine existing AL implementations (full source via VS Code `AL: Download Source`, a human step)
+- `Grep`/`Glob` + **al-mcp** `al_symbolsearch` - Search for AL patterns and object names
+- The AL LSP server (find-references) - Find where AL objects are referenced
+- read `app.json` `dependencies` + **al-mcp** `al_getpackagedependencies` - Analyze extension dependencies
+- The AL LSP server (hover / go-to-definition, document symbols) - Examine existing AL implementations (full source via VS Code `AL: Download Source`, a human step)
 - `Bash: al compile` (read the output) - Identify current AL compilation issues
 - `Bash: git diff` / `git log` - Review recent modifications to AL code
 - `Bash: git log` (and `WebFetch` for public repos) - Understand development history and team patterns
@@ -100,7 +100,7 @@ Provide structured summary with AL-specific sections.
 - **Event publishers**: Any custom events we need to call?
 - **Event patterns**: OnBefore, OnAfter, OnValidate patterns
 
-> **When a spec exists, validate against it — don't trial-and-error hunt.** If `{req_name}.spec.md` lists verified integration points (§5: publisher + event + consumed fields), treat that as the source of truth for *which* events the feature uses, and confirm each against symbols with a **single targeted** **al-symbols-mcp** lookup — don't enumerate or guess base events by repeated name-variant searches (a measured token sink). Symbols-first for the existence/identity check; `microsoft-docs`/`context7`/web stay fair game for *conceptual* gaps. Anything you cannot resolve, **flag as an uncertainty** for the Conductor rather than burning turns guessing.
+> **When a spec exists, validate against it — don't trial-and-error hunt.** If `{req_name}.spec.md` lists verified integration points (§5: publisher + event + consumed fields), treat that as the source of truth for *which* events the feature uses, and confirm each against symbols with a **single targeted** **al-mcp** lookup — don't enumerate or guess base events by repeated name-variant searches (a measured token sink). Symbols-first for the existence/identity check; `microsoft-docs`/`context7`/web stay fair game for *conceptual* gaps. Anything you cannot resolve, **flag as an uncertainty** for the Conductor rather than burning turns guessing.
 
 Example findings:
 ```
@@ -314,12 +314,12 @@ If you can't find something or aren't sure, document it:
 ## Tool Boundaries
 
 **CAN:**
-- Search the codebase for AL objects and patterns (`Grep`/`Glob` + **al-symbols-mcp**)
-- Analyze dependencies and symbols (`app.json` + **al-symbols-mcp** `al_packages`)
-- Review existing implementations (**al-symbols-mcp** definitions/members)
+- Search the codebase for AL objects and patterns (`Grep`/`Glob` + **al-mcp**)
+- Analyze dependencies and symbols (`app.json` + **al-mcp** `al_getpackagedependencies`)
+- Review existing implementations (the AL LSP server — definitions/members)
 - Identify event architecture
 - Check AL-Go structure
-- Examine BC base objects via **al-symbols-mcp** (full source = VS Code `AL: Download Source`, human step)
+- Examine BC base objects via the AL LSP server (hover / go-to-definition) (full source = VS Code `AL: Download Source`, human step)
 - Suggest implementation options
 
 **CANNOT:**

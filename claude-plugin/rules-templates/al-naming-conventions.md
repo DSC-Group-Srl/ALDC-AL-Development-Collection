@@ -129,3 +129,28 @@ codeunit 50100 "Customer Service Impl" implements ICustomerService
     end;
 }
 ```
+
+## Rule 6: Namespace Naming
+
+### Intent
+Namespaces (AL runtime ≥ 13.0 / BC 24+) name **features**, mirroring the feature-folder structure. This rule fixes the *naming* shape; for the folder-mirroring requirement, the `using` handling and the runtime gate see **al-code-style.md Rule 5**.
+
+- **Root segment = the app name** (`app.json` → `name`), PascalCase, no spaces.
+- **Each following segment = a feature/subfeature**, PascalCase, mirroring the folder path: `[AppName].[Feature].[SubFeature]`.
+- **Never** a segment that names an object type (`.Table`, `.Pages`, `.Report`, `.Codeunits`).
+- Keep segments descriptive and aligned with the folder names, so the folder path and the namespace path stay speculative mirrors of each other.
+
+### Examples
+
+```al
+// Good examples
+namespace Contoso.Sales.Invoice;      // src/Sales/Invoice/
+namespace Contoso.Warehouse.Picking;  // src/Warehouse/Picking/
+```
+
+```al
+// Bad examples
+namespace Contoso.Codeunits;          // object type, not a feature
+namespace contoso.sales;              // not PascalCase
+namespace Sales.Invoice;              // missing app-name root segment
+```

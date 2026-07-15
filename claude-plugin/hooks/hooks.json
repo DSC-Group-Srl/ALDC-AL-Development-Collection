@@ -7,6 +7,16 @@
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh SessionStart",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh SessionStart",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh SessionStart",
+            "timeout": 15
           }
         ]
       }

@@ -11,7 +11,7 @@ These rules ensure consistent code structure and organization across AL projects
 ## Style guidelines for AL code
 - Always use PascalCase for variable and function names.
 - Use PascalCase for object names (e.g., tables, pages, reports).
-- Maintain a consistent indentation style (2 spaces preferred).
+- Maintain a consistent indentation style (4 spaces, matching the official Microsoft AL formatter default so `Format Document` does not fight your code).
 
 ## Commonly used methods and patterns
 - Temporary tables for performance optimization
@@ -20,7 +20,7 @@ These rules ensure consistent code structure and organization across AL projects
 ## Rule 1: Consistent Indentation and Formatting
 
 ### Intent
-Maintain consistent code formatting to improve readability and enable better AI understanding of code structure. Use indentation with two spaces consistently throughout your project and maintain consistent formatting within functions and procedures.
+Maintain consistent code formatting to improve readability and enable better AI understanding of code structure. Use 4-space indentation consistently throughout your project — this matches the Microsoft AL Language extension formatter default, so a developer running `Format Document` will not reflow your code. Maintain consistent formatting within functions and procedures.
 
 ### Examples
 
@@ -28,10 +28,10 @@ Maintain consistent code formatting to improve readability and enable better AI 
 // Good example
 procedure CalculateDiscount(Amount: Decimal; DiscountPct: Decimal): Decimal
 begin
-  if DiscountPct > 0 then
-    exit(Amount * DiscountPct / 100);
+    if DiscountPct > 0 then
+        exit(Amount * DiscountPct / 100);
 
-  exit(0);
+    exit(0);
 end;
 ```
 
@@ -116,13 +116,13 @@ codeunit 50100 "Base64 Convert"
 // Bad example (avoid inline comments for obvious operations)
 procedure ValidateDiscountPercentage(DiscountPct: Decimal)
 begin
-  // Check if discount is greater than 50
-  if DiscountPct > 50 then
-    Error('Discount cannot exceed 50%');
+    // Check if discount is greater than 50
+    if DiscountPct > 50 then
+        Error('Discount cannot exceed 50%');
 
-  // Check if discount is less than 0
-  if DiscountPct < 0 then
-    Error('Discount percentage cannot be negative');
+    // Check if discount is less than 0
+    if DiscountPct < 0 then
+        Error('Discount percentage cannot be negative');
 end;
 ```
 
@@ -137,21 +137,21 @@ Keep code modular and reusable to enhance maintainability and reduce duplication
 // Good example - Modular approach
 procedure PostDocument(var DocumentHeader: Record "Sales Header")
 begin
-  ValidateDocument(DocumentHeader);
-  CalculateTotals(DocumentHeader);
-  CreateLedgerEntries(DocumentHeader);
-  UpdateStatus(DocumentHeader);
+    ValidateDocument(DocumentHeader);
+    CalculateTotals(DocumentHeader);
+    CreateLedgerEntries(DocumentHeader);
+    UpdateStatus(DocumentHeader);
 end;
 
 local procedure ValidateDocument(var DocumentHeader: Record "Sales Header")
 begin
-  if DocumentHeader."No." = '' then
-    Error('Document number cannot be empty');
+    if DocumentHeader."No." = '' then
+        Error('Document number cannot be empty');
 end;
 
 local procedure CalculateTotals(var DocumentHeader: Record "Sales Header")
 begin
-  DocumentHeader.CalcFields(Amount);
+    DocumentHeader.CalcFields(Amount);
 end;
 ```
 
@@ -159,7 +159,53 @@ end;
 // Bad example (avoid monolithic procedures)
 procedure PostDocument(var DocumentHeader: Record "Sales Header")
 begin
-  // All validation, calculation, and posting logic in one procedure
-  // ... 200+ lines of mixed concerns
+    // All validation, calculation, and posting logic in one procedure
+    // ... 200+ lines of mixed concerns
 end;
+```
+
+## Rule 5: Namespaces Mirror the Feature-Folder Structure
+
+### Intent
+From AL **runtime 13.0** (Business Central 2024 wave 1 / BC 24) onward, every AL object supports a `namespace` declaration. The namespace is the **code-level counterpart of the feature-folder organization in Rule 2**: it must mirror the folder path, and — like the folders — it names **features, never object types**. Declare a `namespace` in **every** AL file, and add every `using` directive needed to bring referenced symbols into scope.
+
+**Platform gate:** namespaces require runtime ≥ 13.0. On a project targeting an earlier runtime (check `app.json` → `runtime`), skip this rule — do **not** emit `namespace`/`using`.
+
+### Structure
+- **Root segment = the app name** (`app.json` → `name`, PascalCase, no spaces), then one segment per folder level, mirroring `src/Feature/SubFeature/`:
+  `namespace [AppName].[Feature].[SubFeature];`
+- The folder path and the namespace path are **speculative mirrors** of each other — a file in `src/Sales/Invoice/` declares `namespace [AppName].Sales.Invoice;`.
+- **No object-type segments** — never `.Tables`, `.Pages`, `.Codeunits`. Segments name features, exactly like the folders (Rule 2).
+- **`using` is mandatory** for every symbol referenced from outside the current namespace — base-app namespaces (e.g. `Microsoft.Sales.Document`, `System.Utilities`) and your own other feature namespaces. A missing `using` leaves the symbol out of scope and breaks the build.
+
+### Examples
+
+```al
+// Good example - File: src/Sales/Invoice/SalesInvoicePosting.Codeunit.al
+namespace Contoso.Sales.Invoice;
+
+using Microsoft.Sales.Document;
+using Microsoft.Foundation.NoSeries;
+using Contoso.Sales.Setup;
+
+codeunit 50100 "Sales Invoice Posting"
+{
+    procedure Post(var SalesHeader: Record "Sales Header")
+    begin
+        // ...
+    end;
+}
+```
+
+```al
+// Bad example - namespace mirrors the object type instead of the feature (avoid)
+namespace Contoso.Codeunits;          // object-type segment, not a feature
+
+// Bad example - missing using for a referenced base object (breaks symbol scope)
+namespace Contoso.Sales.Invoice;
+// (no `using Microsoft.Sales.Document;`) -> Record "Sales Header" cannot be resolved
+codeunit 50100 "Sales Invoice Posting"
+{
+    procedure Post(var SalesHeader: Record "Sales Header") begin end;
+}
 ```

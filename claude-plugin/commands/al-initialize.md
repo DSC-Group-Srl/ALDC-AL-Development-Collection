@@ -16,6 +16,8 @@ This workflow covers environment setup, AL workspace configuration, and **ALDC r
 
 When ALDC is installed as a Claude Code plugin, path-scoped rules must be copied to the project's `.claude/rules/` directory. This phase handles that automatically.
 
+> A `SessionStart` hook (`tools/rules/precondition_hook.sh`) checks for `.claude/rules/al-guidelines.md` on every session and nudges agents to offer this command when it's missing — so this phase isn't skipped on a fresh project. Running it again is safe (`cp` overwrites the same files).
+
 ### Rules Installation
 
 Copy the following rule templates from the plugin's `rules-templates/` directory to your project's `.claude/rules/`:
@@ -376,7 +378,7 @@ If authentication fails:
 
 If symbols are missing:
 1. Download symbols: VS Code `AL: Download Symbols` (or restore the symbol cache in CI — a human/pipeline step)
-2. If persistent, download source: VS Code `AL: Download Source` (a human step; to inspect base/app symbols use **al-symbols-mcp** `al_get_object_definition` / `al_search_objects`)
+2. If persistent, download source: VS Code `AL: Download Source` (a human step; to inspect base/app symbols use the AL LSP server (hover / go-to-definition) or al-mcp `al_symbolsearch`)
 3. Verify app.json dependencies match BC version
 
 ### AI Suggestions Not Appearing
