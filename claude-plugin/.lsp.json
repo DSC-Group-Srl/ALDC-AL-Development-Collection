@@ -1,0 +1,9 @@
+{
+  "al": {
+    "command": "bash",
+    "args": ["${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh", "launchlspserver"],
+    "extensionToLanguage": {
+      ".al": "al"
+    }
+  }
+}
