@@ -79,7 +79,10 @@ src/
 ## Rule 3: Code Documentation and Comments
 
 ### Intent
-Provide clear documentation for global functions using XML documentation comments. Code should be self-documenting through clear naming, but global functions in codeunits require proper documentation for API clarity.
+Provide clear documentation for procedures using XML documentation comments — global and local alike, including event publishers. Code should be self-documenting through clear naming, but every documented procedure still needs full, structured XML doc comments for API clarity. A doc comment must always include, alongside `<summary>`:
+- `<param name="...">` for **every** parameter (including `var` parameters and event parameters like `IsHandled`)
+- `<returns>` whenever the procedure has a return value
+- `<remarks>` for anything beyond the core summary — callers, edge cases, scope limitations, "not yet implemented" notes, etc. Keep this prose out of `<summary>` so the summary stays a one-line statement of what the procedure does.
 
 ### Examples
 
@@ -101,6 +104,7 @@ codeunit 50100 "Base64 Convert"
     /// Validates discount percentage against business rules.
     /// </summary>
     /// <param name="DiscountPct">The discount percentage to validate.</param>
+    /// <remarks>Called by PostDocument before any ledger entries are created; a failed validation stops posting entirely.</remarks>
     procedure ValidateDiscountPercentage(DiscountPct: Decimal)
     begin
         if DiscountPct > 50 then
@@ -110,6 +114,18 @@ codeunit 50100 "Base64 Convert"
             Error('Discount percentage cannot be negative');
     end;
 }
+```
+
+```al
+// Bad example (avoid summary-only prose that hides params/returns/callers instead of tagging them)
+/// <summary>
+/// Converts the value of the input string to its equivalent string representation that is encoded
+/// with base-64 digits. String is the string to convert. Returns the base-64 representation.
+/// </summary>
+procedure ToBase64(String: Text): Text
+begin
+    exit(Base64ConvertImpl.ToBase64(String));
+end;
 ```
 
 ```al
@@ -207,5 +223,126 @@ namespace Contoso.Sales.Invoice;
 codeunit 50100 "Sales Invoice Posting"
 {
     procedure Post(var SalesHeader: Record "Sales Header") begin end;
+}
+```
+
+## Rule 6: Enum-Linked Interfaces Replace Case-Statement Dispatch
+
+### Intent
+When a procedure branches on an enum value to decide which of several distinct behaviors to run (one branch per action/type/mode), do not write a `case` statement that inlines each behavior. Instead, declare an `interface` with one procedure (e.g. `Execute`), have the enum `implements` that interface, and bind each enum value to its own implementing codeunit via that value's `Implementation` property. Adding a new value is then adding a new codeunit and one `Implementation` line — never touching the dispatch site or any other value's code. This app already establishes the pattern for period calculation (`"DSC NOT Default Period"` enum + interface + one codeunit per period type in `Source/Period/`); reuse it for any new one-of-N dispatch rather than reinventing a `case` statement.
+
+Resolve the concrete implementation by assigning the enum value to an interface-typed variable (`IMyAction := MyEnumValue;`), then call its procedure — do not hand-roll a lookup.
+
+### Examples
+
+```al
+// Good example - enum-linked interface, one codeunit per action
+interface "Contoso Order Action"
+{
+    procedure Execute(var Order: Record "Sales Header")
+}
+
+enum 50100 "Contoso Order Action" implements "Contoso Order Action"
+{
+    Extensible = true;
+
+    value(0; Confirm)
+    {
+        Implementation = "Contoso Order Action" = "Contoso Order Action Confirm";
+    }
+    value(1; Cancel)
+    {
+        Implementation = "Contoso Order Action" = "Contoso Order Action Cancel";
+    }
+}
+
+codeunit 50101 "Contoso Order Action Confirm" implements "Contoso Order Action"
+{
+    procedure Execute(var Order: Record "Sales Header")
+    begin
+        // Confirm-specific logic only
+    end;
+}
+
+// Dispatch site never changes when a new action is added:
+procedure RunAction(var Order: Record "Sales Header"; Action: Enum "Contoso Order Action")
+var
+    OrderAction: Interface "Contoso Order Action";
+begin
+    OrderAction := Action;
+    OrderAction.Execute(Order);
+end;
+```
+
+```al
+// Bad example (avoid a case statement that inlines every action's logic)
+local procedure RunAction(var Order: Record "Sales Header"; Action: Enum "Contoso Order Action")
+begin
+    case Action of
+        Action::Confirm:
+            begin
+                // Confirm-specific logic inlined here
+            end;
+        Action::Cancel:
+            begin
+                // Cancel-specific logic inlined here
+            end;
+        // Every new action means a new branch here, growing one shared procedure forever.
+    end;
+end;
+```
+
+## Rule 7: Facades for Not-Yet-Built Features, Never "NotImplemented" Stubs
+
+### Intent
+When a feature (or one branch of a multi-action dispatch, see Rule 6) is not built yet, do not expose that fact in the public surface — no procedure named `RaiseXNotImplemented`, no caller-visible flag for "this one isn't real yet." Callers of a facade must see the exact same shape (procedure name, parameters, return value) whether the real feature exists or not, so that shipping the real implementation later never requires touching any caller. Build the facade with its final, permanent public signature, and have it delegate internally to a stub (an event with no subscriber yet, or a clear error) as an implementation detail. When the real feature ships, only the facade's body changes — swap the stub call for the real delegation — the signature and every call site stay untouched.
+
+This composes directly with Rule 6: in an enum-linked interface dispatch, the not-yet-built action's implementing codeunit *is* the facade — its `Execute` procedure has the same signature as every other action's, and only its body currently raises a "not implemented" error/event instead of doing the real work.
+
+### Examples
+
+```al
+// Good example - facade with a stable public surface, stub hidden inside
+codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
+{
+    // Same Execute signature every other action implements -- callers can't tell this one is a stub.
+    procedure Execute(var Order: Record "Sales Header")
+    begin
+        CreateDraft(Order);
+    end;
+
+    local procedure CreateDraft(var Order: Record "Sales Header")
+    var
+        IsHandled: Boolean;
+        NotAvailableErr: Label 'Draft creation is not available yet.';
+    begin
+        OnCreateDraft(Order, IsHandled);
+        if IsHandled then
+            exit;
+
+        Error(NotAvailableErr);
+    end;
+
+    [IntegrationEvent(false, false)]
+    procedure OnCreateDraft(var Order: Record "Sales Header"; var IsHandled: Boolean)
+    begin
+    end;
+}
+```
+
+```al
+// Bad example (avoid naming/branding the public surface around "not implemented")
+codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
+{
+    procedure Execute(var Order: Record "Sales Header")
+    begin
+        RaiseDraftNotImplemented(Order); // caller-visible name announces the gap instead of hiding it
+    end;
+
+    procedure RaiseDraftNotImplemented(var Order: Record "Sales Header")
+    begin
+        Error('Draft creation is not available yet.');
+    end;
+    // When the real feature ships, every caller of RaiseDraftNotImplemented must be found and changed.
 }
 ```
