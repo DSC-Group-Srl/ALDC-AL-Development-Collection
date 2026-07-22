@@ -115,8 +115,8 @@ Compare snapshots between success and failure cases:
 
 Read existing plans context first:
 ```
-.github/plans/memory.md              ← project state and recent decisions
-.github/plans/*-diagnosis.md         ← previous debug sessions (similar issues)
+CLAUDE.md                            ← project state and recent decisions
+requirements/**/*-diagnosis.md          ← previous debug sessions (similar issues)
 ```
 
 Gather issue information:
@@ -183,7 +183,7 @@ Common AL root causes by scenario:
 
 ### Step 4: Document Diagnosis (MANDATORY)
 
-Create `.github/plans/<issue-kebab-case>-diagnosis.md` before proposing any fix:
+Create `requirements/<issue-kebab-case>-diagnosis.md` before proposing any fix:
 
 ```markdown
 # Debug Session: <Issue Title>

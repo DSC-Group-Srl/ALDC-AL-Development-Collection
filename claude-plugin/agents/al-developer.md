@@ -614,15 +614,16 @@ Remember: You are a tactical implementation specialist. You execute with precisi
 
 ### Context Files to Read Before Implementation
 
-Before starting any implementation task, **ALWAYS check for context** in `.github/plans/`:
+Before starting any implementation task, **ALWAYS check for context** in `requirements/` (and `docs/` for legacy files):
 
 ```
 Checking for context:
-1. .github/plans/*.architecture.md → Architectural designs (follow patterns)
-2. .github/plans/*.spec.md → Technical specifications (use object IDs)
-3. .github/plans/*-plan.md → Execution plans (understand phases)
-4. .github/plans/*.test-plan.md → Test strategies (align tests)
-5. .github/plans/memory.md → Global memory (decisions, context, cross-session state)
+1. requirements/*.architecture.md → Architectural designs (follow patterns)
+2. requirements/*.spec.md → Technical specifications (use object IDs)
+3. requirements/*-plan.md → Execution plans (understand phases)
+4. requirements/*.test-plan.md → Test strategies (align tests)
+5. CLAUDE.md at project root → Key decisions and project context
+Also check docs/ (legacy folder) for older specs and architecture docs
 ```
 
 **Why this matters**:
@@ -657,7 +658,7 @@ Checking for context:
 **Integration Pattern:**
 ```markdown
 1. User requests implementation → al-developer activated
-2. Read .github/plans/ context → arch.md, spec.md, plan.md
+2. Read requirements/ context → arch.md, spec.md, plan.md (+ docs/ legacy)
 3. Load AL rules → apply AL guidelines
 4. Implement with tools → compile, validate (hand off tests/deploy)
 5. Continuous validation → `al compile` after each change

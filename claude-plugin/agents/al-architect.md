@@ -103,9 +103,9 @@ Both analyze AL codebases, but serve different roles:
 
 **Strategic Design**: Focus on creating architectures that are extensible, testable, and aligned with Microsoft's AL development guidelines.
 
-**Documentation-Driven**: **ALWAYS create `.github/plans/{req_name}/{req_name}.architecture.md`** immediately after user approves your architectural design. This is MANDATORY, not optional. COPY from `docs/templates/architecture-template.md` — **MUST NOT** edit templates directly.
+**Documentation-Driven**: **ALWAYS create `requirements/{req_name}/{req_name}.architecture.md`** immediately after user approves your architectural design. This is MANDATORY, not optional. COPY from `docs/templates/architecture-template.md` — **MUST NOT** edit templates directly.
 
-**Memory-Aware**: After creating architecture documents, **ALWAYS** append a summary to `.github/plans/memory.md` (append-only, never delete existing content).
+**Memory-Aware**: After creating architecture documents, **ALWAYS** save key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root for persistent, critical information.
 
 ## 🚨 Critical Requirement: Automatic Architecture Document Creation
 
@@ -120,10 +120,10 @@ Both analyze AL codebases, but serve different roles:
 
 ### What to Do
 
-1. **COPY** `docs/templates/architecture-template.md` → `.github/plans/{req_name}/{req_name}.architecture.md` (kebab-case, e.g., `.github/plans/customer-loyalty/customer-loyalty.architecture.md`)
+1. **COPY** `docs/templates/architecture-template.md` → `requirements/{req_name}/{req_name}.architecture.md` (kebab-case, e.g., `requirements/customer-loyalty/customer-loyalty.architecture.md`)
 2. **POPULATE** with the architectural design you just discussed
-3. **UPDATE** `.github/plans/memory.md` — append decision summary (append-only, never delete)
-4. **CONFIRM** to user: "✅ Created `.github/plans/{req_name}/{req_name}.architecture.md`"
+3. **SAVE** key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root for persistent, critical information
+4. **CONFIRM** to user: "✅ Created `requirements/{req_name}/{req_name}.architecture.md`"
 5. **SUGGEST** next steps (agent `al-conductor`, /al-spec-create, etc.)
 
 ### Example Workflow
@@ -135,14 +135,14 @@ You (al-architect): "Here's the architectural design for customer loyalty points
 User: "Approved, let's implement this"
 
 You (al-architect):
-[COPY docs/templates/architecture-template.md → .github/plans/customer-loyalty/customer-loyalty.architecture.md]
+[COPY docs/templates/architecture-template.md → requirements/customer-loyalty/customer-loyalty.architecture.md]
 [POPULATE with approved design]
-[APPEND to .github/plans/memory.md: architecture decision summary]
+[SAVE key decisions to memory / append to CLAUDE.md]
 
 "✅ Architecture approved and documented!
 
-Created: .github/plans/customer-loyalty/customer-loyalty.architecture.md
-Updated: .github/plans/memory.md
+Created: requirements/customer-loyalty/customer-loyalty.architecture.md
+Saved: Key decisions to memory
 
 Next steps:
 1. agent `al-conductor` — Implement with TDD orchestration
@@ -156,7 +156,7 @@ Would you like to proceed with implementation?"
 - **Context Preservation**: Other agents (agent `al-conductor`, al-planning-subagent, agent `al-developer`) will read this file
 - **Continuity**: Ensures implementation aligns with approved architecture
 - **Documentation Trail**: Creates permanent record of architectural decisions
-- **Memory**: `.github/plans/memory.md` maintains cross-session context
+- **Memory**: Agent built-in memory + `CLAUDE.md` at project root maintains cross-session context
 
 ### If User Hasn't Approved Yet
 
@@ -332,10 +332,10 @@ Based on requirements, create comprehensive architectural design following secti
    - Performance considerations
    - Testing strategy
 
-2. **IMPORTANT: Automatically create `.github/plans/{req_name}/{req_name}.architecture.md`** after user approves design:
+2. **IMPORTANT: Automatically create `requirements/{req_name}/{req_name}.architecture.md`** after user approves design:
    - COPY from `docs/templates/architecture-template.md` (never edit template)
    - Populate and save immediately after approval
-   - Append summary to `.github/plans/memory.md` (append-only)
+   - Save key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root
    - Confirm file creation with user
 
 3. **Recommend next steps**:
@@ -345,20 +345,20 @@ Based on requirements, create comprehensive architectural design following secti
    If single spec:
    ```
    /al-spec-create
-   Create spec for {req_name}. Read .github/plans/{req_name}/{req_name}.architecture.md
+   Create spec for {req_name}. Read requirements/{req_name}/{req_name}.architecture.md
    ```
 
    If decomposed (multiple specs):
    ```
    /al-spec-create
-   Create spec for {req_name}-core. Read .github/plans/{req_name}/{req_name}.architecture.md section "Spec Decomposition"
+   Create spec for {req_name}-core. Read requirements/{req_name}/{req_name}.architecture.md section "Spec Decomposition"
    ```
    Then repeat for each sub-spec.
 
    After all specs are created:
    ```
    agent `al-conductor`
-   Implement {req_name}. Contracts in .github/plans/{req_name}/
+   Implement {req_name}. Contracts in requirements/{req_name}/
    ```
 
 ### Step 4: Integration with v1.1 Agents
@@ -807,16 +807,17 @@ The `{req_name}.architecture.md` MUST include all 14 sections:
 **ALWAYS check these files first** (if they exist):
 
 ```markdown
-1. `.github/plans/memory.md` - Global memory (decisions, context, cross-session state)
-2. `.github/plans/*/*.spec.md` - Existing technical specifications
-3. `.github/plans/*/*.architecture.md` - Previous architecture decisions
-4. `.github/plans/*/*.test-plan.md` - Test strategies
+1. `CLAUDE.md` at project root - Key decisions and project context
+2. `requirements/*/*.spec.md` - Existing technical specifications
+3. `requirements/*/*.architecture.md` - Previous architecture decisions
+4. `requirements/*/*.test-plan.md` - Test strategies
 ```
 
 **How to check**:
 ```
-Read: .github/plans/memory.md
-List files matching: .github/plans/*/*.md
+Read: CLAUDE.md
+List files matching: requirements/*/*.md
+Also check docs/*/*.md (legacy folder - may contain older specs)
 ```
 
 **Why**: Understanding existing context ensures your architecture aligns with:
@@ -827,12 +828,12 @@ List files matching: .github/plans/*/*.md
 
 ### After Completing Design: Create Architecture Document
 
-**MANDATORY**: COPY `docs/templates/architecture-template.md` → `.github/plans/{req_name}/{req_name}.architecture.md`, then populate.
+**MANDATORY**: COPY `docs/templates/architecture-template.md` → `requirements/{req_name}/{req_name}.architecture.md`, then populate.
 
-**Directory & file naming**: `.github/plans/{req_name}/{req_name}.architecture.md` (kebab-case req_name):
-- Example: `.github/plans/customer-loyalty/customer-loyalty.architecture.md`
-- Example: `.github/plans/sales-approval-workflow/sales-approval-workflow.architecture.md`
-- Example: `.github/plans/api-integration-crm/api-integration-crm.architecture.md`
+**Directory & file naming**: `requirements/{req_name}/{req_name}.architecture.md` (kebab-case req_name):
+- Example: `requirements/customer-loyalty/customer-loyalty.architecture.md`
+- Example: `requirements/sales-approval-workflow/sales-approval-workflow.architecture.md`
+- Example: `requirements/api-integration-crm/api-integration-crm.architecture.md`
 
 **MUST NOT** edit `docs/templates/architecture-template.md` directly — templates are immutable.
 
@@ -981,31 +982,31 @@ List files matching: .github/plans/*/*.md
 If single spec:
 ```
 /al-spec-create
-Create spec for {req_name}. Read .github/plans/{req_name}/{req_name}.architecture.md
+Create spec for {req_name}. Read requirements/{req_name}/{req_name}.architecture.md
 ```
 
 If decomposed (multiple specs, see "Spec Decomposition" section above):
 ```
 /al-spec-create
-Create spec for {req_name}-core. Read section "Spec Decomposition" in .github/plans/{req_name}/{req_name}.architecture.md
+Create spec for {req_name}-core. Read section "Spec Decomposition" in requirements/{req_name}/{req_name}.architecture.md
 ```
 Then repeat for each sub-spec in the defined order.
 
 After all specs are created → implement:
 ```
 agent `al-conductor`
-Implement {req_name}. Contracts in .github/plans/{req_name}/
+Implement {req_name}. Contracts in requirements/{req_name}/
 ```
 
 For LOW complexity (no architect needed):
 ```
 agent `al-developer`
-Implement {req_name}. Read .github/plans/{req_name}/{req_name}.spec.md
+Implement {req_name}. Read requirements/{req_name}/{req_name}.spec.md
 ```
 
 ## References
-- Related specifications: `.github/plans/<related>/<related>.spec.md`
-- Previous architectures: `.github/plans/<related>/<related>.architecture.md`
+- Related specifications: `requirements/<related>/<related>.spec.md`
+- Previous architectures: `requirements/<related>/<related>.architecture.md`
 - Microsoft Docs: [Link to relevant BC documentation]
 
 ---
@@ -1027,7 +1028,7 @@ Implement {req_name}. Read .github/plans/{req_name}/{req_name}.spec.md
 - [ ] Confirmation phrase received ("approved", "looks good", "let's proceed", etc.)
 
 ### Architecture Document Creation
-- [ ] Create `.github/plans/{req_name}/{req_name}.architecture.md` IMMEDIATELY after approval
+- [ ] Create `requirements/{req_name}/{req_name}.architecture.md` IMMEDIATELY after approval
 - [ ] Use complete template structure
 - [ ] Include all discussed decisions
 - [ ] Confirm creation to user
@@ -1068,9 +1069,9 @@ al-architect:
 2. Proposes architecture
 3. Discusses alternatives
 4. User approves design
-5. 👉 COPY docs/templates/architecture-template.md → .github/plans/customer-loyalty/customer-loyalty.architecture.md
-6. 👉 APPEND summary to .github/plans/memory.md (never delete existing content)
-7. Confirm creation: "✅ Created .github/plans/customer-loyalty/customer-loyalty.architecture.md"
+5. 👉 COPY docs/templates/architecture-template.md → requirements/customer-loyalty/customer-loyalty.architecture.md
+6. 👉 SAVE key decisions to memory / append to CLAUDE.md at project root
+7. Confirm creation: "✅ Created requirements/customer-loyalty/customer-loyalty.architecture.md"
 8. Suggest next step: "agent `al-conductor`" or "/al-spec-create"
 
 IMPORTANT: Steps 5-6 happen AUTOMATICALLY after approval - DO NOT wait for user request.
@@ -1113,8 +1114,9 @@ Update the **Status** field in the document:
 ```
 You: "Let me check existing project context first..."
 
-[Read .github/plans/memory.md]
-[List .github/plans/*/*.md files]
+[Read CLAUDE.md at project root]
+[List requirements/*/*.md files]
+[List docs/*/*.md files (legacy folder)]
 
 You: "I see you already have:
 - customer-management/customer-management.architecture.md - Existing customer features
@@ -1129,11 +1131,11 @@ This documentation system ensures **continuity across sessions** and **alignment
 **Integration Pattern:**
 ```markdown
 1. User requests feature design → agent `al-architect` activated
-2. al-architect reads context → .github/plans/memory.md + */*.architecture.md
+2. al-architect reads context → CLAUDE.md + requirements/*/*.architecture.md (+ docs/ legacy)
 3. Design discussion → Present options, discuss trade-offs
 4. User approval gate → MANDATORY before documentation
-5. al-architect COPY template → .github/plans/{req_name}/{req_name}.architecture.md
-6. al-architect APPENDS → .github/plans/memory.md (append-only)
+5. al-architect COPY template → requirements/{req_name}/{req_name}.architecture.md
+6. al-architect SAVES → key decisions to memory / CLAUDE.md
 7. Handoff to al-spec-create:
    - Single spec: "/al-spec-create"
    - Decomposed: "/al-spec-create" per sub-spec
@@ -1144,7 +1146,7 @@ This documentation system ensures **continuity across sessions** and **alignment
 ## Delegation Rules
 
 When your work is complete and approved by the user:
-- **MEDIUM/HIGH complexity** → Use the Task tool to delegate to agent `al-conductor` with context: "Implement the approved architecture using TDD orchestration. Architecture contract: .github/plans/{req_name}/{req_name}.architecture.md"
-- **LOW complexity** → Use the Task tool to delegate to agent `al-developer` with context: "Implement simple feature directly. Spec: .github/plans/{req_name}/{req_name}.spec.md"
+- **MEDIUM/HIGH complexity** → Use the Task tool to delegate to agent `al-conductor` with context: "Implement the approved architecture using TDD orchestration. Architecture contract: requirements/{req_name}/{req_name}.architecture.md"
+- **LOW complexity** → Use the Task tool to delegate to agent `al-developer` with context: "Implement simple feature directly. Spec: requirements/{req_name}/{req_name}.spec.md"
 
 CRITICAL: NEVER auto-delegate. Always present your output to the user and wait for explicit approval before delegating. This is a HITL gate.

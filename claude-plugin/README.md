@@ -30,7 +30,7 @@ Verify registration:
 /
 ```
 
-You should see 5 user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`) and 10 slash commands prefixed with `/aldc:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 10 slash commands prefixed with `/aldc:`.
 
 ## First-Time Setup
 
@@ -55,6 +55,7 @@ This will:
 | AL Developer | `agent "aldc:al-developer"` | Tactical implementation, debugging, code generation |
 | AL Pre-Sales | `agent "aldc:al-presales"` | PERT estimation, SWOT analysis, cost breakdown |
 | Agent Builder | `agent "aldc:al-agent-builder"` | Create custom agents for BC AI Development Toolkit |
+| AL Documentation Conductor | `agent "aldc:al-documentation-conductor"` | Full app documentation on demand: functional + developer sites, optional client DAF/MAN docx |
 
 ### Agent Routing
 
@@ -123,7 +124,8 @@ claude-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (name, version, MCP servers, hooks ref)
 │   └── marketplace.json   # Marketplace entry (for local / remote distribution)
-├── agents/                # 5 user-facing agents + 3 internal subagents (TDD)
+├── agents/                # user-facing agents (design, TDD conductor, dev, presales, agent builder,
+│                          #   docs conductor, triage, dredd) + internal subagents (TDD + docs)
 ├── commands/              # 10 slash commands (/aldc:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /aldc:al-initialize

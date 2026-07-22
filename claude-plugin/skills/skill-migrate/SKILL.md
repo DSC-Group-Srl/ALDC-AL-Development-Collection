@@ -258,7 +258,7 @@ Document and prepare rollback before executing migration:
 2. **Download current symbols**: VS Code `AL: Download Symbols` (or `AL: Download Source` for full base/app source) — a human step
 3. **Document dependencies**: read `app.json` `dependencies` plus **al-mcp** `al_getpackagedependencies` — list all with current versions
 4. **Review release notes**: Check BC target version breaking changes
-5. **Create migration plan** in `.github/plans/{project}-migration.md`
+5. **Create migration plan** in `requirements/{project}-migration.md`
 
 **PAUSE — wait for user approval before modifying files.**
 

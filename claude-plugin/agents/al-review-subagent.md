@@ -50,7 +50,7 @@ Review the AL code changes using available tools:
 
 > **Consume the event-subscriber list — don't re-discover events.** The Conductor passes the implement-subagent's list of subscribers (each with its **exact base object + event name + signature**). **Validate against that list.** Use **al-mcp** **only** to spot-confirm a single signature you genuinely cannot resolve from the list — **not** to enumerate or guess base events. (Measured: blind trial-and-error symbol searches, with name-variant duplicates, were a top token sink in review.)
 
-> **Don't re-read a file already in context.** If you read a source `.al`, an excerpt, the BCQuality skill, or `memory.md` earlier in this invocation, reuse it — never `Read` the same path twice.
+> **Don't re-read a file already in context.** If you read a source `.al`, an excerpt, the BCQuality skill, or `CLAUDE.md` earlier in this invocation, reuse it — never `Read` the same path twice.
 
 **Focus on:**
 - AL object types created (Table, TableExtension, Codeunit, Page, etc.)
@@ -619,15 +619,15 @@ Include performance findings in review:
 
 ### Context Files to Read Before Review
 
-Before reviewing implementation, **ALWAYS check for context** in `.github/plans/`:
+Before reviewing implementation, **ALWAYS check for context** in `requirements/`:
 
 ```
 Checking for context:
-1. .github/plans/*.architecture.md → Architectural design (validate compliance)
-2. .github/plans/*.spec.md → Technical specifications (validate structure)
-3. .github/plans/*-plan.md → Execution plan (validate phase objectives)
-4. .github/plans/*.test-plan.md → Test strategy (validate test coverage)
-5. .github/plans/memory.md → Global memory (decisions, context, cross-session state)
+1. requirements/*.architecture.md → Architectural design (validate compliance)
+2. requirements/*.spec.md → Technical specifications (validate structure)
+3. requirements/*-plan.md → Execution plan (validate phase objectives)
+4. requirements/*.test-plan.md → Test strategy (validate test coverage)
+5. CLAUDE.md → Project conventions and configuration (project root)
 ```
 
 **Why this matters**:
@@ -663,7 +663,7 @@ Checking for context:
 **Integration Pattern:**
 ```markdown
 1. agent `al-conductor` delegates review → You receive phase context + criteria
-2. Read .github/plans/ context → *.architecture.md, *.spec.md, *.test-plan.md, memory.md
+2. Read requirements/ context → *.architecture.md, *.spec.md, *.test-plan.md
 3. Analyze changes → `git diff`, `al compile` output, the passed test results
 4. Verify AL criteria → Event-driven, naming, structure, performance
 5. Classify issues → CRITICAL/MAJOR/MINOR severity

@@ -701,12 +701,12 @@ create an architectural design considering:
 - Integration points: [identified]
 - Risk factors: [from 03-swot-analysis.md]
 
-Create .github/plans/{req_name}.architecture.md"
+Create requirements/{req_name}/{req_name}.architecture.md"
 ```
 
-### Update Global Memory
+### Update Project Memory
 
-After completing the presales analysis, **ALWAYS** append a summary to `.github/plans/memory.md` (append-only, never delete existing content):
+After completing the presales analysis, **ALWAYS** append a summary to `CLAUDE.md` (append-only, never delete existing content):
 - Project name and feasibility recommendation (GO/CAUTION/NO-GO)
 - Key risks identified
 - Estimated effort and cost range
@@ -723,12 +723,12 @@ Parameters:
 - FeatureName: [project-name from intake]
 - Scope: [defined scope from Phase 1]
 
-Output: .github/plans/{req_name}.spec.md
+Output: requirements/{req_name}/{req_name}.spec.md
 ```
 
 ### Handoff Contracts
 
-When handing off to other agents, ensure requirement contracts exist in `.github/plans/`:
+When handing off to other agents, ensure requirement contracts exist in `requirements/`:
 - `{req_name}.architecture.md` → Created by agent `al-architect` (COPY from `docs/templates/architecture-template.md`)
 - `{req_name}.spec.md` → Created by al-spec-create (COPY from `docs/templates/spec-template.md`)
 - `{req_name}.test-plan.md` → Created during implementation planning

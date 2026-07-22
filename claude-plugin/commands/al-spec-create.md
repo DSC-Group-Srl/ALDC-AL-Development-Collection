@@ -3,7 +3,7 @@ description: >
   Create a detailed technical specification (.spec.md) that serves as an implementable
   blueprint for Business Central features. Use when you need to create a spec, write
   a specification, or detail a requirement. Reads architecture.md if exists.
-  Outputs to .github/plans/{req_name}/.
+  Outputs to requirements/{req_name}/.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch
 ---
 
@@ -16,7 +16,7 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 ## Guardrails
 
 - **Never** create or modify real AL objects during this phase
-- **Never** output to `/specs/` — always output to `.github/plans/{req_name}/`
+- **Never** output to `/specs/` — always output to `requirements/{req_name}/`
 - If `{req_name}.architecture.md` exists, read it first — the spec must implement what the architect designed
 - If spec already exists, confirm with user before overwriting
 - Complexity drives depth: LOW = lighter spec, MEDIUM/HIGH = full spec with all sections
@@ -26,7 +26,7 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 ### 1.1 Read global memory
 
 ```
-Read .github/plans/memory.md
+Read CLAUDE.md
 ```
 
 Extract: project app ID range, naming conventions (prefix), existing table IDs in use, current extension patterns.
@@ -34,7 +34,7 @@ Extract: project app ID range, naming conventions (prefix), existing table IDs i
 ### 1.2 Read architecture document (if exists)
 
 ```
-Read .github/plans/${input:req_name}/${input:req_name}.architecture.md
+Read requirements/${input:req_name}/${input:req_name}.architecture.md
 ```
 
 If it exists: the spec MUST align with the architectural decisions (data flows, chosen patterns, integration points).
@@ -65,7 +65,7 @@ This keeps the median cost low (most specs touch 1–2 domains) while making the
 
 ## Step 2 — Generate Specification
 
-Create `.github/plans/${input:req_name}/${input:req_name}.spec.md` with the following structure:
+Create `requirements/${input:req_name}/${input:req_name}.spec.md` with the following structure:
 
 ---
 ---
@@ -400,7 +400,7 @@ page {ID} "{Prefix} {Entity} API"
 
 ## Success Criteria
 
-- ✅ Spec file created at `.github/plans/${input:req_name}/${input:req_name}.spec.md`
+- ✅ Spec file created at `requirements/${input:req_name}/${input:req_name}.spec.md`
 - ✅ Object IDs verified against `app.json` idRanges
 - ✅ Architecture document consulted (if exists)
 - ✅ The feature's **own** procedure signatures are complete (no "TBD"); base-app event targets recorded as **verified publisher + event name + consumed fields** (exact param list resolved from symbols at code time, not transcribed)
