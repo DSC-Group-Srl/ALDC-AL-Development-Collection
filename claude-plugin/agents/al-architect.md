@@ -6,7 +6,7 @@ description: >
   decisions for AL development. Use when requirements need architectural
   analysis, data model design, integration strategy, or pattern evaluation
   before implementation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
 model: opus
 color: blue
 maxTurns: 50

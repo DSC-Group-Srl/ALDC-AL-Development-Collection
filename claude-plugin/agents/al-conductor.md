@@ -4,7 +4,7 @@ description: >
   Orchestrates Planning, Implementation, Review, and Commit cycle for AL Development.
   Enforces TDD and quality gates for Business Central extensions. Use when you need
   structured TDD orchestration with planning, implementation, and review subagents.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
 model: opus
 color: purple
 maxTurns: 50

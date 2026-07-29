@@ -6,7 +6,7 @@ description: >
   against the compiler; hands publish/test/debug runtime steps to a human or CI.
   Implements features following specifications without architectural decisions.
   Use when you need to implement, code, debug, or fix AL code directly.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
 model: sonnet
 color: green
 maxTurns: 50

@@ -5,7 +5,7 @@ description: >
   project planning, cost estimation (time and budget), feasibility analysis,
   SWOT/risk assessment, and technical documentation. Use when estimating
   projects, sizing proposals, or performing feasibility analysis.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
 model: sonnet
 color: red
 maxTurns: 50

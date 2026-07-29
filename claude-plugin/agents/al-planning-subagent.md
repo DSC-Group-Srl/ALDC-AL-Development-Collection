@@ -4,7 +4,7 @@ description: >
   Internal AL-aware research and context gathering subagent for Business Central
   development. Only invoked by al-conductor via Task tool. Returns structured
   findings to Conductor for plan creation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__al-mcp
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
 model: sonnet
 color: yellow
 maxTurns: 30
