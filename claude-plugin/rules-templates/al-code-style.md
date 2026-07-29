@@ -12,6 +12,7 @@ These rules ensure consistent code structure and organization across AL projects
 - Always use PascalCase for variable and function names.
 - Use PascalCase for object names (e.g., tables, pages, reports).
 - Maintain a consistent indentation style (4 spaces, matching the official Microsoft AL formatter default so `Format Document` does not fight your code).
+- Always call parameterless methods with `()`, e.g. `MyDictionary.Count()`, `MyList.Keys()` — never bare `MyDictionary.Count`. See Rule 8.
 
 ## Commonly used methods and patterns
 - Temporary tables for performance optimization
@@ -345,4 +346,33 @@ codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
     end;
     // When the real feature ships, every caller of RaiseDraftNotImplemented must be found and changed.
 }
+```
+
+## Rule 8: Always Parenthesize Method Calls, Even Parameterless Ones
+
+### Intent
+AL allows calling a parameterless method without `()` (e.g. `MyDictionary.Count`), but the compiler flags this with an info diagnostic ("You must specify open and close parenthesis after 'X'"). Always write the parentheses explicitly — for built-in collection members (`Count()`, `Keys()`, `Values()`, `Get()`, `ContainsKey()`, ...) and for your own procedures alike, whether or not they take parameters. This keeps method calls visually distinct from field/property access and avoids the compiler info noise entirely.
+
+### Examples
+
+```al
+// Good example - explicit parentheses on every call
+if Dict1.Count() <> Dict2.Count() then
+    exit(false);
+
+foreach K in Dict1.Keys() do begin
+    if not Dict2.ContainsKey(K) then
+        exit(false);
+end;
+```
+
+```al
+// Bad example (avoid bare parameterless calls -- triggers an info diagnostic)
+if Dict1.Count <> Dict2.Count then
+    exit(false);
+
+foreach K in Dict1.Keys do begin
+    if not Dict2.ContainsKey(K) then
+        exit(false);
+end;
 ```
