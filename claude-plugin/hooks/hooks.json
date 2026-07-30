@@ -5,18 +5,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh SessionStart",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh", "SessionStart"],
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh SessionStart",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh", "SessionStart"],
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh SessionStart",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh", "SessionStart"],
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "& \"${CLAUDE_PLUGIN_ROOT}/tools/environment/git-bash-check.ps1\" SessionStart",
+            "shell": "powershell",
+            "timeout": 10
           }
         ]
       }
