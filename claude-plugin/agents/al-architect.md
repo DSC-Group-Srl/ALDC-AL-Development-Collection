@@ -194,6 +194,7 @@ Would you like to proceed with implementation?"
 - **Dependency Analysis**: read `app.json` `dependencies` and use **al-mcp** `al_getpackagedependencies` to understand extension dependencies and platform requirements
 - **Source Exploration**: use the AL LSP server (hover / go-to-definition) and **al-mcp** `al_symbolsearch` to examine existing AL implementations and patterns; for full base source, VS Code `AL: Download Source` (human step)
 - **Codebase Understanding**: use `Grep`/`Glob`, **al-mcp** `al_symbolsearch`, and the AL LSP server (find-references) to analyze AL object relationships and patterns
+- **Cross-app integration design**: when designing across sibling projects (app + test app, or multiple related extensions), register each with **al-mcp** `al_addproject` and query with `filters.scope='all'` for a live, source-level view across all of them — Load `skill-al-mcp-workspace` for path/staleness gotchas and the verified multi-project build approach before recommending a build-order or dependency structure
 - **Problem Detection**: compile with `Bash: al compile` and read the output to identify architectural issues and anti-patterns
 - **Repository Context**: use `Bash: git log` / `git diff` (and `WebFetch` for public repos) to understand development history and team patterns
 

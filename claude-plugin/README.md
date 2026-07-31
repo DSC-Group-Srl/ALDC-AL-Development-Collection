@@ -113,7 +113,7 @@ Loaded automatically by agents when needed:
 
 ## MCP Servers Included
 
-- **al-symbols-mcp** — AL symbol resolution and navigation
+- **al-mcp** — the official AL CLI's MCP server (`al launchmcpserver`): compile, build, download symbols, publish, run tests, and symbol/dependency queries
 - **context7** — Library documentation lookup
 - **microsoft-docs** — Microsoft Learn documentation search
 

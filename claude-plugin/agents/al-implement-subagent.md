@@ -67,6 +67,7 @@ Before writing any test code:
 ### Step 5: Verify Build Compiles
 - Check for 0 compilation errors
 - Review warnings and address critical ones
+- If a build fails with no clear cause, the project depends on a sibling project (test app on base app), or a symbol refresh doesn't seem to register — Load `skill-al-mcp-workspace` before spending more turns on it
 
 ### Step 6: Refactor If Needed (REFACTOR State)
 - Improve code quality without changing behavior
@@ -310,7 +311,7 @@ Before creating ANY test file, you MUST:
 }
 ```
 
-4. After adding dependencies, refresh symbols (VS Code `AL: Download Symbols` or a CI symbol-cache restore — a human/pipeline step), then recompile
+4. After adding dependencies, refresh symbols directly via **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth), then recompile. If this is a test app depending on the base app in the same workspace, or the refresh doesn't seem to register, Load `skill-al-mcp-workspace` before burning more turns on it.
 
 ### Correct Test Library References
 
@@ -421,13 +422,13 @@ search. Omit the section if no subscribers were added this phase.)*
 - Create AL files (production and test)
 - Edit existing AL files
 - Create directories for AL-Go structure
-- Compile/package with `Bash: al compile` and read the output
+- Compile/package with **al-mcp** `al_build`/`al_compile` (or `Bash: al compile`) and read the diagnostics
+- Download symbols directly via **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth)
 - Run `Bash` (git and other shell commands)
 - Load domain skills for specialized patterns
 
-**CANNOT (no tool here — hand the runtime step to a human / VS Code / CI):**
+**HITL-GATED (the tool exists — hand the runtime step to a human / VS Code / CI by default, since it mutates a live environment):**
 - Run tests → VS Code `AL: Run Tests` or the CI test runner; you read the results
-- Download symbols → VS Code `AL: Download Symbols` or a CI symbol-cache restore
 - Publish/deploy or debug → VS Code / CI
 
 **CANNOT (out of role):**
