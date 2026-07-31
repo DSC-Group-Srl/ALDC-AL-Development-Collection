@@ -18,6 +18,12 @@
           {
             "type": "command",
             "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/tools/nodejs/ensure-npx.sh", "SessionStart"],
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash",
             "args": ["${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh", "SessionStart"],
             "timeout": 15
           },
