@@ -15,18 +15,32 @@
     This hook is deliberately PowerShell-only and never calls "bash" itself,
     so it is immune to the exact bug it's diagnosing. It locates a real Git
     Bash on this machine and, if bash currently resolves to the WSL stub (or
-    to nothing), tries to RECTIFY it automatically by writing
-    env.CLAUDE_CODE_GIT_BASH_PATH into the user's global ~/.claude/settings.json
-    - the officially supported override Claude Code reads to pick the right
-    bash for hooks, MCP, and LSP command execution. Only if that write fails
-    (permissions, unparsable existing file, etc.) does it fall back to
-    injecting a directive so the agent can warn the user and offer the fix
-    manually - same Layer-2 precondition-hook pattern as
-    tools/bcquality/precondition_hook.ps1 and tools/rules/precondition_hook.ps1.
+    to nothing), tries to RECTIFY it two ways:
+      1. Writing env.CLAUDE_CODE_GIT_BASH_PATH into the user's global
+         ~/.claude/settings.json - the officially supported override Claude
+         Code reads to pick the right bash for hooks, MCP, and LSP command
+         execution.
+      2. PREPENDING Git Bash's own bin folder to the FRONT of the user's
+         persistent PATH (the User-scope environment variable, via
+         [Environment]::SetEnvironmentVariable), so other tooling that
+         shells out to a bare "bash" also finds the real one instead of the
+         WSL stub - this is done regardless of whether fix #1 succeeded. It
+         must be prepended, not appended: the WSL stub is typically earlier
+         on PATH (e.g. System32), so appending would leave it winning the
+         lookup.
+    Either fix failing independently (permissions, unparsable existing
+    settings.json, etc.) falls back to injecting a directive so the agent
+    can warn the user and offer that specific fix manually - same Layer-2
+    precondition-hook pattern as tools/bcquality/precondition_hook.ps1 and
+    tools/rules/precondition_hook.ps1. Both fixes require a full Claude Code
+    restart (not just a new session) to take effect, since PATH and
+    settings.json env are both read at process startup.
 
-    Idempotent: once ~/.claude/settings.json has a working path recorded, or
-    "bash" already resolves correctly on PATH, this exits silently and does
-    not touch the file again. No-ops silently on non-Windows.
+    Idempotent: once ~/.claude/settings.json has a working path recorded and
+    Git Bash's bin folder is already first on PATH, or "bash" already
+    resolves correctly on PATH, this exits silently and does not touch
+    anything again. No-ops silently
+    on non-Windows.
 #>
 param([string]$Event = 'SessionStart')
 
@@ -135,10 +149,49 @@ if (-not $settingsParsed) {
     }
 }
 
-$escapedFound = Escape $found
-
-if ($fixed) {
-    Emit "bash was resolving to $seenText (the WSL stub, not Git Bash), which breaks this plugin's SessionStart hooks, the al-mcp MCP server, and the AL LSP server. This has been auto-fixed: env.CLAUDE_CODE_GIT_BASH_PATH was set to $escapedFound in the user's global ~/.claude/settings.json. Tell the user this was corrected automatically and that a new Claude Code session is needed for it to take effect. NEVER block or fail the task for this - it is a human-in-the-loop nudge, not a hard gate."
-} else {
-    Emit "bash currently resolves to $seenText (the WSL stub, not Git Bash), which breaks this plugin's SessionStart hooks, the al-mcp MCP server, and the AL LSP server. Found a working Git Bash at $escapedFound but could not automatically update ~/.claude/settings.json ($fixError). Tell the user and offer to set env.CLAUDE_CODE_GIT_BASH_PATH to $escapedFound there themselves. NEVER block or fail the task for this - it is a human-in-the-loop nudge, not a hard gate."
+# 5. Also PREPEND Git Bash's own bin folder to the user's persistent PATH, regardless
+#    of whether the settings.json env-var fix above succeeded. CLAUDE_CODE_GIT_BASH_PATH
+#    only fixes Claude Code's own bash resolution; other tooling that shells out to a
+#    bare "bash" still needs a correct PATH - and it must come FIRST, otherwise the
+#    WSL stub (typically earlier on PATH, e.g. System32) keeps winning the lookup.
+$gitBashBinDir = Split-Path $found -Parent
+$pathFixed = $false
+$pathAlreadyPresent = $false
+$pathFixError = $null
+try {
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $existingEntries = @()
+    if ($userPath) { $existingEntries = $userPath.Split(';') | Where-Object { $_ -and $_.Trim() } }
+    $normalizedDir = $gitBashBinDir.TrimEnd($backslash)
+    $otherEntries = $existingEntries | Where-Object { $_.TrimEnd($backslash) -ine $normalizedDir }
+    $alreadyFirst = $existingEntries.Count -gt 0 -and ($existingEntries[0].TrimEnd($backslash) -ieq $normalizedDir)
+    if ($alreadyFirst) {
+        $pathAlreadyPresent = $true
+    } else {
+        $newEntries = @($gitBashBinDir) + @($otherEntries)
+        $newPath = [string]::Join(';', $newEntries)
+        [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+        $pathFixed = $true
+    }
+} catch {
+    $pathFixError = $_.Exception.Message
 }
+
+$escapedFound = Escape $found
+$escapedBinDir = Escape $gitBashBinDir
+
+$settingsMsg = if ($fixed) {
+    "env.CLAUDE_CODE_GIT_BASH_PATH was set to $escapedFound in the user's global ~/.claude/settings.json"
+} else {
+    "could NOT automatically update ~/.claude/settings.json ($fixError) - offer to set env.CLAUDE_CODE_GIT_BASH_PATH to $escapedFound there yourself"
+}
+
+$pathMsg = if ($pathAlreadyPresent) {
+    "$escapedBinDir was already first on the user's PATH"
+} elseif ($pathFixed) {
+    "$escapedBinDir was also moved to the FRONT of the user's persistent PATH (User environment variable) so it takes precedence over the WSL stub and other tools that shell out to a bare `"bash`" find the real one too"
+} else {
+    "could NOT automatically prepend $escapedBinDir to the user's persistent PATH ($pathFixError) - offer to add it yourself as the FIRST entry (System Properties > Environment Variables > User PATH, or [Environment]::SetEnvironmentVariable('Path', `"$escapedBinDir;`$env:Path`", 'User'))"
+}
+
+Emit "bash was resolving to $seenText (the WSL stub, not Git Bash, or nothing), which breaks this plugin's SessionStart hooks, the al-mcp MCP server, and the AL LSP server. $settingsMsg. $pathMsg. Tell the user about both changes and that they must fully restart Claude Code (quit and reopen, not just start a new session) for either change to take effect. NEVER block or fail the task for this - it is a human-in-the-loop nudge, not a hard gate."
