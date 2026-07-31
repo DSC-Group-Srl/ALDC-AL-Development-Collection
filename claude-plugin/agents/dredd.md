@@ -6,7 +6,7 @@ description: >
   not reach, and returns an advisory verdict. Read-only on code. Default scope:
   objects changed vs main; full codebase on request. The static counterpart to
   al-triage (dynamic diagnosis). Use for an on-demand, independent quality audit.
-tools: Read, Glob, Grep, Bash, Write, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
+tools: Read, Glob, Grep, Bash, Write, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: pink
 maxTurns: 50

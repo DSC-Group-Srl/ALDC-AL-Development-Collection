@@ -6,7 +6,7 @@ description: >
   decisions for AL development. Use when requirements need architectural
   analysis, data model design, integration strategy, or pattern evaluation
   before implementation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: opus
 color: blue
 maxTurns: 50
@@ -267,6 +267,7 @@ This agent draws on these skills from `.github/skills/`. They are **not** auto-l
 - **skill-performance** — When designing for performance, keys, caching, batch processing
 - **skill-copilot** — When designing Copilot/AI feature architecture
 - **skill-pages** — When designing page layouts, UX patterns, navigation
+- **skill-translate** — When designing multi-language/localization strategy (target locales, terminology consistency via the **nab-al-tools** MCP server)
 
 **Load = read the `SKILL.md`.** Naming a skill without reading it is not loading it.
 

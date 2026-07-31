@@ -123,6 +123,7 @@ Loaded automatically by agents when needed:
 ## MCP Servers Included
 
 - **al-mcp** — the official AL CLI's MCP server (`al launchmcpserver`): compile, build, download symbols, publish, run tests, and symbol/dependency queries
+- **nab-al-tools** — [NAB AL Tools MCP server](https://github.com/jwikman/nab-al-tools/blob/main/extension/mcp-resources) (`npx @nabsolutions/nab-al-tools-mcp@next`, pre-release channel): full XLF translation workflow — create/refresh language files, retrieve and save translations, review states, keyword search, BC terminology glossary. See `skill-translate`.
 - **context7** — Library documentation lookup
 - **microsoft-docs** — Microsoft Learn documentation search
 
@@ -139,7 +140,7 @@ claude-plugin/
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /aldc:al-initialize
 ├── hooks/hooks.json       # SessionStart preconditions (rules, BCQuality, AL CLI) + PostToolUse/Stop reminders
-├── .mcp.json              # MCP server config (al-symbols, context7, microsoft-docs)
+├── .mcp.json              # MCP server config (al-mcp, nab-al-tools)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code
 └── README.md              # This file
 ```

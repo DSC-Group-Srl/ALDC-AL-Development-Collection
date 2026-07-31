@@ -4,7 +4,7 @@ description: >
   Internal TDD implementation subagent. Only invoked by al-conductor via Task tool.
   Executes RED-GREEN-REFACTOR cycle: writes tests FIRST, then minimal code to pass,
   then refactors. Creates AL objects following strict TDD methodology.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: yellow
 maxTurns: 30
@@ -260,6 +260,7 @@ These skills live in `.github/skills/`. They are **not** auto-loaded in subagent
 - **skill-performance** — When optimizing queries, SetLoadFields, FlowFields
 - **skill-copilot** — When implementing Copilot/AI features
 - **skill-testing** — When designing tests, Given/When/Then patterns
+- **skill-translate** — When a phase requires XLF language files or translated strings (uses the **nab-al-tools** MCP server — see `.mcp.json`)
 
 **Load = read the `SKILL.md` (with `Read`).** Naming a skill without reading it is not loading it.
 

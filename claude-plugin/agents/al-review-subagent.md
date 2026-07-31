@@ -4,7 +4,7 @@ description: >
   Internal quality assurance subagent for Business Central AL code. Only invoked
   by al-conductor via Task tool. Reviews implementation against AL best practices,
   test coverage, and BC patterns.
-tools: Read, Glob, Grep, Bash, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
+tools: Read, Glob, Grep, Bash, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: yellow
 maxTurns: 30

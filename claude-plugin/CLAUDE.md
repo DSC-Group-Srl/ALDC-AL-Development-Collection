@@ -63,7 +63,8 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | Find references / relations (extends, implements, source-table, …) | **al-mcp** `al_symbolrelations` |
 | Inspect dependencies | read `app.json` `dependencies` + **al-mcp** `al_getpackagedependencies` |
 | Inspect a page's control/action tree | **al-mcp** `al_inspectpage` |
-| Search / write translations | **al-mcp** `al_searchtranslations` / `al_writetranslation` |
+| Search / write translations (quick, single-string) | **al-mcp** `al_searchtranslations` / `al_writetranslation` |
+| Full XLF workflow — create language files, batch-translate, review states, BC glossary | **nab-al-tools** MCP server (`createLanguageXlf`, `refreshXlf`, `getTextsToTranslate`, `saveTranslatedTexts`, `getTranslatedTextsByState`, `getTextsByKeyword`, `getTranslatedTextsMap`, `getGlossaryTerms`) — load `skill-translate` first; tools are namespaced `mcp__plugin_bc-dev_nab-al-tools__*` |
 | See what changed | `Bash: git diff` / `git status` |
 | Compiler errors / diagnostics | **al-mcp** `al_getdiagnostics` (scope by `filePath`/`folderPath`/`projectPath`), or read `al_compile`/`al_build` output directly |
 | Generate a permission set | write the `permissionset` object as AL code (Write/Edit) |

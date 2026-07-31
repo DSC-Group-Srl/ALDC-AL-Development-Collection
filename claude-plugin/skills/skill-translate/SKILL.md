@@ -18,6 +18,10 @@ This skill should be loaded when:
 - Regional language variations must be managed (es-ES vs es-MX)
 - Incremental translation is required after refreshing XLF files
 
+## Tool Namespace
+
+Every tool in this skill is a real MCP tool call against the **nab-al-tools** server (`.mcp.json`, package `@nabsolutions/nab-al-tools-mcp@next`) — not a VS Code command or a hypothetical action. In agent prose, call them as **nab-al-tools** `toolName` (harness-qualified name `mcp__plugin_bc-dev_nab-al-tools__toolName`). All file paths are absolute or workspace-relative paths on disk, not AL object names — run `Bash: al compile` first so the `.g.xlf` exists before calling any of these.
+
 ## Core Patterns
 
 ### Pattern 1: Create Language File
@@ -25,7 +29,7 @@ This skill should be loaded when:
 Create a new XLF translation file from the generated source:
 
 ```
-createLanguageXlf
+nab-al-tools: createLanguageXlf
   generatedXlfFilePath: "Translations/MyApp.g.xlf"
   targetLanguageCode: "es-ES"
   matchBaseAppTranslation: true    // pre-populate from Microsoft base translations
@@ -42,12 +46,13 @@ After code changes, sync the language file and get new untranslated texts:
 
 ```
 // Step 1: Refresh — adds new entries, preserves existing translations
-refreshXlf
+nab-al-tools: refreshXlf
   generatedXlfFilePath: "Translations/MyApp.g.xlf"
   filePath: "Translations/MyApp.es-ES.xlf"
+  workspaceFilePath: "MyApp.code-workspace"   // optional — refresh every target-language xlf in the workspace in one call
 
 // Step 2: Get untranslated texts with context
-getTextsToTranslate
+nab-al-tools: getTextsToTranslate
   filePath: "Translations/MyApp.es-ES.xlf"
   limit: 50
   offset: 0
@@ -65,7 +70,7 @@ Each text entry includes:
 Translate multiple texts in a single operation:
 
 ```
-saveTranslatedTexts
+nab-al-tools: saveTranslatedTexts
   filePath: "Translations/MyApp.es-ES.xlf"
   translations: [
     {
@@ -105,13 +110,13 @@ Use translation states to implement a review workflow:
 
 ```
 // Find texts needing review
-getTranslatedTextsByState
+nab-al-tools: getTranslatedTextsByState
   filePath: "Translations/MyApp.es-ES.xlf"
   translationStateFilter: "needs-review-translation"
   limit: 0
 
 // After review, promote to final
-saveTranslatedTexts
+nab-al-tools: saveTranslatedTexts
   filePath: "Translations/MyApp.es-ES.xlf"
   translations: [
     { "id": "...", "targetText": "...", "targetState": "final" }
@@ -139,27 +144,35 @@ Context: Table name     → "Correo"    ✅  (different meaning!)
 
 ### Pattern 5: Translation Memory and Glossary
 
-Use existing translations for consistency:
+Use existing translations plus the built-in BC terminology glossary for consistency:
 
 ```
 // Get all translated texts as a reference map
-getTranslatedTextsMap
+nab-al-tools: getTranslatedTextsMap
   filePath: "Translations/MyApp.es-ES.xlf"
   limit: 0
 
 // Search for specific terms across translations
-getTextsByKeyword
+nab-al-tools: getTextsByKeyword
   filePath: "Translations/MyApp.es-ES.xlf"
   keyword: "Customer|Vendor|Invoice"
   isRegex: true
   caseSensitive: false
   searchInTarget: true
+
+// Pull Microsoft's own BC terminology for the target language before translating
+nab-al-tools: getGlossaryTerms
+  targetLanguageCode: "es-ES"
+  sourceLanguageCode: "en-US"
+  localGlossaryPath: "Translations/local-glossary.tsv"   // optional — project terms win over built-in ones
 ```
 
 **Glossary approach:**
 - Before translating a batch, retrieve existing translations with `getTranslatedTextsMap`
 - Search for related terms with `getTextsByKeyword` to ensure consistent terminology
+- Call `getGlossaryTerms` for the target language to get Microsoft's official BC terminology — pass `localGlossaryPath` (a TSV: first column `en-US`, last optional `Description`, columns between are language codes) when the project has its own preferred terms; local entries override the built-in glossary
 - Standard BC terms should match Microsoft's official base app translations
+- `getGlossaryTerms` only covers the built-in glossary languages (`en-US`/`en-GB`/`en-AU`/`en-CA`/`en-NZ`, `da-DK`, `de-DE`/`de-AT`/`de-CH`, `es-ES_tradnl`, `es-MX`, `fi-FI`, `fr-FR`/`fr-BE`/`fr-CA`/`fr-CH`, `it-IT`/`it-CH`, `nb-NO`, `nl-NL`/`nl-BE`, `sv-SE`, `cs-CZ`, `is-IS`) — for other locales rely on `getTranslatedTextsMap`/`getTextsByKeyword` plus a local glossary instead
 
 ### Pattern 6: Regional Variations
 
@@ -167,19 +180,19 @@ Manage locale-specific translations (e.g., es-ES vs es-MX):
 
 ```
 // Step 1: Create base translation (es-ES)
-createLanguageXlf
+nab-al-tools: createLanguageXlf
   generatedXlfFilePath: "Translations/MyApp.g.xlf"
   targetLanguageCode: "es-ES"
   matchBaseAppTranslation: true
 
 // Step 2: Create regional variant from base
-createLanguageXlf
+nab-al-tools: createLanguageXlf
   generatedXlfFilePath: "Translations/MyApp.g.xlf"
   targetLanguageCode: "es-MX"
   matchBaseAppTranslation: true
 
 // Step 3: Get base translations as reference
-getTranslatedTextsMap
+nab-al-tools: getTranslatedTextsMap
   filePath: "Translations/MyApp.es-ES.xlf"
   limit: 0
 
@@ -236,13 +249,15 @@ getTranslatedTextsMap
 ## References
 
 - [Working with Translation Files](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-work-with-translation-files)
-- [NAB AL Tools Extension](https://marketplace.visualstudio.com/items?itemName=nabsolutions.nab-al-tools)
+- [NAB AL Tools Extension (VS Code)](https://marketplace.visualstudio.com/items?itemName=nabsolutions.nab-al-tools)
+- [NAB AL Tools MCP Server](https://github.com/jwikman/nab-al-tools/blob/main/extension/MCP_SERVER.md) — the actual tool provider wired into `.mcp.json` as `nab-al-tools` (`npx -y @nabsolutions/nab-al-tools-mcp@next`, pre-release channel)
 - [XLIFF 1.2 Standard](http://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html)
 - [MaxLength Property](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/properties/devenv-maxlength-property)
 
 ## Constraints
 
 - This skill covers **XLF translation management, batch translation, and quality review workflows**
+- All tool calls in this skill target the **nab-al-tools** MCP server — confirm the tool is reachable as `mcp__plugin_bc-dev_nab-al-tools__*` before relying on it; if absent, tell the user the MCP server isn't configured rather than fabricating output
 - Do NOT edit `.g.xlf` files manually — they are compiler-generated
 - Do NOT remove or reorder placeholders (`%1`, `%2`) in translations
 - Do NOT exceed `maxLength` character limits defined in AL source

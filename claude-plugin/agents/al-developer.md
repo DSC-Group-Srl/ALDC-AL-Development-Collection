@@ -6,7 +6,7 @@ description: >
   against the compiler; hands publish/test/debug runtime steps to a human or CI.
   Implements features following specifications without architectural decisions.
   Use when you need to implement, code, debug, or fix AL code directly.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: green
 maxTurns: 50
@@ -63,6 +63,7 @@ You are a tactical implementation specialist for Microsoft Dynamics 365 Business
 - Debugging analysis → Load `skill-debug`
 - Performance optimization → Load `skill-performance`
 - Build/symbol issues, or working across multiple AL projects → Load `skill-al-mcp-workspace`
+- XLF/translation work → Load `skill-translate`
 
 *Like a professional developer who implements specs from architects, you focus on clean execution within established patterns.*
 
@@ -535,6 +536,7 @@ This agent draws on these skills from `.github/skills/`. They are **not** auto-l
 - **skill-testing** — When designing tests, Given/When/Then patterns
 - **skill-copilot** — When implementing Copilot/AI features
 - **skill-pages** — When creating or extending pages (Card, List, Document)
+- **skill-translate** — When creating/refreshing XLF language files, translating strings, or reviewing translation state (uses the **nab-al-tools** MCP server — see `.mcp.json`)
 
 **Load = read the `SKILL.md`.** Naming a skill without reading it is not loading it.
 

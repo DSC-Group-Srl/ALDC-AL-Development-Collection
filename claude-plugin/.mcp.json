@@ -3,6 +3,10 @@
     "al-mcp": {
       "command": "bash",
       "args": ["${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh", "launchmcpserver", "--transport", "stdio"]
+    },
+    "nab-al-tools": {
+      "command": "npx",
+      "args": ["-y", "@nabsolutions/nab-al-tools-mcp@next"]
     }
   }
 }
