@@ -103,6 +103,15 @@ Loaded automatically by agents when needed:
 | `skill-migrate` | BC version migration |
 | `skill-estimation` | PERT estimation, complexity scoring |
 
+## BCQuality (optional, auto-managed)
+
+`aldc:dredd`, `aldc:al-triage`, and the `al-conductor` review phase can back their findings with [BCQuality](https://github.com/microsoft/BCQuality), a citable BC knowledge base. It is **not** a per-project clone: a `SessionStart` hook (`tools/bcquality/precondition_hook.sh` / `.ps1`) auto-installs and refreshes **one shared cache at `~/.claude/bcquality`**, reused by every AL project on the machine — no `../bcquality` folder cluttering your repo, no manual install step.
+
+- First session ever: the hook kicks off a background clone and the session runs the native A–G checklist meanwhile (nothing blocks).
+- Later sessions: the hook re-uses the cache instantly, and refreshes it in the background at most once every 12h (override with `$BCQUALITY_UPDATE_INTERVAL_HOURS`).
+- Override the location with `$BCQUALITY_HOME`, or point at a fork/pin a commit via a project `aldc.yaml → external.bcquality` block (optional, advanced use only).
+- Absent or offline is never a blocker — agents fall back to the native A–G checklist and say so.
+
 ## Core Principles
 
 - **Extension-only development** — Never modify base application objects
