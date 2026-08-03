@@ -8,8 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
-  
 
 env:
   UPSTREAM_URL: https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot.git
@@ -22,55 +20,80 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout fork
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.TEMPLATE_SYNC_PAT }}
 
-    - name: Configure git identity
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Fetch upstream main
-      run: |
-        git remote add upstream "$UPSTREAM_URL"
-        git fetch upstream "$UPSTREAM_BRANCH"
+      - name: Fetch upstream main
+        run: |
+          git remote add upstream "$UPSTREAM_URL" 2>/dev/null || git remote set-url upstream "$UPSTREAM_URL"
+          git fetch upstream "$UPSTREAM_BRANCH"
 
-    - name: Check for new upstream commits
-      id: diff
-      run: |
-        COUNT=$(git rev-list HEAD.."upstream/$UPSTREAM_BRANCH" --count)
-        echo "New upstream commits: $COUNT"
-        echo "changed=$([ "$COUNT" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Check for new upstream commits
+        id: diff
+        run: |
+          COUNT=$(git rev-list HEAD.."upstream/$UPSTREAM_BRANCH" --count)
+          echo "New upstream commits: $COUNT"
+          echo "changed=$([ "$COUNT" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-    - name: Create sync branch from upstream
-      if: steps.diff.outputs.changed == 'true'
-      id: branch
-      run: |
-        BRANCH="sync/upstream-$(date -u +%Y-%m-%d)"
-        git checkout -b "$BRANCH" "upstream/$UPSTREAM_BRANCH"
-    
-        # Keep this repository's own GitHub workflows
-        git restore --source=main .github/workflows
-    
-        # If anything changed, commit the workflow restoration
-        if ! git diff --quiet; then
-          git add .github/workflows
-          git commit -m "Keep repository GitHub workflows"
-        fi
-    
-        git push origin "$BRANCH"
-        echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+      - name: Create sync branch
+        if: steps.diff.outputs.changed == 'true'
+        id: branch
+        run: |
+          BRANCH="sync/upstream-$(date -u +%Y-%m-%d)"
 
-    - name: Open pull request
-      if: steps.diff.outputs.changed == 'true'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh pr create \
-          --base main \
-          --head "${{ steps.branch.outputs.name }}" \
-          --title "chore: sync upstream main ($(date -u +%Y-%m-%d))" \
-          --body "Automated weekly sync of \`main\` from upstream [javiarmesto/AL-Development-Collection-for-GitHub-Copilot](https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot)." \
-          --reviewer "$REVIEWER_TEAM"
+          git checkout -B "$BRANCH" "upstream/$UPSTREAM_BRANCH"
+
+          # Keep this repository's own GitHub workflows.
+          git restore --source=main .github/workflows
+
+          if ! git diff --quiet; then
+            git add .github/workflows
+            git commit -m "Keep repository GitHub workflows"
+          fi
+
+          git push --force origin "$BRANCH"
+
+          # Wait until GitHub sees the new branch.
+          for i in $(seq 1 10); do
+            if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Waiting for branch propagation..."
+            sleep 3
+          done
+
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TEMPLATE_SYNC_PAT }}
+        run: |
+          REPO="${GITHUB_REPOSITORY}"
+          OWNER="${REPO%%/*}"
+          TEAM_SLUG="${REVIEWER_TEAM##*/}"
+          BRANCH="${{ steps.branch.outputs.name }}"
+
+          # Reuse an existing PR if one is already open.
+          PR_NUMBER=$(gh api "repos/$REPO/pulls?head=$OWNER:$BRANCH&state=open" --jq '.[0].number // empty')
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER=$(gh api -X POST "repos/$REPO/pulls" \
+              -f title="chore: sync upstream main ($(date -u +%Y-%m-%d))" \
+              -f head="$BRANCH" \
+              -f base="main" \
+              -f body="Automated weekly sync of \`main\` from upstream https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot." \
+              --jq .number)
+          fi
+
+          gh api -X POST "repos/$REPO/pulls/$PR_NUMBER/requested_reviewers" \
+            -f "team_reviewers[]=$TEAM_SLUG" \
+            || echo "Warning: could not assign reviewer team."
