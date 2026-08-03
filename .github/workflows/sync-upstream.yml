@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  
 
 env:
   UPSTREAM_URL: https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot.git
@@ -49,6 +50,16 @@ jobs:
       run: |
         BRANCH="sync/upstream-$(date -u +%Y-%m-%d)"
         git checkout -b "$BRANCH" "upstream/$UPSTREAM_BRANCH"
+    
+        # Keep this repository's own GitHub workflows
+        git restore --source=main .github/workflows
+    
+        # If anything changed, commit the workflow restoration
+        if ! git diff --quiet; then
+          git add .github/workflows
+          git commit -m "Keep repository GitHub workflows"
+        fi
+    
         git push origin "$BRANCH"
         echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
 
