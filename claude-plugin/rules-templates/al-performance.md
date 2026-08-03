@@ -15,6 +15,7 @@ These rules focus on writing performant AL code that scales well and provides op
 - Avoid unnecessary loops; use set-based operations when possible
 - Use SetLoadFields to minimize data retrieval
 - Use temporary tables, dictionaries, or lists for temporary data storage
+- Avoid `SetCurrentKey` unless a specific row ordering is actually required
 
 ## Rule 1: Early Data Filtering and Query Optimization
 
@@ -225,5 +226,59 @@ begin
     Customer."Last Payment Date" := LastPaymentDate;
     Customer.Modify(true);
   end;
+end;
+```
+
+## Rule 6: Avoid SetCurrentKey Unless a Specific Ordering Is Required
+
+### Intent
+
+Do not call `SetCurrentKey` just out of habit or to "make sure" a lookup is fast. `SetCurrentKey` forces the SQL Server query optimizer to use that one specific index, overriding its own cost-based plan selection — a plan that, without the hint, is free to pick whichever index best fits the filters actually applied (`SetRange`/`SetFilter`). Only call `SetCurrentKey` when the code genuinely depends on iterating rows in a specific order (e.g. a report that must print in date order, or logic relying on `FindSet` traversal order). For plain filtered lookups (`Get`, `FindFirst`, `FindSet` without an order dependency, `CalcSums`), leave the key alone and let the optimizer choose.
+
+### Examples
+
+```al
+// Good example - no ordering dependency, let the optimizer pick the index
+procedure GetOpenLines(DocumentNo: Code[20])
+var
+  SalesLine: Record "Sales Line";
+begin
+  SalesLine.SetRange("Document No.", DocumentNo);
+  SalesLine.SetRange(Open, true);
+  if SalesLine.FindSet() then
+    repeat
+      // order doesn't matter here
+    until SalesLine.Next() = 0;
+end;
+```
+
+```al
+// Good example - ordering is a real requirement, SetCurrentKey is justified
+procedure PrintLinesByDate(DocumentNo: Code[20])
+var
+  SalesLine: Record "Sales Line";
+begin
+  SalesLine.SetCurrentKey("Document No.", "Shipment Date"); // report must print in shipment-date order
+  SalesLine.SetRange("Document No.", DocumentNo);
+  if SalesLine.FindSet() then
+    repeat
+      // printed in the required date order
+    until SalesLine.Next() = 0;
+end;
+```
+
+```al
+// Bad example (avoid pinning a key when no ordering is needed)
+procedure GetOpenLines(DocumentNo: Code[20])
+var
+  SalesLine: Record "Sales Line";
+begin
+  SalesLine.SetCurrentKey("Document No."); // forces this index; optimizer can no longer choose a better one
+  SalesLine.SetRange("Document No.", DocumentNo);
+  SalesLine.SetRange(Open, true);
+  if SalesLine.FindSet() then
+    repeat
+      // order is irrelevant to this logic
+    until SalesLine.Next() = 0;
 end;
 ```

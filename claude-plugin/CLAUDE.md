@@ -23,6 +23,7 @@ Route user requests to the appropriate agent:
 | Build BC agents | `aldc:al-agent-builder` | AI Development Toolkit agent creation |
 | Diagnose a bug / incident (existing code) | `aldc:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `aldc:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
+| Document an app end-to-end (on demand) | `aldc:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
 
 ## Complexity Routing
 
@@ -46,31 +47,47 @@ Present the complexity assessment and wait for user confirmation before proceedi
 
 ## Tooling — what this plugin actually has at runtime
 
-This plugin runs in the **Claude Code harness**, not VS Code. Agents have native tools (`Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch`) plus the MCP servers declared in `.claude-plugin/plugin.json`: **al-symbols-mcp** (read-only AL symbol queries), **context7** (library docs), **microsoft-docs** (Microsoft Learn). The VS Code AL extension commands (`AL: Package`, etc.) and Copilot chat context-variables (`#search`, `#problems`, …) **do not exist here** — agent prose must not invoke them as if they were tools.
+This plugin runs in the **Claude Code harness**, not VS Code. Agents have native tools (`Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch`) plus the MCP servers declared in `.mcp.json`: **al-mcp** (the official AL CLI's own MCP server — `al launchmcpserver`, full read/write access to compile, build, download symbols, publish, run tests, and query symbols), **context7** (library docs), **microsoft-docs** (Microsoft Learn). The VS Code AL extension commands (`AL: Package`, etc.) and Copilot chat context-variables (`#search`, `#problems`, …) **do not exist here** — agent prose must not invoke them as if they were tools.
 
-The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as the [`Microsoft.Dynamics.BusinessCentral.Development.Tools`](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-al-tool) .NET tool. It **compiles and packages** — it does not publish, run tests, download symbols, or debug. Use this canonical mapping when writing agent/skill/command prose:
+The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as the [`Microsoft.Dynamics.BusinessCentral.Development.Tools`](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-al-tool) .NET tool. Beyond plain compile/package, `al` also ships `launchmcpserver`/`launchlspserver` — first-class agentic surfaces — plus `publishapp`, `runtests`, and `auth` as bare CLI verbs. Use this canonical mapping when writing agent/skill/command prose (verify against the live tool list before trusting this table — MCP tool surfaces change across `al` versions):
 
 | Need | In this harness |
 |------|-----------------|
-| Compile / build / package `.app` | `Bash: al compile` (single project) or `al workspace compile` (multi-project). Read compiler output for errors. |
-| Find objects / members / definitions | **al-symbols-mcp** (`al_search_objects`, `al_get_object_definition`, `al_get_object_summary`, `al_search_object_members`); `Grep`/`Glob` for text |
-| Find references / usages | **al-symbols-mcp** `al_find_references` |
-| Inspect dependencies | read `app.json` `dependencies` + **al-symbols-mcp** `al_packages` |
+| Compile / validate (no `.app`) | **al-mcp** `al_compile`, or `Bash: al compile`. Fastest for syntax/semantic checks. |
+| Build / package `.app` (single project) | **al-mcp** `al_build` (`scope='current'`, the default), or `Bash: al compile`. |
+| Build a multi-project workspace **with automatic cross-project symbol resolution** | `Bash: al workspace compile <workspaceFile>` (all projects, one shared package cache, dependency order) — **not** `al_build scope='all'`, which only builds the target project + its own upstream deps against its own isolated `.alpackages` and does **not** rebuild or refresh sibling dependents. See `skill-al-mcp-workspace`. |
+| Map a workspace's project dependency graph | `Bash: al workspace map <workspaceFile> <outputFile>` — generates a markdown+mermaid dependency map. |
+| Add a project to the MCP server's live workspace | **al-mcp** `al_addproject` (projectPath = folder containing `app.json`) — always pass the **canonical, long-form absolute path** (see gotchas below). |
+| Download symbols | **al-mcp** `al_downloadsymbols` — agent-callable directly. `globalSourcesOnly=true` needs no auth (AppSource/Microsoft symbols only); environment-scoped downloads need interactive browser auth, so confirm with the human first in that case. No bare CLI verb exists for this — MCP-only. |
+| Find objects / members / definitions | **al-mcp** `al_symbolsearch` (`filters.kinds`, `filters.memberKinds`, `filters.scope='project'\|'dependencies'\|'all'`); `Grep`/`Glob` for text |
+| Find references / relations (extends, implements, source-table, …) | **al-mcp** `al_symbolrelations` |
+| Inspect dependencies | read `app.json` `dependencies` + **al-mcp** `al_getpackagedependencies` |
+| Inspect a page's control/action tree | **al-mcp** `al_inspectpage` |
+| Search / write translations (quick, single-string) | **al-mcp** `al_searchtranslations` / `al_writetranslation` |
+| Full XLF workflow — create language files, batch-translate, review states, BC glossary | **nab-al-tools** MCP server (`createLanguageXlf`, `refreshXlf`, `getTextsToTranslate`, `saveTranslatedTexts`, `getTranslatedTextsByState`, `getTextsByKeyword`, `getTranslatedTextsMap`, `getGlossaryTerms`) — load `skill-translate` first; tools are namespaced `mcp__plugin_bc-dev_nab-al-tools__*` |
 | See what changed | `Bash: git diff` / `git status` |
-| Compiler errors / test failures | read the output of the `al compile` / test run (or a human-provided log) — there is no `#problems`/`#testFailure` tool |
+| Compiler errors / diagnostics | **al-mcp** `al_getdiagnostics` (scope by `filePath`/`folderPath`/`projectPath`), or read `al_compile`/`al_build` output directly |
 | Generate a permission set | write the `permissionset` object as AL code (Write/Edit) |
 | Edit / create files | `Edit` / `Write` |
 | Delegate to a subagent | the `Task` tool |
 | Track multi-step work | the `TodoWrite` tool |
 | Microsoft / BC docs | **microsoft-docs** MCP |
 | Library / framework docs | **context7** MCP |
-| **Publish / deploy** | **no CLI verb** — VS Code (`AL: Publish` / `…without Debugging` / RAD) or the AL-Go/CI pipeline. Agents generate code; a human or pipeline deploys. |
-| **Run tests** | **no ALTool verb** — VS Code `AL: Run Tests` or the AL-Go/CI test runner; agents read the results. |
-| **Download symbols** | **no ALTool verb** — VS Code `AL: Download Symbols`, or restore the symbol package cache in CI. |
+| **Publish / deploy** | **al-mcp** `al_publish` / `Bash: al publishapp` exist, but this mutates a live BC tenant — treat as a human/CI-confirmed step (HITL), not something to run unprompted. Otherwise: VS Code (`AL: Publish` / `…without Debugging` / RAD) or the AL-Go/CI pipeline. |
+| **Run tests** | **al-mcp** `al_run_tests` / `Bash: al runtests <codeunitId>` exist and run against a live BC server — confirm with the human before running against anything but a disposable sandbox. Otherwise: VS Code `AL: Run Tests` or the CI test runner. |
+| **Auth (cloud/AAD)** | **al-mcp** `al_auth_login`/`al_auth_logout`, or `Bash: al auth login`/`logout`. Usually unnecessary — `al_downloadsymbols`/`al_publish`/`al_run_tests` default to `useInteractiveLogin=true` and handle it inline. |
 | **Debug / snapshot / CPU profile** | **VS Code only** (AL debugger, snapshot debugging, CPU profiler) — a human step, not an agent tool on this surface. |
 
-> Steer away from waste, don't ban tools: prefer **al-symbols-mcp** for symbol facts (it's grounded and cheaper than re-reading files), but `microsoft-docs`/`context7`/`WebSearch` remain fair game for conceptual gaps. Flag what you genuinely can't resolve rather than burning turns on trial-and-error tool bursts.
+> Steer away from waste, don't ban tools: prefer **al-mcp** for symbol facts (it's grounded and cheaper than re-reading files), but `microsoft-docs`/`context7`/`WebSearch` remain fair game for conceptual gaps. Flag what you genuinely can't resolve rather than burning turns on trial-and-error tool bursts.
+
+### Multi-project workspaces (app + test app, app + performance app, …)
+
+DSC repos routinely put the base app, test app, and performance app in sibling folders under one `.code-workspace` (see `app/`, `app-test/`, `app-performance/`). This is where agents most often get confused about "symbols not updating." **This CLAUDE.md is a plugin-authoring reference and is not reliably visible to a runtime agent working in a customer's project** — the full, agent-facing version of this guidance (verified `al_build scope='all'` vs. `al workspace compile` behavior, the canonical-path gotcha, the `al_downloadsymbols` stickiness bug, and more) lives in **`skill-al-mcp-workspace`**. Agent/skill/command prose that needs this must tell the agent to load that skill, not to "see CLAUDE.md."
+
+Headline fact (get this into any prose referencing multi-project builds): **`al_build scope='all'` does not rebuild or refresh a sibling dependent project** — it only builds the target project plus its own upstream dependencies, against its own isolated `.alpackages`. The verified way to keep a base app and its test app in sync in one command is `Bash: al workspace compile <workspaceFile>`, which compiles every project in the manifest in dependency order against one shared package cache.
 
 ## Rules Injection
 
 Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/aldc:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
+
+A `SessionStart` hook (`tools/rules/precondition_hook.sh`, wired in `hooks/hooks.json`) checks deterministically whether `.claude/rules/al-guidelines.md` exists and injects the result as `additionalContext` — so agents don't have to independently guess whether init has run. If it hasn't, agents are instructed to tell the user and offer to run `/aldc:al-initialize` before touching AL code, while still applying the rules from `rules-templates/` as a fallback for that session. This never blocks the task — it's a human-in-the-loop nudge, matching the BCQuality precondition-hook pattern.

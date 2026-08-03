@@ -30,7 +30,7 @@ Verify registration:
 /
 ```
 
-You should see 5 user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`) and 10 slash commands prefixed with `/aldc:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 10 slash commands prefixed with `/aldc:`.
 
 ## First-Time Setup
 
@@ -55,6 +55,7 @@ This will:
 | AL Developer | `agent "aldc:al-developer"` | Tactical implementation, debugging, code generation |
 | AL Pre-Sales | `agent "aldc:al-presales"` | PERT estimation, SWOT analysis, cost breakdown |
 | Agent Builder | `agent "aldc:al-agent-builder"` | Create custom agents for BC AI Development Toolkit |
+| AL Documentation Conductor | `agent "aldc:al-documentation-conductor"` | Full app documentation on demand: functional + developer sites, optional client DAF/MAN docx |
 
 ### Agent Routing
 
@@ -102,6 +103,15 @@ Loaded automatically by agents when needed:
 | `skill-migrate` | BC version migration |
 | `skill-estimation` | PERT estimation, complexity scoring |
 
+## BCQuality (optional, auto-managed)
+
+`aldc:dredd`, `aldc:al-triage`, and the `al-conductor` review phase can back their findings with [BCQuality](https://github.com/microsoft/BCQuality), a citable BC knowledge base. It is **not** a per-project clone: a `SessionStart` hook (`tools/bcquality/precondition_hook.sh` / `.ps1`) auto-installs and refreshes **one shared cache at `~/.claude/bcquality`**, reused by every AL project on the machine — no `../bcquality` folder cluttering your repo, no manual install step.
+
+- First session ever: the hook kicks off a background clone and the session runs the native A–G checklist meanwhile (nothing blocks).
+- Later sessions: the hook re-uses the cache instantly, and refreshes it in the background at most once every 12h (override with `$BCQUALITY_UPDATE_INTERVAL_HOURS`).
+- Override the location with `$BCQUALITY_HOME`, or point at a fork/pin a commit via a project `aldc.yaml → external.bcquality` block (optional, advanced use only).
+- Absent or offline is never a blocker — agents fall back to the native A–G checklist and say so.
+
 ## Core Principles
 
 - **Extension-only development** — Never modify base application objects
@@ -112,7 +122,8 @@ Loaded automatically by agents when needed:
 
 ## MCP Servers Included
 
-- **al-symbols-mcp** — AL symbol resolution and navigation
+- **al-mcp** — the official AL CLI's MCP server (`al launchmcpserver`): compile, build, download symbols, publish, run tests, and symbol/dependency queries
+- **nab-al-tools** — [NAB AL Tools MCP server](https://github.com/jwikman/nab-al-tools/blob/main/extension/mcp-resources) (`npx @nabsolutions/nab-al-tools-mcp@next`, pre-release channel): full XLF translation workflow — create/refresh language files, retrieve and save translations, review states, keyword search, BC terminology glossary. See `skill-translate`. A `SessionStart` hook (`tools/nodejs/ensure-npx.sh`) checks `npx`/Node.js >= 20 is available and tries to install Node.js LTS if it's missing entirely — it never touches an existing Node install (e.g. a broken nvm/fnm setup), it just reports that case.
 - **context7** — Library documentation lookup
 - **microsoft-docs** — Microsoft Learn documentation search
 
@@ -123,12 +134,13 @@ claude-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (name, version, MCP servers, hooks ref)
 │   └── marketplace.json   # Marketplace entry (for local / remote distribution)
-├── agents/                # 5 user-facing agents + 3 internal subagents (TDD)
+├── agents/                # user-facing agents (design, TDD conductor, dev, presales, agent builder,
+│                          #   docs conductor, triage, dredd) + internal subagents (TDD + docs)
 ├── commands/              # 10 slash commands (/aldc:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /aldc:al-initialize
-├── hooks/hooks.json       # PostToolUse + Stop reminders
-├── .mcp.json              # MCP server config (al-symbols, context7, microsoft-docs)
+├── hooks/hooks.json       # SessionStart preconditions (rules, BCQuality, AL CLI, Node/npx) + PostToolUse/Stop reminders
+├── .mcp.json              # MCP server config (al-mcp, nab-al-tools)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code
 └── README.md              # This file
 ```
@@ -146,3 +158,5 @@ MIT
 ## Author
 
 [javiarmesto](https://github.com/javiarmesto)
+
+<!-- test: sample edit to trigger bc-dev-upstream-drift.yml detection -->

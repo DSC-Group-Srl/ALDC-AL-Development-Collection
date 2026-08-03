@@ -1,18 +1,24 @@
 {
   "mcpServers": {
-    "al-symbols-mcp": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@nicholasglazer/al-symbols-mcp"]
+    "al-mcp": {
+      "command": "bash",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh",
+        "launchmcpserver",
+        "--transport",
+        "stdio"
+      ]
     },
-    "context7": {
+    "nab-al-tools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@nabsolutions/nab-al-tools-mcp@next"
+      ]
+    },
+    "ms-learn": {
       "type": "http",
-      "url": "https://mcp.context7.com/mcp"
-    },
-    "microsoft-docs": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@nicholasglazer/microsoft-docs-mcp"]
+      "url": "https://learn.microsoft.com/api/mcp"
     }
   }
 }

@@ -3,7 +3,7 @@ description: >
   Create a detailed technical specification (.spec.md) that serves as an implementable
   blueprint for Business Central features. Use when you need to create a spec, write
   a specification, or detail a requirement. Reads architecture.md if exists.
-  Outputs to .github/plans/{req_name}/.
+  Outputs to requirements/{req_name}/.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch
 ---
 
@@ -16,7 +16,7 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 ## Guardrails
 
 - **Never** create or modify real AL objects during this phase
-- **Never** output to `/specs/` — always output to `.github/plans/{req_name}/`
+- **Never** output to `/specs/` — always output to `requirements/{req_name}/`
 - If `{req_name}.architecture.md` exists, read it first — the spec must implement what the architect designed
 - If spec already exists, confirm with user before overwriting
 - Complexity drives depth: LOW = lighter spec, MEDIUM/HIGH = full spec with all sections
@@ -26,7 +26,7 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 ### 1.1 Read global memory
 
 ```
-Read .github/plans/memory.md
+Read CLAUDE.md
 ```
 
 Extract: project app ID range, naming conventions (prefix), existing table IDs in use, current extension patterns.
@@ -34,7 +34,7 @@ Extract: project app ID range, naming conventions (prefix), existing table IDs i
 ### 1.2 Read architecture document (if exists)
 
 ```
-Read .github/plans/${input:req_name}/${input:req_name}.architecture.md
+Read requirements/${input:req_name}/${input:req_name}.architecture.md
 ```
 
 If it exists: the spec MUST align with the architectural decisions (data flows, chosen patterns, integration points).
@@ -43,13 +43,13 @@ If it does not exist: proceed — spec will define structure from scratch (typic
 ### 1.3 Analyze codebase
 
 Search for:
-- Existing objects with similar patterns (`Grep`/`Glob`; **al-symbols-mcp** `al_search_objects` for symbol-level)
+- Existing objects with similar patterns (`Grep`/`Glob`; **al-mcp** `al_symbolsearch` for symbol-level)
 - Naming conventions in `/src`
 - Available object ID ranges in `app.json`
 - Existing event publishers relevant to this feature
 - Existing API pages or codeunits if integration is involved
 
-> **Verify every base-app event you subscribe to against symbols — this is the spec's job, not the planner's.** For each event the feature hooks into, confirm it **exists** in the current BC version via **al-symbols-mcp** (`al_search_object_members` / `al_get_object_definition`; download symbols first if absent). Record the **verified** publisher object + exact event name in §5. If you cannot confirm an event exists, it does **not** enter the spec as fact — move it to §12 Open Questions. (A wrong or nonexistent event name passed downstream silently becomes a blind search burst in planning and a defect the reviewer must catch. Verify it once, here, at the cheapest point.)
+> **Verify every base-app event you subscribe to against symbols — this is the spec's job, not the planner's.** For each event the feature hooks into, confirm it **exists** in the current BC version via the AL LSP server (document symbols, hover / go-to-definition) or al-mcp `al_symbolsearch` (download symbols first if absent). Record the **verified** publisher object + exact event name in §5. If you cannot confirm an event exists, it does **not** enter the spec as fact — move it to §12 Open Questions. (A wrong or nonexistent event name passed downstream silently becomes a blind search burst in planning and a defect the reviewer must catch. Verify it once, here, at the cheapest point.)
 
 ### 1.4 Ground the spec in the framework (token-light)
 
@@ -65,7 +65,7 @@ This keeps the median cost low (most specs touch 1–2 domains) while making the
 
 ## Step 2 — Generate Specification
 
-Create `.github/plans/${input:req_name}/${input:req_name}.spec.md` with the following structure:
+Create `requirements/${input:req_name}/${input:req_name}.spec.md` with the following structure:
 
 ---
 ---
@@ -102,6 +102,7 @@ Create `.github/plans/${input:req_name}/${input:req_name}.spec.md` with the foll
 | Codeunit       | {ID} | {Prefix} {Name} Subscriber | — | {Event subscriptions} |
 
 > Object IDs MUST be within the app.json `idRanges`. Verify with codebase search before assigning.
+> **Namespace & folder** — for each object give its feature folder (`src/Feature/SubFeature/`) and the matching namespace `[AppName].[Feature].[SubFeature]` (root = `app.json` name). Folder and namespace are speculative mirrors; segments name **features, never object types**. Applies on runtime ≥ 13.0 (BC 24+) — see al-code-style Rule 5 / al-naming Rule 6. The implementer declares this `namespace` plus the required `using` directives in every generated file.
 
 ---
 ---
@@ -184,7 +185,7 @@ begin
 end;
 ```
 
-> **Verify each base-app event EXISTS — the spec is the source of truth for *which* events, symbols own the *signature*.** Before listing a subscriber, confirm the publisher+event exists with **al-symbols-mcp** (`al_search_objects` → the publisher object, `al_search_object_members` → the event). Record the **verified** publisher object, event name, and the **fields the handler consumes** in the table below — **not** the full parameter list (symbols own that; it drifts on version upgrade, so duplicating it here rots the spec). If an event you expected does **not** resolve, do not invent it: record it as an **Open Question** (§12) rather than guessing a name. `microsoft-docs`/`context7`/web stay fair game for *conceptual* "is there an event around X?" gaps — but the existence/identity check is symbols-first.
+> **Verify each base-app event EXISTS — the spec is the source of truth for *which* events, symbols own the *signature*.** Before listing a subscriber, confirm the publisher+event exists with **al-mcp** `al_symbolsearch` (→ the publisher object) and the AL LSP server (document symbols) (→ the event). Record the **verified** publisher object, event name, and the **fields the handler consumes** in the table below — **not** the full parameter list (symbols own that; it drifts on version upgrade, so duplicating it here rots the spec). If an event you expected does **not** resolve, do not invent it: record it as an **Open Question** (§12) rather than guessing a name. `microsoft-docs`/`context7`/web stay fair game for *conceptual* "is there an event around X?" gaps — but the existence/identity check is symbols-first.
 
 | Verified publisher (object) | Event name | Consumed fields | Purpose |
 |-----------------------------|-----------|-----------------|---------|
@@ -399,7 +400,7 @@ page {ID} "{Prefix} {Entity} API"
 
 ## Success Criteria
 
-- ✅ Spec file created at `.github/plans/${input:req_name}/${input:req_name}.spec.md`
+- ✅ Spec file created at `requirements/${input:req_name}/${input:req_name}.spec.md`
 - ✅ Object IDs verified against `app.json` idRanges
 - ✅ Architecture document consulted (if exists)
 - ✅ The feature's **own** procedure signatures are complete (no "TBD"); base-app event targets recorded as **verified publisher + event name + consumed fields** (exact param list resolved from symbols at code time, not transcribed)

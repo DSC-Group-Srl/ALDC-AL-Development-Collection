@@ -1,47 +1,115 @@
 #!/usr/bin/env bash
 #
-# BCQuality precondition hook — detects whether the external BCQuality clone is
-# mounted and INJECTS a directive into the agent session via additionalContext.
+# BCQuality precondition hook — detects whether the shared BCQuality knowledge
+# base is present, auto-installs it on first use, and keeps it refreshed in the
+# background. INJECTS a directive into the agent session via additionalContext.
 #
 # This is the single source of the "what to do about BCQuality" rule (Layer 2 of
 # the precondition-hook design). It replaces the precondition prose duplicated in
 # each consuming agent: detection is deterministic here, the agent just enacts the
-# injected directive. The agents keep a thin prose backstop (#49/#54) in case the
-# hook does not fire.
+# injected directive. The agents keep a thin prose backstop in case the hook does
+# not fire.
 #
-# Wired from .github/hooks/bcquality-precondition.json on sessionStart /
-# subagentStart. Reads aldc.yaml for home + entryPoint (override: $BCQUALITY_HOME).
+# USER-SCOPE, NOT PROJECT-SCOPE. The clone lives ONCE at ~/.claude/bcquality
+# (override: $BCQUALITY_HOME) and is shared by every AL project on this machine —
+# no more "../bcquality" sibling folder cluttering each project. First run clones
+# it in the background (this session still runs the native A-G checklist, since
+# the clone isn't ready yet); later runs fetch a fresh copy in the background at
+# most once every $BCQUALITY_UPDATE_INTERVAL_HOURS (default 12h). The background
+# job never blocks or fails the session, even fully offline.
+#
+# A project's aldc.yaml (if present) can still override home/entryPoint/url/ref/
+# pinnedCommit for advanced/pinned use, but is no longer required — the defaults
+# below are enough to make BCQuality work with zero per-project setup.
+#
+# Wired from hooks/hooks.json on SessionStart.
 # Emits the Copilot hook output contract on stdout:
 #   {"hookSpecificOutput":{"hookEventName":"<Event>","additionalContext":"<text>"}}
 #
-# NOTE (Preview): event-key casing and the bash/powershell config props may differ
-# across VS Code Copilot hook versions — verify against your install. The messages
-# below deliberately avoid " and \ so a plain printf yields valid JSON with no
-# dependency on python/jq.
+# NOTE: messages below deliberately avoid " and \ so a plain printf yields valid
+# JSON with no dependency on python/jq.
 set -euo pipefail
 
 EVENT="${1:-SessionStart}"
 ALDC="aldc.yaml"
 
-home="../bcquality"
+url="https://github.com/microsoft/BCQuality.git"
+ref="main"
+pin=""
 entry="skills/entry.md"
+default_home="${HOME:-${USERPROFILE:-.}}/.claude/bcquality"
+
 if [ -f "$ALDC" ]; then
   h=$(grep -E '^[[:space:]]*home:' "$ALDC" | head -1 | sed -E 's/.*home:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
   e=$(grep -E '^[[:space:]]*entryPoint:' "$ALDC" | head -1 | sed -E 's/.*entryPoint:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
-  [ -n "${h:-}" ] && home="$h"
+  u=$(grep -E '^[[:space:]]*url:' "$ALDC" | head -1 | sed -E 's/.*url:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
+  r=$(grep -E '^[[:space:]]*ref:' "$ALDC" | head -1 | sed -E 's/.*ref:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
+  p=$(grep -E '^[[:space:]]*pinnedCommit:' "$ALDC" | head -1 | sed -E 's/.*pinnedCommit:[[:space:]]*"?([^"#]*)"?.*/\1/' | tr -d '[:space:]' || true)
+  [ -n "${h:-}" ] && default_home="$h"
   [ -n "${e:-}" ] && entry="$e"
+  [ -n "${u:-}" ] && url="$u"
+  [ -n "${r:-}" ] && ref="$r"
+  [ -n "${p:-}" ] && pin="$p"
 fi
-home="${BCQUALITY_HOME:-$home}"
+
+home="${BCQUALITY_HOME:-$default_home}"
 entrypath="$home/$entry"
+target="${pin:-$ref}"
+interval_h="${BCQUALITY_UPDATE_INTERVAL_HOURS:-12}"
+lockdir="${home}.lock"
+stamp="${home}.last-check"
+logfile="${home}.log"
+syncscript="${home}.sync.sh"
 
 emit() {
   # $1 must be free of " and \ (kept that way below) so this stays valid JSON.
   printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$1"
 }
 
+acquire_lock() { mkdir "$lockdir" 2>/dev/null; }
+
+# Writes a standalone sync script (paths baked in) and backgrounds it fully
+# detached — `( cmd & )` exiting its subshell immediately reparents the child so
+# it outlives this hook process, with no dependency on nohup/setsid being present.
+spawn_background_sync() {
+  cat > "$syncscript" <<EOF
+#!/usr/bin/env bash
+set -eu
+trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
+date +%s > "$stamp" 2>/dev/null || true
+mkdir -p "$home"
+if [ ! -d "$home/.git" ]; then
+  git init --quiet "$home"
+  git -C "$home" remote add origin "$url"
+fi
+# Windows/NTFS: BCQuality's nested knowledge paths can exceed MAX_PATH (260)
+# under a deep user profile; without this, checkout silently drops files.
+git -C "$home" config core.longpaths true
+if ! git -C "$home" fetch --quiet --depth 1 origin "$target"; then
+  git -C "$home" fetch --quiet --depth 1 origin "$ref" || exit 0
+fi
+git -C "$home" checkout --quiet --detach FETCH_HEAD
+EOF
+  chmod +x "$syncscript" 2>/dev/null || true
+  ( bash "$syncscript" >>"$logfile" 2>&1 & )
+}
+
 if [ -f "$entrypath" ]; then
   sha=$(git -C "$home" rev-parse --short HEAD 2>/dev/null || echo unknown)
-  emit "BCQuality is PRESENT at ${home} (SHA ${sha}). Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report."
+  now=$(date +%s)
+  last=$(cat "$stamp" 2>/dev/null || echo 0)
+  age_h=$(( (now - last) / 3600 ))
+  if [ "$age_h" -ge "$interval_h" ] && acquire_lock; then
+    spawn_background_sync
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project). A background refresh just started (last synced ${age_h}h ago); this session still uses SHA ${sha} unaffected. Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report."
+  else
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project, last synced ${age_h}h ago). Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report."
+  fi
 else
-  emit "BCQuality is ABSENT (no ${entrypath}). Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. This is the pre-BCQuality ALDC review, not a stub."
+  if command -v git >/dev/null 2>&1 && acquire_lock; then
+    spawn_background_sync
+    emit "BCQuality is not installed yet. A one-time background install just started at ${home} - a shared, user-scope cache reused by every project on this machine, not a per-project clone. It will not be ready this session. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. It should be ready on your next session."
+  else
+    emit "BCQuality is ABSENT (no ${entrypath}) and could not be auto-installed right now - git is missing, or an install/refresh from another session is already in flight. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. This is the pre-BCQuality ALDC review, not a stub."
+  fi
 fi

@@ -30,8 +30,8 @@ This enables AI assistants to load complete project context quickly and make inf
 # Get app.json configuration
 Read app.json
 
-# Understand dependencies (app.json `dependencies` + al-symbols-mcp al_packages)
-al-symbols-mcp: al_packages
+# Understand dependencies (app.json `dependencies` + al-mcp al_getpackagedependencies)
+al-mcp: al_getpackagedependencies
 
 # Map directory structure
 Glob src/**
@@ -293,9 +293,10 @@ src/
 # Build project
 Bash: al compile
 
-# Download symbols (VS Code AL: Download Symbols, or restore the symbol cache in CI)
+# Download symbols
+al-mcp: al_downloadsymbols (globalSourcesOnly=true needs no auth), or VS Code AL: Download Symbols / restore the symbol cache in CI
 
-# Run tests (VS Code AL: Run Tests, or the AL-Go/CI test runner)
+# Run tests (HITL — al-mcp al_run_tests / Bash: al runtests exist but hit a live server; default to VS Code AL: Run Tests or the AL-Go/CI test runner)
 
 # Generate permissions (write the permissionset object as AL code)
 ```

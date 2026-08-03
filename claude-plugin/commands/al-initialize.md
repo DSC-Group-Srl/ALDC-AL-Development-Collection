@@ -16,6 +16,8 @@ This workflow covers environment setup, AL workspace configuration, and **ALDC r
 
 When ALDC is installed as a Claude Code plugin, path-scoped rules must be copied to the project's `.claude/rules/` directory. This phase handles that automatically.
 
+> A `SessionStart` hook (`tools/rules/precondition_hook.sh`) checks for `.claude/rules/al-guidelines.md` on every session and nudges agents to offer this command when it's missing — so this phase isn't skipped on a fresh project. Running it again is safe (`cp` overwrites the same files).
+
 ### Rules Installation
 
 Copy the following rule templates from the plugin's `rules-templates/` directory to your project's `.claude/rules/`:
@@ -165,11 +167,13 @@ ${input:ProjectName}/
 └── README.md                  # Project documentation
 ```
 
+**Multi-project workspace (app + test app / performance app):** when the requirement calls for a separate test app rather than an in-app `test/` folder, use sibling project folders instead — `app/`, `app-test/`, optionally `app-performance/` — each with its own `app.json` (the test/performance app declares the base app as a `dependencies` entry), plus a root `<name>.code-workspace` file listing each folder (generate it with `Bash: al workspace create <name>.code-workspace app app-test ...` if it doesn't exist). Load `skill-al-mcp-workspace` before building or troubleshooting this setup — it has the verified approach for keeping symbols in sync across projects, and the path/staleness gotchas to avoid.
+
 ### Download Symbols
 
-Download required symbols (no ALTool verb — a human/pipeline step): run VS Code `AL: Download Symbols`, or restore the symbol package cache in CI.
+Download required symbols directly via **al-mcp** `al_downloadsymbols` — `globalSourcesOnly=true` needs no auth and covers AppSource/Microsoft symbols; an environment-scoped download needs interactive browser auth, so confirm the target environment with the human first. Alternatively: VS Code `AL: Download Symbols`, or restore the symbol package cache in CI.
 
-Verify all base application dependencies are available.
+Verify all base application dependencies are available. For a multi-project workspace, each project (app, app-test, app-performance) needs its **own** `.alpackages` populated — downloading symbols for one project does not populate a sibling's cache.
 
 ### Create the Manifest
 
@@ -375,9 +379,10 @@ If authentication fails:
 ### Symbol Issues
 
 If symbols are missing:
-1. Download symbols: VS Code `AL: Download Symbols` (or restore the symbol cache in CI — a human/pipeline step)
-2. If persistent, download source: VS Code `AL: Download Source` (a human step; to inspect base/app symbols use **al-symbols-mcp** `al_get_object_definition` / `al_search_objects`)
+1. Download symbols: **al-mcp** `al_downloadsymbols` (check the response's `cachePath` matches the project you targeted — in a multi-project session it can silently stick to a previously-targeted project), or VS Code `AL: Download Symbols` / restore the symbol cache in CI
+2. If persistent, download source: VS Code `AL: Download Source` (a human step; to inspect base/app symbols use the AL LSP server (hover / go-to-definition) or al-mcp `al_symbolsearch`)
 3. Verify app.json dependencies match BC version
+4. In a multi-project workspace, prefer `Bash: al workspace compile <workspaceFile>` over rebuilding projects individually — it keeps every project's symbols in sync in one command. Load `skill-al-mcp-workspace` for the full troubleshooting flow.
 
 ### AI Suggestions Not Appearing
 

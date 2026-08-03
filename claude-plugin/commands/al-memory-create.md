@@ -1,50 +1,61 @@
 ---
 description: >
-  Generate or update memory.md file tracking decisions, changes, and learnings
-  throughout project development for continuity across sessions. Use when you need
-  to create or update memory, track decisions, or maintain session continuity.
+  Generate or update CLAUDE.md file tracking project conventions, decisions, and
+  configuration for continuity across sessions. Use when you need to create or update
+  project memory, track decisions, or maintain session continuity.
 allowed-tools: Read, Grep, Glob, Write, Edit
 ---
 
-# AL Memory File Generator
+# AL Project Memory (CLAUDE.md) Generator
 
-Generate and maintain a `memory.md` file that serves as the **project memory** - tracking decisions, changes, learnings, and important conversations across development sessions.
+Generate and maintain a `CLAUDE.md` file that serves as the **project memory and configuration** - tracking conventions, decisions, learnings, and important context across development sessions.
 
 ## Purpose
 
-The `memory.md` file provides:
+The `CLAUDE.md` file provides:
+- **Project Conventions**: Naming, structure, and coding standards for this project
 - **Session Continuity**: What happened in previous sessions
 - **Decision Log**: Why things were done a certain way
 - **Problem/Solution Patterns**: What issues occurred and how they were solved
 - **TODO Tracking**: What needs to be done next
 - **Learning Journal**: Insights gained during development
-- **Context for AI**: Prevents re-asking questions or repeating mistakes
+- **Agent Context**: Loaded automatically by agents for consistent behavior
 
-This enables AI assistants and developers to pick up where they left off and build on previous work.
+This enables AI assistants and developers to pick up where they left off and build on previous work. The `CLAUDE.md` file replaces the legacy `memory.md` pattern, leveraging Claude Code's built-in project memory mechanism.
 
 ## Execution Steps
 
-### 1. Initialize Memory Structure
+### 1. Initialize CLAUDE.md Structure
 
-If `memory.md` doesn't exist, create with this template:
+If `CLAUDE.md` doesn't exist, create with this template:
 
 ```markdown
-# Project Memory - [Extension Name]
+# Project Configuration - [Extension Name]
 
-> **Purpose**: Continuous memory across development sessions  
-> **Maintained by**: AI assistants and developers  
+> **Purpose**: Project conventions, decisions, and configuration for AI agents and developers
+> **Maintained by**: AI assistants and developers
 > **Last Updated**: [Date]
+
+## Project Conventions
+
+**Naming Prefix**: [e.g., DSC]
+**Table ID Range**: [e.g., 50100..50199]
+**Page ID Range**: [e.g., 50100..50199]
+**Codeunit ID Range**: [e.g., 50100..50199]
+**Report ID Range**: [e.g., 50100..50199]
+**Query ID Range**: [e.g., 50100..50199]
+
+**Structure**: Feature-based organization (`src/feature/subfeature/`)
+**Events**: Event-driven architecture preferred
+**Permissions**: Least-privilege principle
 
 ## Quick Reference
 
-**Current Focus**: [What we're working on now]  
-**Next Steps**: [ImMEDIUMte next actions]  
+**Current Focus**: [What we're working on now]
+**Next Steps**: [Immediate next actions]
 **Blockers**: [Current blockers if any]
 
 ---
----
-
-## Session Log
 
 ### [Date] - Session [N]
 
@@ -68,7 +79,6 @@ If `memory.md` doesn't exist, create with this template:
 - [Any important observations]
 
 ---
----
 
 ## Decision Log
 
@@ -85,7 +95,6 @@ If `memory.md` doesn't exist, create with this template:
 **Review Date**: [When to revisit if applicable]
 
 ---
----
 
 ## Problem/Solution Patterns
 
@@ -98,7 +107,6 @@ If `memory.md` doesn't exist, create with this template:
 **Related Code**: [File paths or line numbers]
 
 ---
----
 
 ## Learning Journal
 
@@ -109,23 +117,6 @@ If `memory.md` doesn't exist, create with this template:
 **Where Applied**: [Code locations]  
 **Resources**: [Links to docs, articles that helped]
 
----
----
-
-## Code Evolution
-
-### [Feature/Module Name]
-
-**v1.0** - [Date]
-- Initial implementation
-- [Key characteristics]
-
-**v1.1** - [Date]
-- Changed: [What changed]
-- Reason: [Why it changed]
-- Migration: [How to adapt if needed]
-
----
 ---
 
 ## TODO & Backlog
@@ -141,135 +132,9 @@ If `memory.md` doesn't exist, create with this template:
 
 ### Done ✅
 - [x] [Completed task] - [Date completed]
-
----
----
-
-## Questions & Answers
-
-### [Question]
-**Asked**: [Date]  
-**Answer**: [The answer found]  
-**Source**: [Where answer came from - docs, testing, expert]
-
----
----
-
-## Integration Points
-
-### [External System/Extension Name]
-
-**First Integrated**: [Date]  
-**Current Status**: [Active/Deprecated/Planned]  
-**Contact Point**: [Method - API/Event/etc]  
-**Issues Encountered**: [Problems and solutions]  
-**Dependencies**: [What depends on this]
-
----
----
-
-## Performance Tracking
-
-### [Feature/Operation]
-
-**Baseline**: [Initial performance metrics]  
-**Optimizations Applied**:
-- [Date]: [Change] → [Result]
-
-**Current State**: [Latest metrics]  
-**Target**: [Performance goal]
-
----
----
-
-## Testing Insights
-
-### [Test Scenario]
-
-**First Tested**: [Date]  
-**Results**: [What we found]  
-**Edge Cases Discovered**:
-- [Edge case 1]: [How handled]
-
-**Regression History**: [If this broke before, when and why]
-
----
----
-
-## Communication Log
-
-### [Date] - [Stakeholder/Team Member]
-
-**Topic**: [What was discussed]  
-**Decisions**: [Agreements reached]  
-**Action Items**: [Who does what]  
-**Follow-up**: [When to check back]
-
----
----
-
-## Environment Notes
-
-### Development Setup
-
-**Last Working Config**: [Date]
-- BC Version: [Version]
-- Extensions: [Key extensions used]
-- Settings: [Important VS Code/AL settings]
-
-**Known Issues**:
-- [Issue]: [Workaround]
-
----
----
-
-## Deprecated Patterns
-
-### [Pattern Name]
-
-**Used**: [Date range when this was used]  
-**Replaced By**: [New pattern]  
-**Migration Guide**: [How to update old code]  
-**Reason for Deprecation**: [Why we stopped using it]
-
----
----
-
-## Useful Snippets
-
-### [Snippet Name]
-```al
-[Code snippet that proved useful]
-```
-**Use Case**: [When to use this]  
-**Source**: [Where this came from]
-
----
----
-
-## Meeting Notes
-
-### [Date] - [Meeting Type]
-
-**Attendees**: [Who was there]  
-**Topics**: [What was discussed]  
-**Decisions**: [What was decided]  
-**Actions**: [Who does what by when]
-
----
----
-
-## Maintenance Log
-
-### [Date] - [Maintenance Activity]
-
-**What**: [What was maintained]  
-**Why**: [Reason for maintenance]  
-**Changes**: [What changed]  
-**Impact**: [What this affects]
 ```
 
-### 2. If Memory File Exists - Update It
+### 2. If CLAUDE.md Exists - Update It
 
 **Add new session entry:**
 ```
@@ -471,7 +336,7 @@ At the end of each session, update the top section:
 ## Output Format
 
 Deliver:
-1. ✅ Created/updated `memory.md` at project root
+1. ✅ Created/updated `CLAUDE.md` at project root
 2. ✅ Summary of key additions made
 3. ✅ Highlight any important patterns/decisions documented
 4. ✅ Suggest next session focus based on TODOs
@@ -480,7 +345,7 @@ Deliver:
 
 ### At Session Start
 ```markdown
-**AI Assistant**: Load memory.md to understand:
+**AI Assistant**: Load CLAUDE.md to understand:
 - What was done last session
 - What the plan was for this session
 - Any blockers or important context
@@ -514,7 +379,7 @@ Deliver:
 
 ## Success Criteria
 
-A successful `memory.md` enables:
+A successful `CLAUDE.md` enables:
 - ✅ Picking up project after weeks away
 - ✅ Understanding why code is the way it is
 - ✅ Avoiding repeat mistakes

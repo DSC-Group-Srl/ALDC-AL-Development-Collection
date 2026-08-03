@@ -12,7 +12,7 @@ Your goal is to build (compile + package) the AL extension for the `${input:Depl
 > **What runs where.** In the Claude Code harness you compile and package with the **AL command-line tool (ALTool / `al`)** via `Bash`. ALTool has **no publish/test verb** — deployment and test runs are VS Code (`AL: Publish` / `AL: Run Tests`) or AL-Go/CI pipeline steps. So this command builds the `.app` and then hands off the deploy with a clear, approved checklist.
 
 ## Select Deployment Strategy
-Inspect the project (`Read` `app.json`, `Grep`/`Glob`, **al-symbols-mcp** for dependencies) and select the appropriate deployment strategy.
+Inspect the project (`Read` `app.json`, `Grep`/`Glob`, **al-mcp** for dependencies) and select the appropriate deployment strategy.
 Ask and confirm with the user before proceeding.
 
 ## Deployment Types
@@ -35,7 +35,7 @@ Based on the deployment type, use the appropriate strategy:
 ### Production Environment 
 1. **Build**: `Bash: al compile` with strict validation
 2. **Package**: take the release `.app` produced by `al compile`
-3. **Validation**: Verify package integrity and dependencies (`app.json` + **al-symbols-mcp** `al_packages`)
+3. **Validation**: Verify package integrity and dependencies (`app.json` + **al-mcp** `al_getpackagedependencies`)
 4. **Documentation**: Generate deployment checklist and present for review
 5. **Human Gate**: **MANDATORY** - Manual approval required before any production action
    - **Note**: Automated deployment to production is intentionally disabled as safeguard
