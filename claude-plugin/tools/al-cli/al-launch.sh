@@ -16,6 +16,17 @@
 # /usr/bin/bash or Git for Windows' bin), so it isn't filtered. The actual
 # `al` lookup below happens inside this already-running bash process, which
 # has no such filter.
+#
+# On Windows, Git for Windows' bash.exe normally resolves under
+# "C:\Program Files\Git\...", and Claude Code mishandles the space in that
+# resolved path, erroring with "command should not contain spaces, use
+# args instead" (anthropic/claude-code#4507, #4876, #58510). So .mcp.json,
+# .lsp.json, and hooks.json all spawn `cmd /c bash al-launch.sh <args>`
+# instead of bare `bash` — "cmd" always resolves to
+# C:\Windows\System32\cmd.exe (no spaces), and cmd's own PATH search +
+# quoting for the nested `bash` call doesn't hit the bug. This repo is
+# Windows-only in practice, so the `cmd` wrapper is applied
+# unconditionally rather than branched by OS.
 set -euo pipefail
 
 resolve_al() {
