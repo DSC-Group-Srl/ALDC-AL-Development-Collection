@@ -4,7 +4,7 @@ description: >
   blueprint for Business Central features. Use when you need to create a spec, write
   a specification, or detail a requirement. Reads architecture.md if exists.
   Outputs to requirements/{req_name}/.
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, Skill
 ---
 
 # AL Technical Specification Workflow
@@ -19,7 +19,7 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 - **Never** output to `/specs/` — always output to `requirements/{req_name}/`
 - If `{req_name}.architecture.md` exists, read it first — the spec must implement what the architect designed
 - If spec already exists, confirm with user before overwriting
-- Complexity drives depth: LOW = lighter spec, MEDIUM/HIGH = full spec with all sections
+- Complexity drives depth within a section, not which sections exist: LOW condenses §§6-8 and may omit §12; MEDIUM/HIGH fills every applicable section in full. At every tier, **omit a conditional section entirely if the feature doesn't touch that object type** (see the template's own `## Rules`) — never scaffold a code skeleton for an object type this feature never creates
 
 ## Step 1 — Read Context
 
@@ -56,7 +56,7 @@ Search for:
 This spec is the blueprint `aldc:al-conductor` and `aldc:al-developer` implement from — it must be a **reliable guide**, not proposed from memory. Ground it without bloating this (cheap) primitive:
 
 - **Instructions (always) — reference, don't recite.** The hard micro-rules under `rules-templates/` / the project's `.claude/rules/al-*` (naming ≤26 PascalCase, `DataClassification` on every field, extension-only, the performance/error-handling safety-net) govern every object you propose. They are tiny — honor them, and cite the governing one where a section depends on it.
-- **Skills (on demand — one per domain the spec actually designs).** `Read` the `SKILL.md` for a domain **only when the spec covers it**: §5 events → `skill-events`; §6 pages → `skill-pages`; §8 permissions → `skill-permissions`; §9 API → `skill-api`; AI/Copilot → `skill-copilot`; performance-critical logic → `skill-performance`; §7 tests → `skill-testing`. Do **not** load skills for domains the spec doesn't touch; for **LOW** complexity keep it minimal.
+- **Skills (on demand — one per domain the spec actually designs).** Invoke the **Skill** tool for a domain **only when the spec covers it**: §5 events → `bc-dev:skill-events`; §6 pages → `bc-dev:skill-pages`; §8 permissions → `bc-dev:skill-permissions`; §9 API → `bc-dev:skill-api`; AI/Copilot → `bc-dev:skill-copilot`; performance-critical logic → `bc-dev:skill-performance`; §7 tests → `bc-dev:skill-testing`. Do **not** load skills for domains the spec doesn't touch; for **LOW** complexity keep it minimal.
 
 This keeps the median cost low (most specs touch 1–2 domains) while making the spec a framework-grounded guide instead of a from-memory proposal.
 
@@ -65,304 +65,18 @@ This keeps the median cost low (most specs touch 1–2 domains) while making the
 
 ## Step 2 — Generate Specification
 
-Create `requirements/${input:req_name}/${input:req_name}.spec.md` with the following structure:
+Create `requirements/${input:req_name}/${input:req_name}.spec.md` following the canonical structure in `${CLAUDE_PLUGIN_ROOT}/docs/templates/spec-template.md` — `Read` that file (it's the single source of truth for the 12-section structure; **do not** re-derive the section layout from memory) and fill in every placeholder with real values from this feature (object IDs from `app.json` idRanges, actual field/procedure signatures, symbol-verified events).
 
----
----
+**Apply the template's own `## Rules` section, in particular:**
+- Omit §3/§5/§6/§8/§9 entirely for any object type this feature doesn't touch (a permission-set-only change doesn't get a Data Model or Pages section) — this is the largest lever on this document's size, since most features touch 2-4 of the 5 conditional sections, not all five.
+- Complexity (`${input:Complexity}`) controls depth **within** the sections that do apply, not which sections exist.
+- Fill `**Version**`/`**Date**`/`**Complexity**`/`**Status**` from this run's actual values, and set `${req_name}` throughout.
+
+After Step 1's symbol verification, populate §2 (AL Object Inventory) and §5 (Event Integration) with the **verified** facts only — anything that didn't resolve goes to §12 Open Questions, never invented.
+
+For the **Next Steps** section at the end of the generated file, use:
 
 ```markdown
-# ${input:req_name} — Technical Specification
-
-**Version:** 1.0
-**Date:** {current date}
-**Complexity:** ${input:Complexity}
-**Status:** Draft
-
-## 1. Overview
-
-### Business Context
-[1-3 sentences describing what this feature does and why it is needed]
-
-### Scope
-[What is included. What is explicitly excluded.]
-
-### Architecture Reference
-[If architecture.md exists: "Implements {req_name}.architecture.md — {pattern chosen}". If not: "No architecture document — spec defines structure."]
-
----
----
-
-## 2. AL Object Inventory
-
-| Object Type | Object ID | Name | Extends / Source | Purpose |
-|-------------|-----------|------|-----------------|---------|
-| TableExtension | {ID from range} | {Prefix} {BaseName} Ext | {Base Table} | {Why this extension} |
-| PageExtension  | {ID} | {Prefix} {BasePage} Ext | {Base Page} | {What fields/actions added} |
-| Codeunit       | {ID} | {Prefix} {Name} Mgt | — | {Core business logic} |
-| Codeunit       | {ID} | {Prefix} {Name} Subscriber | — | {Event subscriptions} |
-
-> Object IDs MUST be within the app.json `idRanges`. Verify with codebase search before assigning.
-> **Namespace & folder** — for each object give its feature folder (`src/Feature/SubFeature/`) and the matching namespace `[AppName].[Feature].[SubFeature]` (root = `app.json` name). Folder and namespace are speculative mirrors; segments name **features, never object types**. Applies on runtime ≥ 13.0 (BC 24+) — see al-code-style Rule 5 / al-naming Rule 6. The implementer declares this `namespace` plus the required `using` directives in every generated file.
-
----
----
-
-## 3. Data Model
-
-### Table Extensions / New Tables
-
-For each table/extension:
-
-```al
-tableextension {ID} "{Prefix} {BaseName} Ext" extends "{BaseName}"
-{
-    fields
-    {
-        field({FieldID}; "{Prefix} {FieldName}"; {DataType}[{Length}])
-        {
-            Caption = '{Caption}', Comment = '{Translation key}';
-            DataClassification = CustomerContent; // or ToBeClassified / SystemMetadata
-            {CalcFormula / TableRelation / BlankZero / etc. if applicable}
-        }
-    }
-}
-```
-
-> Specify GDPR DataClassification for every field.
-
-### Field Catalogue
-
-| Field No. | Field Name | Type | Length | Required | Relation | Description |
-|-----------|-----------|------|--------|----------|---------|-------------|
-| {ID} | {Prefix} {Name} | {Type} | {L} | Yes/No | {Table."Field"} | {Purpose} |
-
----
----
-
-## 4. Business Logic — Codeunit Procedures
-
-For each codeunit, list every public procedure with full signature:
-
-```al
-codeunit {ID} "{Prefix} {Name} Mgt"
-{
-    // Procedure: {What it does}
-    // Called by: {who calls this}
-    procedure {ProcedureName}({Param}: {Type}): {ReturnType}
-    begin
-        // AL code sketch for complex logic only
-    end;
-
-    // Internal helper
-    local procedure {HelperName}({Param}: {Type})
-    begin
-    end;
-}
-```
-
----
----
-
-## 5. Event Integration
-
-### Publishers (new events this feature exposes)
-
-```al
-// In: {Codeunit name}
-[IntegrationEvent(false, false)]
-local procedure OnAfter{ActionName}({Param}: {Type})
-begin
-end;
-```
-
-### Subscribers (events this feature hooks into)
-
-```al
-[EventSubscriber(ObjectType::Codeunit, Codeunit::{Publisher}, '{EventName}', '', false, false)]
-local procedure {EventName}_Handler({Param}: {Type})
-begin
-    // What this subscriber does
-end;
-```
-
-> **Verify each base-app event EXISTS — the spec is the source of truth for *which* events, symbols own the *signature*.** Before listing a subscriber, confirm the publisher+event exists with **al-mcp** `al_symbolsearch` (→ the publisher object) and the AL LSP server (document symbols) (→ the event). Record the **verified** publisher object, event name, and the **fields the handler consumes** in the table below — **not** the full parameter list (symbols own that; it drifts on version upgrade, so duplicating it here rots the spec). If an event you expected does **not** resolve, do not invent it: record it as an **Open Question** (§12) rather than guessing a name. `microsoft-docs`/`context7`/web stay fair game for *conceptual* "is there an event around X?" gaps — but the existence/identity check is symbols-first.
-
-| Verified publisher (object) | Event name | Consumed fields | Purpose |
-|-----------------------------|-----------|-----------------|---------|
-| Codeunit "{Publisher}" | {EventName} | {Rec fields the handler reads/writes} | {why this subscription} |
-
----
----
-
-## 6. Pages and UI
-
-### Page Extensions / New Pages
-
-```al
-pageextension {ID} "{Prefix} {BasePage} Ext" extends "{BasePage}"
-{
-    layout
-    {
-        addafter({ExistingGroup})
-        {
-            group("{Prefix} {GroupName}")
-            {
-                Caption = '{Caption}';
-                field("{Prefix} {FieldName}"; Rec."{Prefix} {FieldName}")
-                {
-                    ApplicationArea = All;
-                    ToolTip = '{Explain what this field does}';
-                }
-            }
-        }
-    }
-
-    actions
-    {
-        addafter({ExistingAction})
-        {
-            action("{Prefix} {ActionName}")
-            {
-                Caption = '{Caption}';
-                ApplicationArea = All;
-                Image = {IconName};
-                trigger OnAction()
-                begin
-                    {Codeunit}.{Procedure}(Rec);
-                end;
-            }
-        }
-    }
-}
-```
-
----
----
-
-## 7. Tests (Given/When/Then)
-
-For each main scenario:
-
-```al
-codeunit {ID} "{Prefix} {Feature} Tests"
-{
-    Subtype = Test;
-
-    [Test]
-    procedure {ScenarioName}()
-    // Given: {Initial state}
-    // When: {Action performed}
-    // Then: {Expected result}
-    var
-        {Var}: Record {Table};
-    begin
-        // Arrange
-
-        // Act
-
-        // Assert
-        Assert.{AssertMethod}({Expected}, {Actual}, '{Message}');
-    end;
-}
-```
-
-| Test Name | Given | When | Then |
-|-----------|-------|------|------|
-| {Scenario1} | {State} | {Action} | {Result} |
-| {Scenario2} | {State} | {Action} | {Result} |
-
----
----
-
-## 8. Permission Sets
-
-```al
-permissionset {ID} "{Prefix} - {Feature}"
-{
-    Assignable = true;
-    Caption = '{Caption}';
-
-    Permissions =
-        tabledata "{Table}" = RIMD,
-        codeunit "{Codeunit}" = X;
-}
-```
-
----
----
-
-## 9. API Endpoints (if applicable)
-
-Only if this feature exposes or consumes APIs:
-
-```al
-page {ID} "{Prefix} {Entity} API"
-{
-    PageType = API;
-    APIPublisher = '{publisher}';
-    APIGroup = '{group}';
-    APIVersion = 'v2.0';
-    EntityName = '{entity}';
-    EntitySetName = '{entities}';
-    SourceTable = {Table};
-    DelayedInsert = true;
-
-    layout
-    {
-        area(Content)
-        {
-            repeater(Group)
-            {
-                field(id; Rec.SystemId) { }
-                field({camelCaseField}; Rec."{Field Name}") { }
-            }
-        }
-    }
-}
-```
-
----
----
-
-## 10. AL-Go / CI Considerations
-
-- [ ] New object IDs registered in `app.json` `idRanges`
-- [ ] AppSourceCop rules: no hardcoded object IDs in code
-- [ ] Build pipeline: no new BC version dependencies introduced
-- [ ] Translations: all new Captions added to XLF
-
----
----
-
-## 11. Acceptance Criteria
-
-### Functional
-- [ ] {User action / business outcome 1}
-- [ ] {User action / business outcome 2}
-
-### Technical
-- [ ] All AL objects compile without errors
-- [ ] Events are properly published and subscribed
-- [ ] Permission sets cover all new objects
-- [ ] No hardcoded values (use Setup table or constants)
-
-### Quality
-- [ ] Unit tests cover all main scenarios (Given/When/Then defined above)
-- [ ] Code review passed by @al-review-subagent
-- [ ] Translation keys defined for all new Captions
-
----
----
-
-## 12. Open Questions
-
-| # | Question | Owner | Status |
-|---|---------|-------|--------|
-| 1 | {Question requiring human decision} | Human | Open |
-
----
----
-
 ## Next Steps
 
 **Complexity: ${input:Complexity}**

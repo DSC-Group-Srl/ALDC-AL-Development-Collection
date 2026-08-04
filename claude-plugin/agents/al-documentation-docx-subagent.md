@@ -37,7 +37,7 @@ skill's own convention for this) — never block waiting for an answer that isn'
 
 ## Workflow
 
-Load `.github/skills/skill-functional-docx/SKILL.md` in full. Apply its phases:
+Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
 
 1. **Fase 0** — already done; use the metadata passed in your instructions (client name, title,
    author, supervisor, version, date, notes, doc type DAF/MAN).

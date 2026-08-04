@@ -6,7 +6,7 @@ description: >
   against the compiler; hands publish/test/debug runtime steps to a human or CI.
   Implements features following specifications without architectural decisions.
   Use when you need to implement, code, debug, or fix AL code directly.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: green
 maxTurns: 50
@@ -500,7 +500,7 @@ Once the design is established, I can implement it."
 **When loading a skill:**
 ```markdown
 "Loading skill-testing for test strategy guidance..."
-[Load skill-testing from .github/skills/]
+[Invoke Skill(skill: "bc-dev:skill-testing")]
 ```
 
 **MANDATORY — Declare loaded skills at the start of your response:**
@@ -526,19 +526,19 @@ I'll build and validate after each step."
 
 ## Domain Skills
 
-This agent draws on these skills from `.github/skills/`. They are **not** auto-loaded — **load the `SKILL.md` on demand** (`Read` it) when the task enters that domain:
+This agent draws on this plugin's own skills. They are **not** auto-loaded — invoke the **Skill** tool with the plugin-scoped name when the task enters that domain:
 
-- **skill-api** — When creating API pages, OData endpoints, HttpClient integrations
-- **skill-events** — When implementing event subscribers/publishers
-- **skill-permissions** — When creating permission sets
-- **skill-performance** — When optimizing queries, SetLoadFields, FlowFields
-- **skill-debug** — When performing snapshot debugging, CPU profiling, diagnostics
-- **skill-testing** — When designing tests, Given/When/Then patterns
-- **skill-copilot** — When implementing Copilot/AI features
-- **skill-pages** — When creating or extending pages (Card, List, Document)
-- **skill-translate** — When creating/refreshing XLF language files, translating strings, or reviewing translation state (uses the **nab-al-tools** MCP server — see `.mcp.json`)
+- **bc-dev:skill-api** — When creating API pages, OData endpoints, HttpClient integrations
+- **bc-dev:skill-events** — When implementing event subscribers/publishers
+- **bc-dev:skill-permissions** — When creating permission sets
+- **bc-dev:skill-performance** — When optimizing queries, SetLoadFields, FlowFields
+- **bc-dev:skill-debug** — When performing snapshot debugging, CPU profiling, diagnostics
+- **bc-dev:skill-testing** — When designing tests, Given/When/Then patterns
+- **bc-dev:skill-copilot** — When implementing Copilot/AI features
+- **bc-dev:skill-pages** — When creating or extending pages (Card, List, Document)
+- **bc-dev:skill-translate** — When creating/refreshing XLF language files, translating strings, or reviewing translation state (uses the **nab-al-tools** MCP server — see `.mcp.json`)
 
-**Load = read the `SKILL.md`.** Naming a skill without reading it is not loading it.
+**Load = invoke `Skill(skill: "bc-dev:skill-x")`.** Naming a skill without invoking it is not loading it.
 
 ## Skills Evidencing
 

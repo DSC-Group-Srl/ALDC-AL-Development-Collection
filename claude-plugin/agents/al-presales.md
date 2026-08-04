@@ -5,7 +5,7 @@ description: >
   project planning, cost estimation (time and budget), feasibility analysis,
   SWOT/risk assessment, and technical documentation. Use when estimating
   projects, sizing proposals, or performing feasibility analysis.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: red
 maxTurns: 50
@@ -860,11 +860,11 @@ await createFile('Technical_PreSales/customer-loyalty-system/00-executive-summar
 
 ## Domain Skills
 
-This agent draws on the following skill from `.github/skills/`. It is **not** auto-loaded — **load the `SKILL.md` on demand** (`Read` it) when estimating:
+This agent draws on this plugin's own skill. It is **not** auto-loaded — invoke the **Skill** tool with the plugin-scoped name when estimating:
 
-- **skill-estimation** — When performing project estimation, complexity scoring, PERT, SWOT, cost breakdown
+- **bc-dev:skill-estimation** — When performing project estimation, complexity scoring, PERT, SWOT, cost breakdown
 
-**Load = read the `SKILL.md`.** Naming a skill without reading it is not loading it.
+**Load = invoke `Skill(skill: "bc-dev:skill-estimation")`.** Naming a skill without invoking it is not loading it.
 
 ---
 ---

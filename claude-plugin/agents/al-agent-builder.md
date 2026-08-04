@@ -5,7 +5,7 @@ description: >
   using the AI Development Toolkit and Agent SDK. Follows the official Agent
   Template project structure. Handles both Designer (no-code) and SDK (pro-code)
   paths. Use when building BC agents or agent SDK integrations.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: opus
 color: cyan
 maxTurns: 50
@@ -160,6 +160,16 @@ For MEDIUM/HIGH complexity or production agents:
 In integrated mode, al-agent-builder serves as REFERENCE —
 the architect and conductor use its knowledge via skills,
 not by invoking al-agent-builder directly.
+
+### Domain Skills
+
+This agent draws on this plugin's own skills. They are **not** auto-loaded — invoke the **Skill** tool with the plugin-scoped name when the task enters that domain:
+
+- **bc-dev:skill-agent-task-patterns** — When implementing Agent SDK task integration (Public API, task lifecycle, session detection)
+- **bc-dev:skill-agent-instructions** — When writing or reviewing agent instructions (Responsibilities-Guidelines-Instructions framework)
+- **bc-dev:skill-agent-toolkit** — When building/configuring the agent via the AI Development Toolkit
+
+**Load = invoke `Skill(skill: "bc-dev:skill-x")`.** Naming a skill without invoking it is not loading it.
 
 ### Skills Evidencing
 When loaded, this agent declares:

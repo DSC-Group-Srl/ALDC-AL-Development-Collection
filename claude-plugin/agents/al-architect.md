@@ -6,7 +6,7 @@ description: >
   decisions for AL development. Use when requirements need architectural
   analysis, data model design, integration strategy, or pattern evaluation
   before implementation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: opus
 color: blue
 maxTurns: 50
@@ -260,16 +260,16 @@ When provided with a requirements document (requisites.md, spec.md, requirements
 
 ## Domain Skills
 
-This agent draws on these skills from `.github/skills/`. They are **not** auto-loaded — **load the `SKILL.md` on demand** (`Read` it) when the design enters that domain:
+This agent draws on this plugin's own skills. They are **not** auto-loaded — invoke the **Skill** tool with the plugin-scoped name when the design enters that domain:
 
-- **skill-api** — When designing API pages, OData endpoints, integration strategy
-- **skill-events** — When designing event-driven architecture, publishers/subscribers
-- **skill-performance** — When designing for performance, keys, caching, batch processing
-- **skill-copilot** — When designing Copilot/AI feature architecture
-- **skill-pages** — When designing page layouts, UX patterns, navigation
-- **skill-translate** — When designing multi-language/localization strategy (target locales, terminology consistency via the **nab-al-tools** MCP server)
+- **bc-dev:skill-api** — When designing API pages, OData endpoints, integration strategy
+- **bc-dev:skill-events** — When designing event-driven architecture, publishers/subscribers
+- **bc-dev:skill-performance** — When designing for performance, keys, caching, batch processing
+- **bc-dev:skill-copilot** — When designing Copilot/AI feature architecture
+- **bc-dev:skill-pages** — When designing page layouts, UX patterns, navigation
+- **bc-dev:skill-translate** — When designing multi-language/localization strategy (target locales, terminology consistency via the **nab-al-tools** MCP server)
 
-**Load = read the `SKILL.md`.** Naming a skill without reading it is not loading it.
+**Load = invoke `Skill(skill: "bc-dev:skill-x")`.** Naming a skill without invoking it is not loading it.
 
 ## Skills Evidencing
 

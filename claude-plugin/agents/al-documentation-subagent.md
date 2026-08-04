@@ -7,7 +7,7 @@ description: >
   end-user site (always) plus the correct developer/technical site — skill-aldoc's public-API
   reference for AppSource/Global apps, or skill-developer-docfx's internals/algorithms site for
   PTE apps.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: sonnet
 color: teal
 maxTurns: 40
@@ -86,8 +86,7 @@ folder-existence heuristic above.
 
 ## Step 2 — Functional documentation (always, every app)
 
-Load `.github/skills/skill-functional-docfx/SKILL.md` (read it in full if not already loaded
-this session). Apply its workflow:
+Invoke `Skill(skill: "bc-dev:skill-functional-docfx")` (if not already loaded this session). Apply its workflow:
 - Bootstrap mode: full Phase 1–6 as written.
 - Incremental mode: re-read only the AL source for the objects/files reported as changed,
   update the corresponding `.md` page(s) (a changed page action/field/workflow → update that
@@ -99,7 +98,7 @@ This runs regardless of app type — every app, PTE or AppSource/Global, gets th
 
 ## Step 3 — Developer/technical documentation (branch on Step 0)
 
-**AppSource / Global** → load `.github/skills/skill-aldoc/SKILL.md`. Apply its workflow:
+**AppSource / Global** → invoke `Skill(skill: "bc-dev:skill-aldoc")`. Apply its workflow:
 write/update XML doc comments on the public surface touched by this plan (bootstrap: full
 audit per the skill's file-count branch; incremental: just the changed objects/procedures),
 then tell the Conductor's caller context requires a recompile before `aldoc build` can run —
@@ -109,7 +108,7 @@ step, proceed with `aldoc build` + `docfx build`. Otherwise, note in your report
 recompile is needed before the developer site can be regenerated, and skip straight to Step 4 —
 do not block on it.
 
-**PTE** → load `.github/skills/skill-developer-docfx/SKILL.md`. Apply its workflow: write/update
+**PTE** → invoke `Skill(skill: "bc-dev:skill-developer-docfx")`. Apply its workflow: write/update
 `internals/*.md` pages for the subsystems touched by this plan (bootstrap: full subsystem
 inventory per the skill's file-count branch; incremental: just the algorithms/subsystems the
 changed objects belong to), then `docfx build` (no recompile dependency — this skill never
@@ -129,12 +128,12 @@ the plan's code was already reviewed and committed before you ran.
 
 ## Domain Skills
 
-This agent draws on skills from `.github/skills/`. They are **not** auto-loaded — **load the
-`SKILL.md` on demand** (`Read` it) when the branch in Step 2/3 requires it:
+This agent draws on this plugin's own skills. They are **not** auto-loaded — invoke the **Skill**
+tool with the plugin-scoped name when the branch in Step 2/3 requires it:
 
-- **skill-functional-docfx** — always, every run (Step 2)
-- **skill-aldoc** — when the app is AppSource/Global (Step 3)
-- **skill-developer-docfx** — when the app is PTE (Step 3)
+- **bc-dev:skill-functional-docfx** — always, every run (Step 2)
+- **bc-dev:skill-aldoc** — when the app is AppSource/Global (Step 3)
+- **bc-dev:skill-developer-docfx** — when the app is PTE (Step 3)
 
 Each skill's own `references/` guide (e.g. `agent-sweep-guide.md`) covers the >50-file
 agent-sweep fallback for bootstrap mode on large codebases — load and follow it the same way

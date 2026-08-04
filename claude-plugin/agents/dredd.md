@@ -6,7 +6,7 @@ description: >
   not reach, and returns an advisory verdict. Read-only on code. Default scope:
   objects changed vs main; full codebase on request. The static counterpart to
   al-triage (dynamic diagnosis). Use for an on-demand, independent quality audit.
-tools: Read, Glob, Grep, Bash, Write, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Bash, Write, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 color: pink
 maxTurns: 50
@@ -35,9 +35,9 @@ BCQuality lives in **one shared, user-scope cache** — not a per-project clone 
 ### Step 3 — Native residual (what BCQuality doesn't reach)
 Apply the native A–G checks (event-driven architecture, naming/structure, AL-Go separation, performance, error handling, test coverage, feature organization — including **namespaces mirroring the feature folders with correct `using` directives** on runtime ≥ 13.0 / BC 24+, per al-code-style Rule 5 / al-naming Rule 6).
 
-> **You run standalone — read the governing rule, don't assume it's ambient.** There is no Conductor to inject the instructions and **no `applyTo` auto-apply in this runtime** (and none in Claude Code at all — no editor-attached files). When a domain falls to the native residual, **`Read` its governing `.claude/rules/al-*.md`** (and `skill-performance` / `skill-permissions` where the residual names them) and judge against it. A domain already owned by an active BCQuality leaf needs no such read — defer to its finding (no double-load).
+> **You run standalone — read the governing rule, don't assume it's ambient.** There is no Conductor to inject the instructions and **no `applyTo` auto-apply in this runtime** (and none in Claude Code at all — no editor-attached files). When a domain falls to the native residual, **`Read` its governing `.claude/rules/al-*.md`** and, where the residual names a domain skill (e.g. `bc-dev:skill-performance`, `bc-dev:skill-permissions`), invoke the **Skill** tool for it and judge against it. A domain already owned by an active BCQuality leaf needs no such load — defer to its finding (no double-load).
 
-> **Token discipline — load knowledge & symbols once, then reuse.** Read each BCQuality knowledge file **once** and reuse it across the batches that need it — never `Read` the same skill file twice. Resolve a base object's symbols **once** via **al-mcp** and reuse them across batches; don't re-query the same symbol per file. Don't re-read a source `.al` already in context this invocation. Re-walking a batch to apply a different check is a **reasoning** pass, not a reload.
+> **Token discipline — load knowledge & symbols once, then reuse.** Read each BCQuality knowledge file **once** and reuse it across the batches that need it — never invoke the same skill twice in one run. Resolve a base object's symbols **once** via **al-mcp** and reuse them across batches; don't re-query the same symbol per file. Don't re-read a source `.al` already in context this invocation. Re-walking a batch to apply a different check is a **reasoning** pass, not a reload.
 
 ### Step 4 — Verdict & persist
 Return an **advisory verdict** (PASS / CONCERNS / FAIL) with severity-tagged findings (CRITICAL / MAJOR / MINOR), each with `file:line`, problem, impact, and fix. **Persist** the audit report under `.github/audits/dredd-audit-<YYYY-MM-DD-HHMM>.md` (create the folder if absent) — the durable, checkable artifact; the `bcquality-evidence` CI workflow validates its citations against the BCQuality clone at the pinned SHA. Write **only** there.

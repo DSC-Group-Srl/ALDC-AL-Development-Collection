@@ -36,6 +36,19 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/conductor-guard/pretooluse_hook.sh"],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
