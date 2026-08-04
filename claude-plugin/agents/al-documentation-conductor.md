@@ -11,7 +11,7 @@ description: >
   when the user wants to document an app end-to-end, audit/refresh existing docs for
   completeness against the company spec, or produce the full documentation set for a
   hand-off, release, or client delivery.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: sonnet
 color: indigo
 maxTurns: 40
