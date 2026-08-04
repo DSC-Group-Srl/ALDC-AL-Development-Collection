@@ -1,5 +1,5 @@
 ---
-name: skill-italian-dsc-func-doc
+name: skill-functional-docx
 description: >
   Genera documenti funzionali italiani in formato .docx con il template ufficiale DSC Group Srl,
   per estensioni Business Central e workflow di software gestionale.

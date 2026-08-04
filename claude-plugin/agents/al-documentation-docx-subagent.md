@@ -6,7 +6,7 @@ description: >
   al-documentation-conductor via the Task tool, as the optional third deliverable in a full
   documentation pass. Loads skill-functional-docx and produces the .docx file from metadata
   the conductor already collected from the user.
-tools: Read, Glob, Grep, Write, Edit, Bash
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
 color: teal
 maxTurns: 30
