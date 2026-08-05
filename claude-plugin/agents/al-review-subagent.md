@@ -6,6 +6,7 @@ description: >
   test coverage, and BC patterns.
 tools: Read, Glob, Grep, Bash, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
+effort: medium
 color: yellow
 maxTurns: 30
 ---

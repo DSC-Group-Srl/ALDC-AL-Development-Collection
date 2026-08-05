@@ -6,6 +6,7 @@ description: >
   then refactors. Creates AL objects following strict TDD methodology.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
+effort: medium
 color: yellow
 maxTurns: 30
 ---

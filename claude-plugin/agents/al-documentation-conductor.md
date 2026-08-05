@@ -13,6 +13,7 @@ description: >
   hand-off, release, or client delivery.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: sonnet
+effort: medium
 color: indigo
 maxTurns: 40
 ---

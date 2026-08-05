@@ -7,6 +7,7 @@ description: >
   paths. Use when building BC agents or agent SDK integrations.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: opus
+effort: medium
 color: cyan
 maxTurns: 50
 ---

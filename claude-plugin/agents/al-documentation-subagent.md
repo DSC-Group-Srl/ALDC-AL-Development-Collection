@@ -9,6 +9,7 @@ description: >
   PTE apps.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: sonnet
+effort: low
 color: teal
 maxTurns: 40
 ---

@@ -8,6 +8,7 @@ description: >
   the conductor already collected from the user.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
+effort: low
 color: teal
 maxTurns: 30
 ---

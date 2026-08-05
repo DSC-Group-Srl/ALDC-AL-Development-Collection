@@ -6,6 +6,7 @@ description: >
   findings to Conductor for plan creation.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
+effort: medium
 color: yellow
 maxTurns: 30
 ---

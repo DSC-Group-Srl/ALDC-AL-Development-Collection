@@ -7,6 +7,7 @@ description: >
   projects, sizing proposals, or performing feasibility analysis.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
+effort: medium
 color: red
 maxTurns: 50
 ---

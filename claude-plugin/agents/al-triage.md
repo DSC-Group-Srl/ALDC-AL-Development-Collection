@@ -8,6 +8,7 @@ description: >
   start from a symptom ("this throws", "this is slow", "broke after the last change").
 tools: Read, Glob, Grep, Bash, Write, Task, Skill
 model: sonnet
+effort: medium
 color: orange
 maxTurns: 50
 ---

@@ -8,6 +8,7 @@ description: >
   before implementation.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: opus
+effort: medium
 color: blue
 maxTurns: 50
 ---
