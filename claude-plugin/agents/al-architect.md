@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mc
 model: opus
 effort: medium
 color: blue
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # AL Architect Mode - Architecture & Design Assistant

@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Bash, Write, Task, Skill
 model: sonnet
 effort: medium
 color: orange
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # agent `al-triage` — Reactive Diagnosis Specialist for Business Central

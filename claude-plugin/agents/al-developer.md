@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mc
 model: sonnet
 effort: medium
 color: green
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # AL Developer Mode - Tactical Implementation Specialist

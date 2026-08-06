@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Bash, Write, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__
 model: sonnet
 effort: medium
 color: pink
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # agent `dredd` — Independent AL Auditor for Business Central

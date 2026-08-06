@@ -9,7 +9,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: opus
 effort: medium
 color: cyan
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # Agent: agent `al-agent-builder`

@@ -9,7 +9,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mc
 model: sonnet
 effort: medium
 color: red
-maxTurns: 50
+maxTurns: 1000
 ---
 
 # AL Technical PreSales Agent - Project Planning & Estimation
