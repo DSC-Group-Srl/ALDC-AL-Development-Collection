@@ -8,7 +8,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill, mcp__plugin_bc-dev_al-m
 model: sonnet
 effort: medium
 color: yellow
-maxTurns: 30
+maxTurns: 1000
 ---
 ## Access Control
 

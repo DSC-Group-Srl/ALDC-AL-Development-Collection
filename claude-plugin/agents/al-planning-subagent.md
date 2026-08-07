@@ -8,7 +8,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plug
 model: sonnet
 effort: medium
 color: yellow
-maxTurns: 30
+maxTurns: 1000
 ---
 ## Access Control
 

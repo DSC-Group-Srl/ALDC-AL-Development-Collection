@@ -15,7 +15,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
 model: sonnet
 effort: medium
 color: indigo
-maxTurns: 40
+maxTurns: 1000
 ---
 
 # AL Documentation Conductor — Full Documentation Orchestration for Business Central

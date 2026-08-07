@@ -10,7 +10,7 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: haiku
 effort: medium
 color: teal
-maxTurns: 30
+maxTurns: 1000
 ---
 
 ## Access Control
