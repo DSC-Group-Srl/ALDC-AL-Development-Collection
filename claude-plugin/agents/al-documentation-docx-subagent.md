@@ -7,8 +7,8 @@ description: >
   documentation pass. Loads skill-functional-docx and produces the .docx file from metadata
   the conductor already collected from the user.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
-model: sonnet
-effort: low
+model: haiku
+effort: medium
 color: teal
 maxTurns: 30
 ---

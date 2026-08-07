@@ -8,8 +8,8 @@ description: >
   reference for AppSource/Global apps, or skill-developer-docfx's internals/algorithms site for
   PTE apps.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
-model: sonnet
-effort: low
+model: haiku
+effort: medium
 color: teal
 maxTurns: 40
 ---

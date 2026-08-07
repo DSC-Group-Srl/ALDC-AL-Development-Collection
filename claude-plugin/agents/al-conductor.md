@@ -5,7 +5,7 @@ description: >
   Enforces TDD and quality gates for Business Central extensions. Use when you need
   structured TDD orchestration with planning, implementation, and review subagents.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
-model: opus
+model: sonnet
 effort: high
 maxTurns: 1000
 color: purple

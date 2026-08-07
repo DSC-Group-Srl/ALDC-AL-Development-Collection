@@ -6,7 +6,7 @@ description: >
   Template project structure. Handles both Designer (no-code) and SDK (pro-code)
   paths. Use when building BC agents or agent SDK integrations.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill
-model: opus
+model: sonnet
 effort: medium
 color: cyan
 maxTurns: 1000

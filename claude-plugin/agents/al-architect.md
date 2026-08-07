@@ -7,7 +7,7 @@ description: >
   analysis, data model design, integration strategy, or pattern evaluation
   before implementation.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
-model: opus
+model: sonnet
 effort: medium
 color: blue
 maxTurns: 1000
