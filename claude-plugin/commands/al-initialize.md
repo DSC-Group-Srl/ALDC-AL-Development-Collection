@@ -111,6 +111,13 @@ Create or update `.vscode/settings.json` in the workspace root:
   "al.enableCodeAnalysis": true,
   "al.codeAnalyzers": ["${CodeCop}", "${PerTenantExtensionCop}", "${UICop}"],
 
+  // NAB AL Tools — use XLIFF target-state attributes instead of [NAB: *] tokens.
+  // REQUIRED for the skill-translate MCP workflow; the nab-al-tools MCP server
+  // reads this via the workspaceFilePath passed to `initialize`.
+  "NAB.UseTargetStates": true,
+  "NAB.ReplaceSelfClosingXlfTags": true,
+  "NAB.DetectInvalidTargets": true,
+
   // GitHub Copilot settings
   "github.copilot.enable": {
     "*": true,
