@@ -57,6 +57,8 @@ Review the AL code changes using available tools:
 
 > **If any al-mcp/tool call fails or times out, follow the tool-failure protocol** (passed inline by the Conductor alongside the rules-floor cheat sheet): try once, one alternate only if clearly applicable, then stop — classify as **TOOL_BLOCKED** (network/TLS/certificate/timeout signatures) vs **CODE_ISSUE** (a real compiler diagnostic) and report it rather than retrying further.
 
+> **Scan for compiler-authority smells** (per `compiler-authority-protocol.md`, passed inline by the Conductor): a comment like "not supported by compiler", "compiler limitation", or "TODO: re-enable/add at go-live" sitting next to disabled/stubbed code is a **MAJOR** finding — flag it unless it carries a citation (Microsoft Learn / known-issue link / al-mcp symbol lookup confirming the construct is genuinely unavailable). Absent that citation, treat it as invented syntax the implementer routed around instead of fixing, not a legitimate deferral.
+
 **Focus on:**
 - AL object types created (Table, TableExtension, Codeunit, Page, etc.)
 - Event subscribers/publishers added
@@ -66,7 +68,7 @@ Review the AL code changes using available tools:
 
 ### 2. Verify Implementation
 
-> **How the framework's rules reach you here — not by passive auto-apply (it does not fire in subagent runtime).** The **rules-floor cheat sheet and tool-failure protocol** arrive **inline from the Conductor** (hard-rule baseline, in effect for the whole review). For domain **depth**, **load the skill yourself** — invoke `Skill(skill: "bc-dev:skill-x")` — **only for the residual you actually own**: domains an active BCQuality leaf does **not** cover. Where a domain is owned by an enabled BCQuality leaf, do **not** load the ALDC skill — its knowledge is already loaded; defer to its finding (no double-load). Don't re-derive a rule's text — verify and flag, citing `file:line`.
+> **How the framework's rules reach you here — not by passive auto-apply (it does not fire in subagent runtime).** The **rules-floor cheat sheet, tool-failure protocol, and compiler-authority protocol** arrive **inline from the Conductor** (hard-rule baseline, in effect for the whole review). For domain **depth**, **load the skill yourself** — invoke `Skill(skill: "bc-dev:skill-x")` — **only for the residual you actually own**: domains an active BCQuality leaf does **not** cover. Where a domain is owned by an enabled BCQuality leaf, do **not** load the ALDC skill — its knowledge is already loaded; defer to its finding (no double-load). Don't re-derive a rule's text — verify and flag, citing `file:line`.
 
 Check that the implementation meets **AL-specific criteria**:
 

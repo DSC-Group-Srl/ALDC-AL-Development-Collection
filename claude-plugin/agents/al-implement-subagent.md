@@ -72,6 +72,7 @@ Before writing any test code:
 - Review warnings and address critical ones
 - If a build fails with no clear cause, the project depends on a sibling project (test app on base app), or a symbol refresh doesn't seem to register — Load `skill-al-mcp-workspace` before spending more turns on it
 - If the build/compile *call itself* fails or times out (not a compiler diagnostic) — follow the tool-failure protocol (see `<boundary_rules>`): one alternate attempt, then stop and classify TOOL_BLOCKED vs CODE_ISSUE
+- If a real diagnostic (`ALxxxx` + file:line) fires against code you just wrote — follow the compiler-authority protocol (see `<boundary_rules>`): trust the diagnostic, verify the correct syntax before retrying, never comment out/defer the feature to route around it
 
 ### Step 6: Refactor If Needed (REFACTOR State)
 - Improve code quality without changing behavior
@@ -250,6 +251,7 @@ end;
 - **Don't re-read a file already in context.** If you already read a spec/architecture excerpt, a source file, or a skill this invocation, reuse it — do not issue another `Read` for the same path.
 - **Resolve base-app symbols from symbols — and if you can't, ask; don't hunt.** Resolve event signatures and base-object members via the AL LSP server (document symbols, hover / go-to-definition) or al-mcp `al_symbolsearch` against the symbol packages (authoritative for symbol facts). If a symbol or event the spec names **cannot be resolved** (e.g. the event does not exist in this BC version), **stop and surface it as a blocker / end-of-phase open question** in your return to the Conductor — don't burn turns guessing it via web searches, and never invent a signature.
 - **If any al-mcp/tool call fails or times out, follow the tool-failure protocol** (passed inline by the Conductor alongside the rules-floor cheat sheet): try once, one alternate only if clearly applicable (e.g. cross-check `al_build` against a bare `al_compile`), then stop — classify as **TOOL_BLOCKED** (network/TLS/certificate/timeout signatures — an environment problem, report it and stop) vs **CODE_ISSUE** (a real compiler diagnostic — handle normally). Don't loop retrying variations.
+- **If a compiler diagnostic (`ALxxxx` + file:line) fires on code you just wrote, follow the compiler-authority protocol** (passed inline by the Conductor): the diagnostic is correct, not a compiler bug — verify the real syntax/signature via al-mcp symbol lookup or a skill/docs before rewriting, don't blame the compiler, and never comment out or defer the feature to make the build pass. One grounded retry per diagnostic; if the same code recurs, stop and surface it as a blocker rather than trying a third invented variant.
 
 </boundary_rules>
 
@@ -257,7 +259,7 @@ end;
 
 ## Domain Skills
 
-These are this plugin's own skills. They are **not** auto-loaded in subagent runtime — **you load them on demand** by invoking the **Skill** tool with the plugin-scoped name when the phase enters the matching domain. The Conductor hints the likely ones and passes the rules-floor cheat sheet and tool-failure protocol inline; load the one you actually need (and any other you discover you need):
+These are this plugin's own skills. They are **not** auto-loaded in subagent runtime — **you load them on demand** by invoking the **Skill** tool with the plugin-scoped name when the phase enters the matching domain. The Conductor hints the likely ones and passes the rules-floor cheat sheet, tool-failure protocol, and compiler-authority protocol inline; load the one you actually need (and any other you discover you need):
 
 - **bc-dev:skill-api** — When creating API pages, OData endpoints, HttpClient integrations
 - **bc-dev:skill-events** — When implementing event subscribers/publishers

@@ -44,6 +44,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/rules-templates/"*.md .claude/rules/
 | `al-agent-toolkit.md` | `**/*.al` | AI Development Toolkit patterns |
 | `rules-floor-cheatsheet.md` | (no auto-apply — inline injection only) | Condensed one-line-per-rule digest of the 7 domain files above, for al-conductor to paste into every code-touching subagent call instead of the full files |
 | `tool-failure-protocol.md` | (no auto-apply — inline injection only) | Shared stop-after-one-retry / TOOL_BLOCKED vs CODE_ISSUE protocol for al-mcp and other tool-call failures |
+| `compiler-authority-protocol.md` | (no auto-apply — inline injection only) | Guards against a model blaming a real compiler diagnostic on "compiler limitations" instead of fixing invented AL syntax — trust the diagnostic, verify before retrying, never silently defer/stub to make a build pass |
 
 ### CLAUDE.md Generation
 
