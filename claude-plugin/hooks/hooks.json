@@ -18,6 +18,12 @@
           {
             "type": "command",
             "command": "cmd",
+            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-alcops.sh", "SessionStart"],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "cmd",
             "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/nodejs/ensure-npx.sh", "SessionStart"],
             "timeout": 120
           },

@@ -110,7 +110,17 @@ Create or update `.vscode/settings.json` in the workspace root:
 {
   // AL Language settings
   "al.enableCodeAnalysis": true,
-  "al.codeAnalyzers": ["${CodeCop}", "${PerTenantExtensionCop}", "${UICop}"],
+  "al.codeAnalyzers": [
+    "${CodeCop}",
+    "${PerTenantExtensionCop}",
+    "${UICop}",
+    "${analyzerFolder}ALCops.ApplicationCop.dll",
+    "${analyzerFolder}ALCops.DocumentationCop.dll",
+    "${analyzerFolder}ALCops.FormattingCop.dll",
+    "${analyzerFolder}ALCops.LinterCop.dll",
+    "${analyzerFolder}ALCops.PlatformCop.dll",
+    "${analyzerFolder}ALCops.Common.dll"
+  ],
 
   // NAB AL Tools — use XLIFF target-state attributes instead of [NAB: *] tokens.
   // REQUIRED for the skill-translate MCP workflow; the nab-al-tools MCP server
@@ -136,7 +146,7 @@ Create or update `.vscode/settings.json` in the workspace root:
 ```
 
 **Configuration Benefits:**
-- Code analysis with CodeCop, PerTenantExtensionCop, and UICop
+- Code analysis with CodeCop, PerTenantExtensionCop, UICop, and the ALCops suite (ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop — the successor to BusinessCentral.LinterCop, see https://alcops.dev/docs/lintercop-migration/). The `SessionStart` hook `tools/al-cli/ensure-alcops.sh` downloads the `ALCops.*.dll` files straight into the AL Language extension's analyzer folder (not just the VS Code extension, which only helps the editor) — so these `${analyzerFolder}` entries resolve for al-mcp and the AL LSP server too, not only when VS Code itself is open.
 - AI suggestions optimized for AL files
 - Enhanced inline completion
 
