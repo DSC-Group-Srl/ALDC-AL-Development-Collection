@@ -59,24 +59,35 @@ if (Get-Command code -ErrorAction SilentlyContinue) {
 
 # --- Part 2: the DLLs themselves, for al-mcp/LSP (and as a fallback for the
 # editor, so headless environments don't depend on the extension activating) ---
-$targetDirs = @(Get-ChildItem -Path "$HOME\.vscode\extensions" -Filter 'ms-dynamics-smb.al-*' -Directory -ErrorAction SilentlyContinue |
-    ForEach-Object { Join-Path $_.FullName 'bin\Analyzers' } |
-    Where-Object { Test-Path $_ })
+# Locate by the extension root, not by an existing Analyzers folder: a fresh
+# AL extension install has no bin\Analyzers directory yet (it's created lazily
+# on first analyzer download), so filtering on Test-Path would wrongly
+# conclude the extension itself isn't installed.
+$extDirs = @(Get-ChildItem -Path "$HOME\.vscode\extensions" -Filter 'ms-dynamics-smb.al-*' -Directory -ErrorAction SilentlyContinue)
 
-if ($targetDirs.Count -eq 0) {
+if ($extDirs.Count -eq 0) {
     # No AL Language VS Code extension installed at all — nothing to seed
     # yet; it will be installed by its own onboarding, and this hook will
     # catch up next session.
     exit 0
 }
 
-$needsDownload = $targetDirs | Where-Object { -not (Test-Path (Join-Path $_ 'ALCops.LinterCop.dll')) }
-if (-not $needsDownload) {
-    exit 0
+$targetDirs = @($extDirs | ForEach-Object { Join-Path $_.FullName 'bin\Analyzers' })
+foreach ($dir in $targetDirs) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
 }
+
+$needsDownload = $targetDirs | Where-Object { -not (Test-Path (Join-Path $_ 'ALCops.LinterCop.dll')) }
 
 # Emit() forbids backslashes (must stay valid JSON) — Windows paths use them.
 $dirsList = ($targetDirs -join ', ') -replace '\\', '/'
+
+if (-not $needsDownload) {
+    Emit "ALCops.*.dll analyzers are already installed and up to date in: $dirsList. Let the user know their AL analyzer setup is ready — no action needed."
+    exit 0
+}
 
 try {
     $indexJson = Invoke-RestMethod -Uri "https://api.nuget.org/v3-flatcontainer/$Package/index.json" -TimeoutSec 15

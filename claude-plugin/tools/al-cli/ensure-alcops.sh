@@ -51,14 +51,24 @@ fi
 
 # --- Part 2: the DLLs themselves, for al-mcp/LSP (and as a fallback for the
 # editor, so headless environments don't depend on the extension activating) ---
-mapfile -t TARGET_DIRS < <(find "$HOME/.vscode/extensions" -maxdepth 3 -type d -iname Analyzers -path "*ms-dynamics-smb.al-*" 2>/dev/null)
+# Locate by the extension root, not by an existing Analyzers folder: a fresh
+# AL extension install has no bin/Analyzers directory yet (it's created lazily
+# on first analyzer download), so `find -iname Analyzers` would find nothing
+# and this hook would wrongly conclude the extension itself isn't installed.
+mapfile -t EXT_DIRS < <(find "$HOME/.vscode/extensions" -maxdepth 1 -type d -iname "ms-dynamics-smb.al-*" 2>/dev/null)
 
-if [ "${#TARGET_DIRS[@]}" -eq 0 ]; then
+if [ "${#EXT_DIRS[@]}" -eq 0 ]; then
   # No AL Language VS Code extension installed at all — nothing to seed yet;
   # it will be installed by its own onboarding, and this hook will catch up
   # next session.
   exit 0
 fi
+
+TARGET_DIRS=()
+for ext_dir in "${EXT_DIRS[@]}"; do
+  TARGET_DIRS+=("$ext_dir/bin/Analyzers")
+done
+mkdir -p "${TARGET_DIRS[@]}"
 
 NEEDS_DOWNLOAD=0
 for dir in "${TARGET_DIRS[@]}"; do
@@ -68,6 +78,7 @@ for dir in "${TARGET_DIRS[@]}"; do
 done
 
 if [ "$NEEDS_DOWNLOAD" -eq 0 ]; then
+  emit "ALCops.*.dll analyzers are already installed and up to date in: $(join_dirs). Let the user know their AL analyzer setup is ready — no action needed."
   exit 0
 fi
 
