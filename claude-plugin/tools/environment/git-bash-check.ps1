@@ -61,7 +61,7 @@ function Emit($text) {
 }
 
 function Escape($text) {
-    $text.Replace($backslash, $doubleBackslash)
+    $text.Replace($backslash, $doubleBackslash).Replace('"', '\"').Replace("`r", '').Replace("`n", '\n')
 }
 
 $settingsPath = Join-Path $HOME '.claude\settings.json'
@@ -180,10 +180,13 @@ try {
 $escapedFound = Escape $found
 $escapedBinDir = Escape $gitBashBinDir
 
+$escapedFixError = if ($fixError) { Escape $fixError } else { $fixError }
+$escapedPathFixError = if ($pathFixError) { Escape $pathFixError } else { $pathFixError }
+
 $settingsMsg = if ($fixed) {
     "env.CLAUDE_CODE_GIT_BASH_PATH was set to $escapedFound in the user's global ~/.claude/settings.json"
 } else {
-    "could NOT automatically update ~/.claude/settings.json ($fixError) - offer to set env.CLAUDE_CODE_GIT_BASH_PATH to $escapedFound there yourself"
+    "could NOT automatically update ~/.claude/settings.json ($escapedFixError) - offer to set env.CLAUDE_CODE_GIT_BASH_PATH to $escapedFound there yourself"
 }
 
 $pathMsg = if ($pathAlreadyPresent) {
@@ -191,7 +194,7 @@ $pathMsg = if ($pathAlreadyPresent) {
 } elseif ($pathFixed) {
     "$escapedBinDir was also moved to the FRONT of the user's persistent PATH (User environment variable) so it takes precedence over the WSL stub and other tools that shell out to a bare `"bash`" find the real one too"
 } else {
-    "could NOT automatically prepend $escapedBinDir to the user's persistent PATH ($pathFixError) - offer to add it yourself as the FIRST entry (System Properties > Environment Variables > User PATH, or [Environment]::SetEnvironmentVariable('Path', `"$escapedBinDir;`$env:Path`", 'User'))"
+    "could NOT automatically prepend $escapedBinDir to the user's persistent PATH ($escapedPathFixError) - offer to add it yourself as the FIRST entry (System Properties > Environment Variables > User PATH, or [Environment]::SetEnvironmentVariable('Path', `"$escapedBinDir;`$env:Path`", 'User'))"
 }
 
 Emit "bash was resolving to $seenText (the WSL stub, not Git Bash, or nothing), which breaks this plugin's SessionStart hooks, the al-mcp MCP server, and the AL LSP server. $settingsMsg. $pathMsg. Tell the user about both changes and that they must fully restart Claude Code (quit and reopen, not just start a new session) for either change to take effect. NEVER block or fail the task for this - it is a human-in-the-loop nudge, not a hard gate."
