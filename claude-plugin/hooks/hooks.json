@@ -35,6 +35,12 @@
           },
           {
             "type": "command",
+            "command": "cmd",
+            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/routing/precondition_hook.sh", "SessionStart"],
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "& \"${CLAUDE_PLUGIN_ROOT}/tools/environment/git-bash-check.ps1\" SessionStart",
             "shell": "powershell",
             "timeout": 10
