@@ -109,6 +109,9 @@ Two constraints to respect when editing any of this:
 - **The markers are a contract.** Change the shape of a symbolic line in an agent and you
   break the parser silently — it will just stop matching. `tools/metrics/test_parse.sh`
   carries fixtures of every marker; update them in the same commit.
+- **`appinsights.py` mirrors the record into Azure.** Its envelope field names were read out
+  of Microsoft's generated model, not guessed, and its self-test asserts them — if you add a
+  field to the record, add it to `_props` (string) or `_measurements` (float), never both.
 - **The record must never carry free text.** Only counts, an enum-checked verdict, and paths
   matching `(microsoft|community|custom)/knowledge/…`. Two of the self-test's assertions
   exist purely to prove no customer path and no message body leak into a record. Do not
