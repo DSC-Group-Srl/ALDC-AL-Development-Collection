@@ -1,0 +1,288 @@
+name: BCQuality Pin Bump
+
+# Once a week, check whether microsoft/BCQuality has cut a release newer than the one
+# claude-plugin/tools/bcquality/bcquality.pin points at. If it has, bump the pin and open a
+# PR whose body says exactly what changed in the corpus: which knowledge files were added,
+# modified or removed, and — the part that can change agent behaviour — which review leaf
+# skills appeared or disappeared.
+#
+# Why release tags and not main: BCQuality cuts releases on demand (~monthly) and the minor
+# is a monotonic counter, so a tag is a stable, reviewable unit. Tracking main would open a
+# PR of noise most weeks. If the repo ever has no tags, the job falls back to main HEAD.
+#
+# The pin file is the single source of truth; this workflow rewrites that file and nothing
+# else. The hooks read it — they are never edited here.
+
+on:
+  schedule:
+    # Monday 06:00 UTC — after the upstream fork sync (04:00) and the marketplace sync (05:00),
+    # so a bump PR never races them.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'What to bump to'
+        type: choice
+        options: [release, main]
+        default: release
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  BCQ_URL: https://github.com/microsoft/BCQuality.git
+  PIN_FILE: claude-plugin/tools/bcquality/bcquality.pin
+  BASE_BRANCH: main
+  BUMP_BRANCH: chore/bcquality-pin-bump
+  REVIEWER_TEAM: DSC-Group-Srl/ci-cd-admins
+  REPO: DSC-Group-Srl/ALDC-AL-Development-Collection
+
+jobs:
+  bump-pin:
+    name: Bump the BCQuality pin to the latest release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          fetch-depth: 0
+          token: ${{ secrets.TEMPLATE_SYNC_PAT }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve current pin and latest upstream release
+        id: resolve
+        env:
+          TRACK: ${{ inputs.track || 'release' }}
+        run: |
+          set -euo pipefail
+
+          pinval() { grep -E "^[[:space:]]*$1[[:space:]]*=" "$PIN_FILE" | head -1 | cut -d= -f2- | tr -d '[:space:]' || true; }
+          CUR_REF=$(pinval ref)
+          CUR_PIN=$(pinval pin)
+          SRC=$(pinval url)
+          SRC="${SRC:-$BCQ_URL}"
+          echo "Current pin: ref=${CUR_REF:-<none>} pin=${CUR_PIN:-<none>} url=$SRC"
+
+          # Latest release = highest v<major>.<minor>. The minor is a monotonic counter that
+          # never resets, so sorting on it alone is enough; -V keeps 1.10 above 1.9.
+          NEW_REF=""
+          if [ "$TRACK" = "release" ]; then
+            NEW_REF=$(git ls-remote --tags --refs "$SRC" 'v*' \
+              | awk '{print $2}' | sed 's|refs/tags/||' \
+              | grep -E '^v[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          fi
+          if [ -z "$NEW_REF" ]; then
+            echo "No release tag found (or track=main) - falling back to main HEAD."
+            NEW_REF="main"
+          fi
+
+          NEW_PIN=$(git ls-remote "$SRC" "refs/tags/$NEW_REF^{}" | awk '{print $1}' | head -1)
+          if [ -z "$NEW_PIN" ]; then
+            # Lightweight tag, or a branch: no peeled ref to dereference.
+            NEW_PIN=$(git ls-remote "$SRC" "$NEW_REF" | awk '{print $1}' | head -1)
+          fi
+          if [ -z "$NEW_PIN" ]; then
+            echo "::error::Could not resolve $NEW_REF in $SRC"
+            exit 1
+          fi
+          echo "Latest: ref=$NEW_REF pin=$NEW_PIN"
+
+          {
+            echo "src=$SRC"
+            echo "cur_ref=$CUR_REF"
+            echo "cur_pin=$CUR_PIN"
+            echo "new_ref=$NEW_REF"
+            echo "new_pin=$NEW_PIN"
+            echo "changed=$([ "$NEW_PIN" != "$CUR_PIN" ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summarise what changed in the corpus
+        if: steps.resolve.outputs.changed == 'true'
+        id: summary
+        env:
+          SRC: ${{ steps.resolve.outputs.src }}
+          CUR_REF: ${{ steps.resolve.outputs.cur_ref }}
+          CUR_PIN: ${{ steps.resolve.outputs.cur_pin }}
+          NEW_REF: ${{ steps.resolve.outputs.new_ref }}
+          NEW_PIN: ${{ steps.resolve.outputs.new_pin }}
+        run: |
+          set -euo pipefail
+          BODY=".bcq-bump/body.md"
+          mkdir -p .bcq-bump
+          # GitHub caps a PR body at 65536 chars; a multi-release gap can be long.
+          MAX_LIST=40
+          MAX_COMMITS=60
+
+          git clone --quiet --filter=blob:none --no-checkout "$SRC" .bcq-bump/bcquality
+          BCQ=".bcq-bump/bcquality"
+
+          {
+            echo "Bumps the BCQuality pin from **${CUR_REF:-<unpinned>}** to **$NEW_REF**."
+            echo
+            echo "| | ref | commit |"
+            echo "|---|---|---|"
+            echo "| before | \`${CUR_REF:-<none>}\` | \`${CUR_PIN:-<none>}\` |"
+            echo "| after | \`$NEW_REF\` | \`$NEW_PIN\` |"
+            echo
+          } > "$BODY"
+
+          # Without a resolvable old commit there is no diff to show — say so and stop early.
+          if [ -z "$CUR_PIN" ] || ! git -C "$BCQ" cat-file -e "$CUR_PIN^{commit}" 2>/dev/null; then
+            echo "> The previous pin is empty or no longer resolvable upstream, so no file-level diff is available. Review the new release directly." >> "$BODY"
+            echo "has_diff=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "has_diff=true" >> "$GITHUB_OUTPUT"
+
+          RANGE="$CUR_PIN..$NEW_PIN"
+
+          # Knowledge files: the corpus the agents cite.
+          emit_group() {
+            local status="$1" heading="$2" pathspec="$3"
+            local list
+            list=$(git -C "$BCQ" diff --name-only --diff-filter="$status" "$RANGE" -- $pathspec | grep -E '\.md$' || true)
+            local n; n=$(printf '%s' "$list" | grep -c . || true)
+            [ "$n" -eq 0 ] && return 0
+            {
+              echo "### $heading ($n)"
+              echo
+              printf '%s\n' "$list" | head -"$MAX_LIST" | sed 's|^|- `|; s|$|`|'
+              [ "$n" -gt "$MAX_LIST" ] && echo "- _… and $((n - MAX_LIST)) more_"
+              echo
+            } >> "$BODY"
+          }
+
+          echo "## Knowledge" >> "$BODY"
+          echo >> "$BODY"
+          KPATH="microsoft/knowledge community/knowledge custom/knowledge"
+          emit_group A "Added"    "$KPATH"
+          emit_group M "Modified" "$KPATH"
+          emit_group D "Removed"  "$KPATH"
+          if ! grep -q '^### ' "$BODY"; then
+            echo "_No knowledge files changed._" >> "$BODY"
+            echo >> "$BODY"
+          fi
+
+          # Action skills: a new or removed review leaf changes what Entry dispatches, which
+          # is the part of a bump that can actually change agent behaviour.
+          {
+            echo "## Action skills"
+            echo
+          } >> "$BODY"
+          SPATH="microsoft/skills community/skills custom/skills"
+          SKILL_CHANGES=$(git -C "$BCQ" diff --name-status "$RANGE" -- $SPATH | grep -E '\.md$' || true)
+          if [ -n "$SKILL_CHANGES" ]; then
+            {
+              echo "| change | skill |"
+              echo "|---|---|"
+              printf '%s\n' "$SKILL_CHANGES" | awk '{printf "| %s | `%s` |\n", $1, $2}'
+              echo
+              echo "> A skill added or removed here changes what \`entry.md\` dispatches. Check the review agents still reason correctly about the active leaf set."
+              echo
+            } >> "$BODY"
+          else
+            echo "_No action skills changed — the dispatched leaf set is unchanged._" >> "$BODY"
+            echo >> "$BODY"
+          fi
+
+          # Meta-skill contracts: a change here can break how our agents consume BCQuality.
+          META=$(git -C "$BCQ" diff --name-only "$RANGE" -- skills/entry.md skills/read.md skills/do.md skills/write.md || true)
+          if [ -n "$META" ]; then
+            {
+              echo "## :warning: Meta-skill contracts changed"
+              echo
+              printf '%s\n' "$META" | sed 's|^|- `|; s|$|`|'
+              echo
+              echo "> These files define the Entry/READ/DO contracts our agents are written against. Read the diff before merging."
+              echo
+            } >> "$BODY"
+          fi
+
+          {
+            echo "## Upstream commits"
+            echo
+            TOTAL=$(git -C "$BCQ" rev-list --count "$RANGE")
+            git -C "$BCQ" log --oneline "$RANGE" | head -"$MAX_COMMITS" | sed 's/^/- /'
+            [ "$TOTAL" -gt "$MAX_COMMITS" ] && echo "- _… and $((TOTAL - MAX_COMMITS)) more_"
+            echo
+            echo "[Full compare](https://github.com/microsoft/BCQuality/compare/${CUR_PIN}...${NEW_PIN})"
+          } >> "$BODY"
+
+      - name: Write the new pin
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          NEW_REF: ${{ steps.resolve.outputs.new_ref }}
+          NEW_PIN: ${{ steps.resolve.outputs.new_pin }}
+        run: |
+          set -euo pipefail
+          # Rewrite only the two value lines; the explanatory header is preserved.
+          sed -i -E "s|^[[:space:]]*ref[[:space:]]*=.*|ref=$NEW_REF|; s|^[[:space:]]*pin[[:space:]]*=.*|pin=$NEW_PIN|" "$PIN_FILE"
+          grep -E '^(url|ref|pin)=' "$PIN_FILE"
+          # Diagnostic only - never let it fail the step.
+          git diff --stat -- "$PIN_FILE" || true
+
+      - name: Open or refresh the bump PR
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TEMPLATE_SYNC_PAT }}
+          NEW_REF: ${{ steps.resolve.outputs.new_ref }}
+        run: |
+          set -euo pipefail
+          git checkout -B "$BUMP_BRANCH"
+          git add "$PIN_FILE"
+          if git diff --cached --quiet; then
+            echo "Pin file unchanged after rewrite - nothing to push."
+            exit 0
+          fi
+          git commit -m "chore(bcquality): bump pin to $NEW_REF"
+          git push --force origin "$BUMP_BRANCH"
+
+          # The API can lag a freshly pushed ref by a couple of seconds.
+          for i in $(seq 1 10); do
+            git ls-remote --exit-code origin "refs/heads/$BUMP_BRANCH" >/dev/null 2>&1 && break
+            echo "Waiting for $BUMP_BRANCH to propagate (attempt $i/10)..."
+            sleep 3
+          done
+
+          OWNER="${REPO%%/*}"
+          TEAM_SLUG="${REVIEWER_TEAM##*/}"
+          # Same PAT constraint as the other sync workflows: the GraphQL mutations behind
+          # `gh pr create` fail for this fine-grained token, so go through REST.
+          for i in $(seq 1 5); do
+            PR_NUMBER=$(gh api "repos/$REPO/pulls?head=$OWNER:$BUMP_BRANCH&state=open" --jq '.[0].number // empty' 2>/dev/null || true)
+            if [ -n "$PR_NUMBER" ]; then
+              gh api -X PATCH "repos/$REPO/pulls/$PR_NUMBER" \
+                -f title="chore(bcquality): bump pin to $NEW_REF" \
+                -f body="$(cat .bcq-bump/body.md)" >/dev/null && exit 0
+            else
+              NEW_NUMBER=$(gh api -X POST "repos/$REPO/pulls" \
+                -f title="chore(bcquality): bump pin to $NEW_REF" \
+                -f head="$BUMP_BRANCH" \
+                -f base="$BASE_BRANCH" \
+                -f body="$(cat .bcq-bump/body.md)" \
+                --jq .number 2>/dev/null || true)
+              if [ -n "$NEW_NUMBER" ]; then
+                gh api -X POST "repos/$REPO/pulls/$NEW_NUMBER/requested_reviewers" \
+                  -f "team_reviewers[]=$TEAM_SLUG" >/dev/null || echo "Warning: could not request $REVIEWER_TEAM as reviewer"
+                exit 0
+              fi
+            fi
+            echo "PR create/edit attempt $i/5 failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Giving up after 5 attempts."
+          exit 1
+
+      - name: Report no-op
+        if: steps.resolve.outputs.changed != 'true'
+        run: echo "BCQuality pin already at ${{ steps.resolve.outputs.cur_ref }} (${{ steps.resolve.outputs.cur_pin }}) - nothing to do."
