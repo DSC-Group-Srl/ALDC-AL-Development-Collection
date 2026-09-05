@@ -1,5 +1,24 @@
 name: Sync Upstream
 
+# Brings upstream's changes to claude-plugin/ into this fork, and nothing else.
+#
+# WHY THIS IS PATH-FILTERED (decision A2, see .github/plans/bcquality-proactive-integration.md).
+# This workflow used to check out upstream's whole tree and open a PR against ours. That worked
+# while the fork mirrored upstream. It no longer does: this fork has dropped the Copilot/VS Code
+# chain (agents/, skills/, instructions/, prompts/, packages/, collections/, the mkdocs site) and
+# keeps only claude-plugin/, the Claude Code plugin we actually ship. A whole-tree sync would
+# re-add every deleted file, every week, forever.
+#
+# WHY PATCHES AND NOT AN OVERLAY. claude-plugin/ is co-owned: most commits are ours, a few are
+# upstream's. Copying upstream's copy over ours — the way the marketplace sync copies this repo
+# over plugins/bc-dev/ — would silently clobber our work, because there this repo is the sole
+# source of truth and here it is not. So we replay upstream's commits as patches: our changes
+# survive, and a genuine collision surfaces as a conflict instead of a silent overwrite.
+#
+# ON CONFLICT the job fails without pushing and without advancing the state file, naming the
+# commit that would not apply. That is deliberate: a human decides how to reconcile a file both
+# sides edited. The next run retries the same range, so the signal does not disappear.
+
 on:
   schedule:
     - cron: '0 4 * * 1'
@@ -12,17 +31,24 @@ permissions:
 env:
   UPSTREAM_URL: https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot.git
   UPSTREAM_BRANCH: main
+  UPSTREAM_PATH: claude-plugin
+  BASE_BRANCH: main
+  STATE_FILE: .github/upstream-sync-state.txt
   REVIEWER_TEAM: DSC-Group-Srl/ci-cd-admins
 
 jobs:
   sync-upstream:
-    name: Sync upstream main into fork
+    name: Replay upstream claude-plugin commits into the fork
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.BASE_BRANCH }}
           fetch-depth: 0
           token: ${{ secrets.TEMPLATE_SYNC_PAT }}
 
@@ -31,69 +57,138 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch upstream main
+      - name: Fetch upstream
         run: |
           git remote add upstream "$UPSTREAM_URL" 2>/dev/null || git remote set-url upstream "$UPSTREAM_URL"
           git fetch upstream "$UPSTREAM_BRANCH"
 
-      - name: Check for new upstream commits
+      - name: Find upstream commits touching claude-plugin
         id: diff
         run: |
-          COUNT=$(git rev-list HEAD.."upstream/$UPSTREAM_BRANCH" --count)
-          echo "New upstream commits: $COUNT"
-          echo "changed=$([ "$COUNT" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          # First 40-hex token in the file; the rest is provenance for humans.
+          LAST_SHA=$(grep -oE '\b[0-9a-f]{40}\b' "$STATE_FILE" | head -1)
+          if [ -z "$LAST_SHA" ]; then
+            echo "::error::$STATE_FILE contains no 40-hex commit."
+            exit 1
+          fi
+          LATEST_SHA=$(git rev-parse "upstream/$UPSTREAM_BRANCH")
 
-      - name: Create sync branch
-        if: steps.diff.outputs.changed == 'true'
-        id: branch
-        run: |
-          BRANCH="sync/upstream-$(date -u +%Y-%m-%d)"
-
-          git checkout -B "$BRANCH" "upstream/$UPSTREAM_BRANCH"
-
-          # Keep this repository's own GitHub workflows.
-          git restore --source=main .github/workflows
-
-          if ! git diff --quiet; then
-            git add .github/workflows
-            git commit -m "Keep repository GitHub workflows"
+          if ! git cat-file -e "$LAST_SHA^{commit}" 2>/dev/null; then
+            echo "::error::State file points at $LAST_SHA, which is not reachable. Reset it to the last upstream commit already reflected here."
+            exit 1
           fi
 
+          COUNT=$(git rev-list --count "$LAST_SHA..$LATEST_SHA" -- "$UPSTREAM_PATH")
+          echo "Upstream commits touching $UPSTREAM_PATH: $COUNT"
+          git log --oneline "$LAST_SHA..$LATEST_SHA" -- "$UPSTREAM_PATH" || true
+
+          {
+            echo "last_sha=$LAST_SHA"
+            echo "latest_sha=$LATEST_SHA"
+            echo "changed=$([ "$COUNT" -gt 0 ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Replay them onto a sync branch
+        if: steps.diff.outputs.changed == 'true'
+        id: replay
+        env:
+          LAST_SHA: ${{ steps.diff.outputs.last_sha }}
+          LATEST_SHA: ${{ steps.diff.outputs.latest_sha }}
+        run: |
+          set -euo pipefail
+          BRANCH="sync/upstream-$(date -u +%Y-%m-%d)"
+          git checkout -B "$BRANCH" "origin/$BASE_BRANCH"
+
+          mkdir -p .upstream-sync
+          # Only the claude-plugin slice of each commit. A commit that touched nothing there
+          # produces no patch and is skipped by format-patch itself.
+          git format-patch --stdout "$LAST_SHA..$LATEST_SHA" -- "$UPSTREAM_PATH" > .upstream-sync/patches.mbox
+
+          if [ ! -s .upstream-sync/patches.mbox ]; then
+            echo "Range touches $UPSTREAM_PATH but produced an empty patch set (merge commits only)."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git am -3 --empty=drop .upstream-sync/patches.mbox; then
+            FAILED=$(git am --show-current-patch=raw 2>/dev/null | sed -n 's/^Subject: \[PATCH[^]]*\] //p' | head -1)
+            CONFLICTS=$(git diff --name-only --diff-filter=U | sed 's/^/  - /')
+            git am --abort || true
+            echo "::error::Upstream commit '${FAILED:-unknown}' does not apply cleanly - both sides edited the same file. Nothing pushed, state file unchanged; the next run retries this range."
+            printf 'Conflicting paths:\n%s\n' "$CONFLICTS"
+            echo
+            echo "Two ways out, both by hand:"
+            echo "  1. The change is worth having -> cherry-pick it onto a branch, resolve, PR, then set $STATE_FILE to $LATEST_SHA."
+            echo "  2. We already have the change by another route (a rewrite of the same file, our own equivalent fix)"
+            echo "     -> just set $STATE_FILE to $LATEST_SHA with a line saying why. Do NOT apply the patch."
+            exit 1
+          fi
+
+          # Swap only the recorded commit; keep the human-readable header above it.
+          if grep -qE '^[0-9a-f]{40}$' "$STATE_FILE"; then
+            sed -i -E "s|^[0-9a-f]{40}$|$LATEST_SHA|" "$STATE_FILE"
+          else
+            printf '%s\n' "$LATEST_SHA" > "$STATE_FILE"
+          fi
+          git add "$STATE_FILE"
+          git commit -m "chore: record upstream sync point $LATEST_SHA"
           git push --force origin "$BRANCH"
 
-          # Wait until GitHub sees the new branch.
           for i in $(seq 1 10); do
-            if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
-              break
-            fi
-            echo "Waiting for branch propagation..."
+            git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1 && break
+            echo "Waiting for branch propagation (attempt $i/10)..."
             sleep 3
           done
 
-          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Upstream sync — \`$UPSTREAM_PATH/\` only"
+            echo
+            echo "Replays upstream commits touching \`$UPSTREAM_PATH/\` from [AL-Development-Collection-for-GitHub-Copilot]($UPSTREAM_URL),"
+            echo "covering \`${LAST_SHA:0:12}\`..\`${LATEST_SHA:0:12}\`."
+            echo
+            echo "Only \`$UPSTREAM_PATH/\` is synced: this fork no longer carries upstream's Copilot/VS Code chain."
+            echo "Commits are replayed as patches rather than copied over, so our own changes to the plugin survive."
+            echo
+            echo "### Replayed commits"
+            echo
+            git log --oneline "origin/$BASE_BRANCH..HEAD" | sed 's/^/- /'
+            echo
+            echo "### Files touched"
+            echo
+            git diff --stat "origin/$BASE_BRANCH..HEAD" | sed 's/^/    /'
+          } > .upstream-sync/pr-body.md
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
       - name: Open pull request
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.replay.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.TEMPLATE_SYNC_PAT }}
+          BRANCH: ${{ steps.replay.outputs.branch }}
         run: |
+          set -euo pipefail
           REPO="${GITHUB_REPOSITORY}"
           OWNER="${REPO%%/*}"
           TEAM_SLUG="${REVIEWER_TEAM##*/}"
-          BRANCH="${{ steps.branch.outputs.name }}"
 
-          # Reuse an existing PR if one is already open.
-          PR_NUMBER=$(gh api "repos/$REPO/pulls?head=$OWNER:$BRANCH&state=open" --jq '.[0].number // empty')
+          PR_NUMBER=$(gh api "repos/$REPO/pulls?head=$OWNER:$BRANCH&state=open" --jq '.[0].number // empty' || true)
 
           if [ -z "$PR_NUMBER" ]; then
             PR_NUMBER=$(gh api -X POST "repos/$REPO/pulls" \
-              -f title="chore: sync upstream main ($(date -u +%Y-%m-%d))" \
+              -f title="chore: sync upstream claude-plugin ($(date -u +%Y-%m-%d))" \
               -f head="$BRANCH" \
-              -f base="main" \
-              -f body="Automated weekly sync of \`main\` from upstream https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot." \
+              -f base="$BASE_BRANCH" \
+              -f body="$(cat .upstream-sync/pr-body.md)" \
               --jq .number)
+            gh api -X POST "repos/$REPO/pulls/$PR_NUMBER/requested_reviewers" \
+              -f "team_reviewers[]=$TEAM_SLUG" || echo "Warning: could not assign reviewer team."
+          else
+            gh api -X PATCH "repos/$REPO/pulls/$PR_NUMBER" \
+              -f body="$(cat .upstream-sync/pr-body.md)" >/dev/null
           fi
 
-          gh api -X POST "repos/$REPO/pulls/$PR_NUMBER/requested_reviewers" \
-            -f "team_reviewers[]=$TEAM_SLUG" \
-            || echo "Warning: could not assign reviewer team."
+      - name: Report no-op
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "No upstream commits touching $UPSTREAM_PATH since ${{ steps.diff.outputs.last_sha }} - nothing to do."
