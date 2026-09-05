@@ -32,7 +32,7 @@ codeunit 50100 "Discount Calculation Tests"
     TestPermissions = Disabled;
 
     var
-        Assert: Codeunit Assert;
+        Assert: Codeunit "Library Assert";
         LibrarySales: Codeunit "Library - Sales";
         LibraryRandom: Codeunit "Library - Random";
         IsInitialized: Boolean;
@@ -282,7 +282,7 @@ codeunit 50210 "Copilot Suggestion Tests"
     TestPermissions = Disabled;
 
     var
-        Assert: Codeunit Assert;
+        Assert: Codeunit "Library Assert";
         AITTestContext: Codeunit "AIT Test Context";
 
     [Test]

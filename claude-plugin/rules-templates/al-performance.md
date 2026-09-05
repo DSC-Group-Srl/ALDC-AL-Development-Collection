@@ -64,22 +64,43 @@ end;
 
 ### Intent
 
-Use SetLoadFields to minimize data retrieval from the database by loading only the fields you need. Place SetLoadFields before the Get or Find operation, and include only the fields that will be used in your code.
+Use `SetLoadFields` to minimise data retrieval by loading only the normal fields the code actually reads. Call it immediately before the `Get`/`FindSet`/`FindFirst` it governs. Do **not** list primary-key fields, `SystemId`, system audit fields, or fields you filter on — the platform includes all of those automatically.
+
+**Statement order is a readability preference, not a defect.** `SetLoadFields` placed ahead of `SetRange`/`SetFilter` materialises exactly the same columns as the reverse order. Put it after the filters so a reader can see which read it governs — but never report the other order as a performance problem.
+
+Skip `SetLoadFields` entirely when:
+
+- the loop body performs a documented **full-load** operation on the same record variable — `Insert`, `Delete`, `Rename`, `TransferFields`, or a copy into a temporary table. Those force a just-in-time load of the missing fields, which costs more than reading the full row up front. (`Modify` is **not** in that list: a `Modify` touching only loaded fields is safe on a partial record.)
+- the table has few fields (under ten), the code reads most of them (above 60 %), the loop runs ten or fewer iterations, or the table is a singleton setup table or a temporary table.
+
+`SetLoadFields` only narrows `FieldClass = Normal`; it does not affect FlowFields or FlowFilters. For report dataitems use `AddLoadFields` in `OnPreDataItem` instead.
+
+> Governing knowledge: `microsoft/knowledge/performance/use-setloadfields-for-partial-records.md` and `skip-setloadfields-on-write-and-transferfields.md` (BCQuality).
 
 ### Examples
 
 ```al
-// Good example - SetLoadFields with filtering
+// Good example - immediately before the read it governs; filtered field not listed
 Item.SetRange("Third Party Item Exists", false);
 Item.SetLoadFields("Item Category Code");
 Item.FindFirst();
 ```
 
 ```al
-// Bad example (avoid SetLoadFields after filtering)
+// Also correct - same projection, just less readable. Not a finding.
 Item.SetLoadFields("Item Category Code");
 Item.SetRange("Third Party Item Exists", false);
 Item.FindFirst();
+```
+
+```al
+// Bad example - partial record feeding a full-load operation
+Item.SetLoadFields("Item Category Code");
+if Item.FindSet() then
+  repeat
+    TempItem := Item;      // copy into a temporary table forces a JIT load of every field
+    TempItem.Insert();
+  until Item.Next() = 0;
 ```
 
 ## Rule 3: Use Temporary Tables, Dictionaries, and Lists for Performance

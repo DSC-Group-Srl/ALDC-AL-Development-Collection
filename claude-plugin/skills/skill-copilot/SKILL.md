@@ -600,7 +600,7 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
     TestPermissions = Disabled;
 
     var
-        Assert: Codeunit Assert;
+        Assert: Codeunit "Library Assert";
         AITTestContext: Codeunit "AIT Test Context";
 
     // --- Happy Path ---
