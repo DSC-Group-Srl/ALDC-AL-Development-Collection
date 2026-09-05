@@ -96,6 +96,24 @@ DSC repos routinely put the base app, test app, and performance app in sibling f
 
 Headline fact (get this into any prose referencing multi-project builds): **`al_build scope='all'` does not rebuild or refresh a sibling dependent project** — it only builds the target project plus its own upstream dependencies, against its own isolated `.alpackages`. The verified way to keep a base app and its test app in sync in one command is `Bash: al workspace compile <workspaceFile>`, which compiles every project in the manifest in dependency order against one shared package cache.
 
+## Quality metrics
+
+`hooks/hooks.json` wires a `SubagentStop` hook (`tools/metrics/capture_subagent.sh` →
+`parse_subagent.py`) that turns the symbolic markers the agents emit — the implementer's
+`📚 bcq {applied}/{prescribed}`, its `### Knowledge Deviations`, the review's
+`**BCQuality accounting:**` block — into JSONL records. `/aldc:al-metrics` aggregates them
+via `tools/metrics/report.py`.
+
+Two constraints to respect when editing any of this:
+
+- **The markers are a contract.** Change the shape of a symbolic line in an agent and you
+  break the parser silently — it will just stop matching. `tools/metrics/test_parse.sh`
+  carries fixtures of every marker; update them in the same commit.
+- **The record must never carry free text.** Only counts, an enum-checked verdict, and paths
+  matching `(microsoft|community|custom)/knowledge/…`. Two of the self-test's assertions
+  exist purely to prove no customer path and no message body leak into a record. Do not
+  relax them.
+
 ## Rules Injection
 
 Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/aldc:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
