@@ -1,6 +1,6 @@
 # BCQuality da reattivo a proattivo — analisi, rischi, piano
 
-**Stato**: proposta · **Owner**: R&D · **Data**: 2026-09-05
+**Stato**: fasi 0-2 eseguite · **Owner**: R&D · **Data**: 2026-09-05
 **Repo coinvolti**: `DSC-Group-Srl/ALDC-AL-Development-Collection` (fork, sorgente del plugin) ·
 `DSC-Group-Srl/dscgroup-bc-nav-agentic-dev` (marketplace)
 **Riferimento upstream**: `microsoft/BCQuality` @ `1a5afdc` (2026-09-03)
@@ -452,6 +452,53 @@ Da rilevare dalla Fase 3 in poi, per fase implementativa:
 | **undeclared deviations** | deviazioni trovate in review ma non dichiarate | Deve tendere a 0. Se non lo fa, l'implementer non sta leggendo il worklist |
 | **prescribed ∩ cited** | knowledge prescritte che la review cita comunque | Alto = il prescrittivo non funziona; basso = funziona |
 | findings totali per fase | — | **Da non leggere da solo.** Il calo è atteso e non prova nulla senza una baseline non allineata (Dredd `baseline: unaligned` su legacy) |
+
+---
+
+## 7bis. Cosa è stato eseguito
+
+Fasi 1, 0 e 2 completate sul branch `claude/bc-quality-plugin-integration-ps7dd1`
+dei due repo. Decisione **A2** confermata dall'owner.
+
+| Fase | Commit | Esito |
+|---|---|---|
+| 1 · Reconcile del sync | `3b15844` *(marketplace)* | Il sync cancella i file rimossi a monte, con allowlist `RECONCILE_KEEP` (oggi vuota) e due guardie: floor sull'albero upstream (60 file) e cap sulle cancellazioni (25%, scavalcabile da `workflow_dispatch`). Provato in sandbox sugli alberi reali: individua i 4 orfani, l'allowlist li protegge, il floor scatta a 19 file, il cap al 37%. I 4 orfani li rimuoverà il primo sync dopo il merge |
+| 0a · Conflitti | `4478e0b` | Risolti i conflitti 01, 02 e 05. Il 01 verificato sulla fonte primaria (vedi sotto). Corretto `Codeunit Assert` anche in `skill-testing` e `skill-copilot`, dove era lo stesso AL0185 |
+| 0c · Pin | `b467e32` | `claude-plugin/tools/bcquality/bcquality.pin` come fonte unica, letto da entrambi gli hook risolvendolo dalla directory dello script. Pinnato a **v1.5** (`ad8ccde`) |
+| 0b · Pilot | `23fa337` | Abolito. Gli agenti del plugin ragionavano già dinamicamente sulle leaf attive: l'assunzione sbagliata viveva solo nel template e in una riga del conductor |
+| — · Bump settimanale | `780342c` | `bcquality-pin-bump.yml`, lunedì 06:00 UTC. Provato in dry-run su v1.3→v1.5 e v1.0→v1.5 |
+| 2 · Sync A2 | `c7f93db` | `sync-upstream.yml` filtrato su `claude-plugin/**`, replay a patch |
+| 2 · Rimozione | `b976271` | 462 → 280 file tracciati, −54k righe |
+
+### Due scoperte emerse eseguendo
+
+**Il conflitto 01 andava verificato, non assunto.** Rinominare `Rec` in un
+subscriber è prassi diffusa in AL, quindi prima di riscrivere la regola ho
+controllato la fonte primaria invece di fidarmi di BCQuality. L'esempio ufficiale
+Microsoft in `devenv-subscribing-to-events` (Example 2) usa `var Rec: Record
+Customer` in un subscriber, e `AL0419` parla di parametro *"missing of type"*
+proprio perché il match è per nome. BCQuality ha ragione, la nostra regola
+generava codice che non binda. Gli esempi "buoni" che avevamo (`SalesHeader`,
+`Customer` su `OnBeforeInsert`) non sarebbero compilati.
+
+**Il sync A2 doveva essere a patch, non a overlay — e l'ha dimostrato subito.**
+`claude-plugin/` è co-posseduto (40 commit nostri, 5 upstream in 6 mesi), quindi
+copiarci sopra la loro copia avrebbe cancellato il nostro lavoro in silenzio. Con
+`git format-patch` + `git am -3` il primo commit upstream non sincronizzato
+(`4f3371f`) ha subito prodotto un conflitto reale su `.mcp.json` e `plugin.json`.
+Ispezionato: è un no-op semantico — upstream passa `microsoft-docs` all'endpoint
+ufficiale `learn.microsoft.com/api/mcp`, che noi raggiungiamo già come
+`ms-learn`. Registrato come sincronizzato **senza applicare la patch**, con la
+motivazione nel file di stato, così la prima run schedulata è un no-op pulito.
+
+### Resta aperto
+
+- `docs/framework/` e i tre ADR citano ancora la struttura upstream. Sono
+  background di design e storia, non stato corrente: lasciati, da valutare.
+- `CONTRIBUTING.md` (14 KB) spiega come contribuire agli alberi rimossi.
+  Candidato alla rimozione, non toccato perché fuori dallo scopo approvato.
+- Fasi 3-6 (prescrittivo, ribilanciamento review, architect/planning,
+  valorizzazione `/custom/`) non iniziate.
 
 ---
 
