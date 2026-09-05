@@ -36,6 +36,23 @@ $entry = 'skills/entry.md'
 # in $bcqHome, never reuse the name "home" for an assignable variable here.
 $defaultHome = Join-Path $HOME '.claude/bcquality'
 
+# Source and version ship with the plugin in bcquality.pin — the single source of
+# truth, rewritten by the weekly bump workflow. Resolved from this script's own
+# directory so it works whether or not $env:CLAUDE_PLUGIN_ROOT is set.
+$pinfile = Join-Path $PSScriptRoot 'bcquality.pin'
+if (Test-Path $pinfile) {
+    foreach ($line in Get-Content $pinfile) {
+        if ($line -match '^\s*([A-Za-z]+)\s*=\s*(.*?)\s*$') {
+            switch ($Matches[1]) {
+                'url' { if ($Matches[2]) { $url = $Matches[2] } }
+                'ref' { if ($Matches[2]) { $ref = $Matches[2] } }
+                'pin' { if ($Matches[2]) { $pin = $Matches[2] } }
+            }
+        }
+    }
+}
+
+# A project's aldc.yaml still wins over the shipped pin (advanced/per-project use).
 if (Test-Path $aldc) {
     $h = (Select-String -Path $aldc -Pattern '^\s*home:\s*"?([^"#]+)"?' -AllMatches | Select-Object -First 1).Matches.Groups[1].Value
     $e = (Select-String -Path $aldc -Pattern '^\s*entryPoint:\s*"?([^"#]+)"?' -AllMatches | Select-Object -First 1).Matches.Groups[1].Value

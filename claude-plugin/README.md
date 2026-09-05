@@ -109,7 +109,8 @@ Loaded automatically by agents when needed:
 
 - First session ever: the hook kicks off a background clone and the session runs the native A–G checklist meanwhile (nothing blocks).
 - Later sessions: the hook re-uses the cache instantly, and refreshes it in the background at most once every 12h (override with `$BCQUALITY_UPDATE_INTERVAL_HOURS`).
-- Override the location with `$BCQUALITY_HOME`, or point at a fork/pin a commit via a project `aldc.yaml → external.bcquality` block (optional, advanced use only).
+- **Source and version live in [`tools/bcquality/bcquality.pin`](tools/bcquality/bcquality.pin)** — the single source of truth both hooks read. It ships pinned to a BCQuality **release tag**, so every machine consults the same corpus and a run is reproducible; a weekly workflow in the source repo opens a PR when a newer release lands, with the added/changed/removed knowledge files listed in the body. To consume a fork, change `url` there.
+- Override the location with `$BCQUALITY_HOME`. A project that must pin differently from the rest of the estate can still override `url`/`ref`/`pinnedCommit` via an `aldc.yaml → external.bcquality` block (optional, advanced use only) — it wins over the shipped pin.
 - Absent or offline is never a blocker — agents fall back to the native A–G checklist and say so.
 
 ## Core Principles

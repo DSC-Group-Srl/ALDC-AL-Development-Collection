@@ -39,6 +39,19 @@ pin=""
 entry="skills/entry.md"
 default_home="${HOME:-${USERPROFILE:-.}}/.claude/bcquality"
 
+# Source and version ship with the plugin in bcquality.pin — the single source of
+# truth, rewritten by the weekly bump workflow. Resolved from this script's own
+# directory so it works whether or not $CLAUDE_PLUGIN_ROOT is exported.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
+pinfile="$script_dir/bcquality.pin"
+pinval() { grep -E "^[[:space:]]*$1[[:space:]]*=" "$pinfile" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]' || true; }
+if [ -f "$pinfile" ]; then
+  v=$(pinval url); [ -n "${v:-}" ] && url="$v"
+  v=$(pinval ref); [ -n "${v:-}" ] && ref="$v"
+  v=$(pinval pin); [ -n "${v:-}" ] && pin="$v"
+fi
+
+# A project's aldc.yaml still wins over the shipped pin (advanced/per-project use).
 if [ -f "$ALDC" ]; then
   h=$(grep -E '^[[:space:]]*home:' "$ALDC" | head -1 | sed -E 's/.*home:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
   e=$(grep -E '^[[:space:]]*entryPoint:' "$ALDC" | head -1 | sed -E 's/.*entryPoint:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
