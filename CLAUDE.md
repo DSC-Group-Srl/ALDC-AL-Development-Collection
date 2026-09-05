@@ -1,164 +1,126 @@
 # ALDC — Claude Code Instructions
 
-@import ./docs/framework/ALDC-Core-Spec-v1.2.md
+## What this repository is
 
-## Overview
+**The source of the `bc-dev` Claude Code plugin.** Everything shipped lives under
+`claude-plugin/`; a GitHub Action mirrors that directory into
+`plugins/bc-dev/` in
+[`dscgroup-bc-nav-agentic-dev`](https://github.com/DSC-Group-Srl/dscgroup-bc-nav-agentic-dev),
+the DSC marketplace, and that is how the plugin reaches its users.
 
-AL (Application Language) workspace for Microsoft Dynamics 365 Business Central.
-Architecture: **ALDC Core v1.2** — 10 agents (4 core + 2 on-demand + 3 subagents + 1 extension) + 16 skills + 11 workflows + 9 instructions.
+This is a fork of
+[`javiarmesto/AL-Development-Collection-for-GitHub-Copilot`](https://github.com/javiarmesto/AL-Development-Collection-for-GitHub-Copilot).
+Upstream ships a GitHub Copilot / VS Code product built from root-level `agents/`,
+`skills/`, `instructions/` and `prompts/` trees, packaged as a VSIX and an npm package.
+**We removed that whole chain**: DSC uses Claude Code only, the fork is never published
+upstream, and keeping a second copy of every rule produced contradictions between the two
+trees. The weekly upstream sync is path-filtered to `claude-plugin/**` for the same reason.
 
-## Core Principles
+Reasoning and history: [`.github/plans/bcquality-proactive-integration.md`](.github/plans/bcquality-proactive-integration.md).
 
-- **Extension-only development** — Never modify base application objects. Use tableextensions, pageextensions, event subscribers.
-- **Human-in-the-Loop (HITL)** — All critical decisions require user confirmation before proceeding.
-- **TDD / spec-driven** — Features follow: `spec.create` -> architecture -> test-plan -> implementation -> review.
-- **Least privilege** — Generate only the minimum permissions required. Use XLIFF for all user-facing strings.
+> `docs/framework/` predates the plugin-only layout and still describes the upstream
+> structure in places. Treat `claude-plugin/` as the truth and the framework docs as
+> design background.
 
-## Agent Routing
-
-| Intent | Agent | What it does |
-|--------|-------|-------------|
-| Design, architecture, strategy | delegate to agent `al-architect` | Solution design, data modeling, integration strategy |
-| Implement, code, debug, fix | delegate to agent `al-developer` | Tactical implementation with full AL MCP tools |
-| TDD orchestration (plan -> implement -> review -> commit) | delegate to agent `al-conductor` | Orchestrates planning, implementation, and review subagents |
-| Estimate, size, propose | delegate to agent `al-presales` | PERT estimation, SWOT analysis, cost breakdown |
-
-### Quick Routing
+## Layout
 
 ```
-New feature (MEDIUM/HIGH)? -> al-architect -> /al-spec.create -> al-conductor
-New feature (LOW)?         -> /al-spec.create -> al-developer
-Bug fix / debugging?       -> al-developer
-Architecture review?       -> al-architect
-Full TDD cycle?            -> al-conductor
-Project estimation?        -> al-presales
+claude-plugin/              # THE PRODUCT — everything below ships to the marketplace
+  .claude-plugin/           #   plugin.json (manifest, MCP servers, version)
+  agents/                   #   13 agents: architect, conductor, developer, presales,
+                            #   triage, dredd, agent-builder, 3 TDD subagents, 3 doc agents
+  commands/                 #   10 slash commands (/al-spec-create, /al-build, …)
+  skills/                   #   22 skills, loaded on demand by the agents
+  rules-templates/          #   always-on AL rules, copied to a project's .claude/rules/
+                            #   by /al-initialize. THE rule source — see below
+  hooks/hooks.json          #   SessionStart + PreToolUse wiring
+  tools/                    #   hook scripts: bcquality, al-cli, rules, routing, …
+  docs/templates/           #   report/plan templates the agents fill in
+  bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
+
+.claude/                    # this repo dogfooding its own plugin — GENERATED, never edit
+scripts/sync-claude-workspace.js   # regenerates .claude/ from claude-plugin/
+docs/framework/             # ALDC framework spec and design docs (background)
+docs/decisions/             # ADRs
+.github/plans/              # requirement sets and decision docs
+.github/workflows/          # upstream sync, BCQuality pin bump, evidence check
 ```
 
-## Workflows
+## Editing rules
 
-11 workflows (6 core + 5 BC Agents pack). The 6 core, invoked via `/workflow-name`:
+- **Edit `claude-plugin/`, never `.claude/`.** The latter is generated. After changing
+  agents, skills or rules, run `node scripts/sync-claude-workspace.js`
+  (`--check` in CI fails on drift).
+- **A rule lives in exactly one place.** `claude-plugin/rules-templates/` is the source;
+  `rules-floor-cheatsheet.md` is its condensed form, injected inline into code-touching
+  subagents. Changing a rule means changing both, in the same commit.
+- **Where BCQuality already has a knowledge file, defer to it.** Our rules cover what
+  BCQuality does not reach — mostly procedure (how to structure a test, a PromptDialog, a
+  permission set) and DSC conventions. Duplicating a Microsoft rule here recreates the
+  contradiction this repo just spent a cleanup removing.
+- **Bump the version in two places** when shipping: `claude-plugin/.claude-plugin/plugin.json`
+  and the marketplace entry. The sync does not do it for you.
 
-| Workflow | When to use |
-|----------|-------------|
-| `/al-spec.create` | Create functional-technical specifications before development |
-| `/al-build` | Build, package, and deploy extensions |
-| `/al-pr-prepare` | Prepare pull requests with documentation and validation |
-| `/al-memory.create` | Generate/update memory.md for session continuity |
-| `/al-context.create` | Generate project context.md for AI assistants |
-| `/al-initialize` | Complete environment and workspace setup |
+## BCQuality
 
-## Skills
+An external, citable BC knowledge base ([`microsoft/BCQuality`](https://github.com/microsoft/BCQuality),
+300 knowledge files + 485 AL samples across 17 review domains) that backs the findings of
+`dredd`, `al-triage` and the conductor's review phase.
 
-16 composable knowledge modules (7 required + 4 recommended + 3 BC Agents + 2 utility) loaded on-demand by agents (not invoked directly):
+- **One shared user-scope cache** at `~/.claude/bcquality`, auto-installed and refreshed in
+  the background by the `SessionStart` hook. Not a per-project clone.
+- **Source and version**: [`claude-plugin/tools/bcquality/bcquality.pin`](claude-plugin/tools/bcquality/bcquality.pin),
+  read by both hooks and by `validate_evidence.py`. Pinned to a release tag.
+- **`.github/workflows/bcquality-pin-bump.yml`** opens a PR weekly when a newer release
+  lands, listing the knowledge files and review leaves that changed.
+- **Every review leaf is active.** There is no pilot and no `disabled-skills` — see
+  `claude-plugin/docs/templates/bcquality-task-context.md`.
+- Absent or offline never blocks: the agents fall back to the native A–G checklist.
 
-| Skill | Domain | Loaded by |
-|-------|--------|-----------|
-| `/skill-debug` | Debugging, snapshot debugging | al-developer |
-| `/skill-api` | API pages, OData, REST | al-developer, al-architect |
-| `/skill-copilot` | AI features, PromptDialog | al-developer, al-architect |
-| `/skill-events` | Event subscribers, publishers | al-developer, al-architect |
-| `/skill-permissions` | Permission sets, XLIFF, security | al-developer |
-| `/skill-pages` | Page types, FastTabs, actions | al-developer |
-| `/skill-migrate` | BC version migration, upgrade codeunits | al-developer |
-| `/skill-translate` | XLF translation, NAB AL Tools | al-developer |
-| `/skill-performance` | CPU profiling, FlowField optimization | al-developer, al-architect |
-| `/skill-testing` | TDD, test strategy, AL Test Toolkit | al-architect, al-conductor |
-| `/skill-estimation` | PERT estimation, complexity scoring | al-presales |
+## Agent routing
 
-### Skills Evidencing
+| Intent | Agent |
+|--------|-------|
+| Design, architecture, data modeling | `al-architect` |
+| Implement, code, debug, fix | `al-developer` |
+| Full TDD cycle (plan → implement → review → commit) | `al-conductor` |
+| Diagnose an existing bug from a symptom | `al-triage` |
+| Independent quality audit | `dredd` |
+| Estimate, size, propose | `al-presales` |
+| Build a BC agent with the Agent SDK | `al-agent-builder` |
 
-Agents MUST declare which skills they loaded and which patterns they applied:
-- **al-architect** -> `> **Skills applied**: skill-api, skill-events` at top of architecture.md
-- **al-developer** -> `> **Skills loaded**: skill-debug (root cause analysis)` at start of response
-- **al-conductor** -> `Skills Applied in This Phase` table in phase-complete.md
+```
+New feature (MEDIUM/HIGH)? → al-architect → /al-spec-create → al-conductor
+New feature (LOW)?         → /al-spec-create → al-developer
+Bug fix / debugging?       → al-triage (diagnosis) → al-developer (fix)
+Quality audit?             → dredd
+```
 
-## Auto-Applied Instructions
+Complexity assessment is presented to the user, who confirms before work starts (HITL).
 
-Active automatically based on file type (no invocation needed):
+## Core principles
 
-**Always on `*.al`**: al-guidelines, al-code-style, al-naming-conventions, al-performance
-**Context-activated**: al-error-handling (errors), al-events (events), al-testing (test files)
-
-See `instructions/` directory for full content.
+- **Extension-only** — never modify base BC objects. TableExtension, PageExtension, event
+  subscribers.
+- **Human-in-the-loop** — critical decisions and phase transitions wait for confirmation.
+- **TDD** — tests first, then the minimum code to pass, then refactor.
+- **Least privilege** — the minimum permission set; XLIFF for every user-facing string.
 
 ## Plans
 
-Requirement sets live in `.github/plans/`, one subdirectory per requirement:
+Requirement sets live in `.github/plans/`:
 
 ```
 .github/plans/
-  memory.md                          # Global memory (cross-session decisions)
+  memory.md                          # cross-session decisions
   {req_name}/
-    {req_name}.spec.md               # Functional-technical specification
-    {req_name}.architecture.md       # Architecture decisions
-    {req_name}.test-plan.md          # Test plan with acceptance criteria
-    {req_name}-phase-<N>-complete.md # Phase completion reports
-    {req_name}-complete.md           # Final completion report
+    {req_name}.spec.md
+    {req_name}.architecture.md
+    {req_name}.test-plan.md
+    {req_name}-phase-<N>-complete.md
 ```
 
-### Workflow with Plans
+## Build
 
-**MEDIUM / HIGH complexity:**
-1. `al-architect` designs solution, creates `{req_name}.architecture.md`
-2. `/al-spec.create` reads architecture, generates `{req_name}.spec.md`
-3. `al-conductor` reads spec + architecture, orchestrates TDD
-4. `/al-pr-prepare` prepares PR referencing the plan
-
-**LOW complexity:**
-1. `/al-spec.create` generates spec directly from codebase
-2. `al-developer` implements using spec as blueprint
-
-## Complexity-Based Routing
-
-| Level | Scope | Route |
-|-------|-------|-------|
-| **LOW** | Single phase, no integrations | `/al-spec.create` -> `al-developer` |
-| **MEDIUM** | 2-3 areas, internal integrations | `al-architect` -> `/al-spec.create` -> `al-conductor` |
-| **HIGH** | 4+ phases, external integrations | `al-architect` -> `/al-spec.create` -> `al-conductor` |
-
-Present the assessment and wait for user confirmation before proceeding.
-
-## BC Agents Pack (Extension)
-
-For agent development with AI Development Toolkit. Includes al-agent-builder agent and skill-agent-task-patterns (8 SDK integration patterns). Workflows: `/al-agent.create`, `/al-agent.task`, `/al-agent.instructions`, `/al-agent.test`.
-
-## Build & Test
-
-```bash
-# Download symbols (requires app.json configured)
-al-language: Download Symbols
-
-# Build the extension
-al-language: Package
-
-# Publish to sandbox
-al-language: Publish without Debugging
-
-# Run tests
-al-language: Run Tests
-```
-
-No npm/yarn build steps. AL compilation is handled by the AL Language VS Code extension.
-
-## Project Structure
-
-```
-instructions/          # Auto-applied instruction files (9)
-agents/                # Agent definitions (4 core + 2 on-demand + 3 subagents + 1 extension)
-skills/                # Composable knowledge modules (16 skill directories)
-prompts/               # Workflow definitions (11 prompt files)
-docs/framework/        # Normative spec (ALDC-Core-Spec-v1.2.md)
-docs/templates/        # Immutable templates
-.github/plans/         # Requirement sets & memory
-src/                   # AL source code
-app.json               # Extension manifest
-```
-
-## Reference
-
-- [ALDC Core Spec v1.2](./docs/framework/ALDC-Core-Spec-v1.2.md) — Normative specification
-- [AL Language Reference](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-reference-overview)
-- [BC Development Docs](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/)
-
----
-**Framework**: ALDC Core v1.2 | **Primitives**: 10 agents + 16 skills + 11 workflows + 9 instructions
+There is no build step for the plugin: it is markdown, shell and JSON. AL compilation in a
+consuming project is the AL CLI's job (`al compile`), driven by `al-developer`.

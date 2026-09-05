@@ -123,7 +123,7 @@ end;
 
 **Migration steps:**
 1. Build with `Bash: al compile` — signature mismatches produce `AL0482` errors
-2. Use `al_get_object_definition` to inspect the new publisher signature
+2. Use the AL LSP server (hover / go-to-definition) to inspect the new publisher signature
 3. Update parameter list to match exactly (name, type, order)
 4. Re-verify with `Bash: al compile`
 
@@ -133,7 +133,7 @@ Handle objects marked `ObsoleteState = Removed` in the target version:
 
 ```al
 // Step 1: Find usage of removed objects
-// al_search_objects — search for the obsolete table/page/codeunit
+// al_symbolsearch — search for the obsolete table/page/codeunit
 
 // Step 2: Replace with the designated successor
 // Before (removed in BC 24):
@@ -255,10 +255,10 @@ Document and prepare rollback before executing migration:
 ### Step 1: Pre-Migration Assessment
 
 1. **Backup**: Ensure source control is up to date (`git status` clean)
-2. **Download current symbols**: VS Code `AL: Download Symbols` (or `AL: Download Source` for full base/app source) — a human step
-3. **Document dependencies**: read `app.json` `dependencies` plus **al-symbols-mcp** `al_packages` — list all with current versions
+2. **Download current symbols**: **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth), or VS Code `AL: Download Symbols` (or `AL: Download Source` for full base/app source — still a human step). If the migration spans multiple sibling projects (app + test app), Load `skill-al-mcp-workspace` first — `al_downloadsymbols`'s `projectPath` can get stuck on the wrong project across multiple calls in one session.
+3. **Document dependencies**: read `app.json` `dependencies` plus **al-mcp** `al_getpackagedependencies` — list all with current versions
 4. **Review release notes**: Check BC target version breaking changes
-5. **Create migration plan** in `.github/plans/{project}-migration.md`
+5. **Create migration plan** in `requirements/{project}-migration.md`
 
 **PAUSE — wait for user approval before modifying files.**
 

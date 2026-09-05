@@ -1,1 +1,0 @@
---8<-- "prompts/al-context.create.prompt.md:8"

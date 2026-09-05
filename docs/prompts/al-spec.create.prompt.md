@@ -1,1 +1,0 @@
---8<-- "prompts/al-spec.create.prompt.md:8"

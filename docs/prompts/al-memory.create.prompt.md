@@ -1,1 +1,0 @@
---8<-- "prompts/al-memory.create.prompt.md:8"

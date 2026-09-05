@@ -1,1 +1,0 @@
---8<-- "prompts/al-build.prompt.md:9"

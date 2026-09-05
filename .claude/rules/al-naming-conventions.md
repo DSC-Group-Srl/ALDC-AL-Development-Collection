@@ -86,22 +86,42 @@ procedure UpdateInventoryQuantity(ItemNo: Code[20]; Quantity: Decimal)
 ## Rule 4: Parameter Naming in Event Subscribers
 
 ### Intent
-Use meaningful parameter names in event subscribers to improve code clarity and maintainability. Use descriptive parameter names that clearly indicate their purpose, follow Business Central conventions for common parameter types, and maintain consistency across similar event subscribers. Avoid unclear generic names like "Rec" - use specific descriptive names.
+
+**Subscriber parameter names are not a style choice — copy them verbatim from the publisher.** AL binds each subscriber parameter to the publisher parameter *of the same name*, so a renamed parameter does not bind. Descriptive-naming rules that apply to locals do **not** apply here: `Rec`, `xRec`, `Sender`, `RunTrigger` and the publisher's own parameter names are reproduced exactly. Microsoft's own documented example keeps `var Rec: Record Customer` in a page-trigger subscriber.
+
+A subscriber **may** declare fewer parameters than the publisher, omitting any it does not use from any position, and may list the ones it keeps in a different order. That is valid AL, not a signature mismatch.
+
+Where the useful half of "descriptive naming" still applies: the **procedure name**, which follows Microsoft's `[Action][Event]` convention. When the body reads badly with a bare `Rec`, introduce a descriptive local alias inside the procedure — never rename the parameter.
+
+> Governing knowledge: `microsoft/knowledge/style/event-subscriber-param-names-match-publisher.md` (BCQuality). Related compiler diagnostics: `AL0419` (subscriber missing a parameter), `AL0284` (parameter type mismatch), `AL0288` (`var` only where the publisher is `var`).
 
 ### Examples
 
 ```al
-// Good example - Descriptive parameter names
-[EventSubscriber(ObjectType::Table, Database::"Sales Header", OnBeforeInsert, '', false, false)]
-local procedure AddDefaultValuesOnBeforeInsertSalesHeader(var SalesHeader: Record "Sales Header"; RunTrigger: Boolean)
+// Good example - publisher parameter names reproduced verbatim; descriptive procedure name
+[EventSubscriber(ObjectType::Table, Database::"Sales Header", 'OnBeforeInsertEvent', '', false, false)]
+local procedure AddDefaultValuesOnBeforeInsertSalesHeader(var Rec: Record "Sales Header"; RunTrigger: Boolean)
+var
+  SalesHeader: Record "Sales Header";   // descriptive alias for readability, if the body needs it
 begin
+  SalesHeader := Rec;
   // Event handling logic
 end;
 
-[EventSubscriber(ObjectType::Table, Database::Customer, OnBeforeModify, '', false, false)]
-local procedure CheckBalanceOnBeforeModifyCustomer(var Customer: Record Customer; var xCustomer: Record Customer)
+// Good example - omitting a parameter the handler does not use is valid
+[EventSubscriber(ObjectType::Table, Database::Customer, 'OnBeforeModifyEvent', '', false, false)]
+local procedure CheckBalanceOnBeforeModifyCustomer(var Rec: Record Customer)
 begin
-  // Event handling logic
+  // xRec and RunTrigger omitted on purpose - the handler does not need them
+end;
+```
+
+```al
+// Bad example - renaming publisher parameters. Does not bind; the build breaks.
+[EventSubscriber(ObjectType::Table, Database::"Sales Header", 'OnBeforeInsertEvent', '', false, false)]
+local procedure AddDefaultValuesOnBeforeInsertSalesHeader(var SalesHeader: Record "Sales Header"; RunTrigger: Boolean)
+begin
+  // 'SalesHeader' matches no publisher parameter
 end;
 ```
 
@@ -128,4 +148,29 @@ codeunit 50100 "Customer Service Impl" implements ICustomerService
         // Implementation logic
     end;
 }
+```
+
+## Rule 6: Namespace Naming
+
+### Intent
+Namespaces (AL runtime ≥ 13.0 / BC 24+) name **features**, mirroring the feature-folder structure. This rule fixes the *naming* shape; for the folder-mirroring requirement, the `using` handling and the runtime gate see **al-code-style.md Rule 5**.
+
+- **Root segment = the app name** (`app.json` → `name`), PascalCase, no spaces.
+- **Each following segment = a feature/subfeature**, PascalCase, mirroring the folder path: `[AppName].[Feature].[SubFeature]`.
+- **Never** a segment that names an object type (`.Table`, `.Pages`, `.Report`, `.Codeunits`).
+- Keep segments descriptive and aligned with the folder names, so the folder path and the namespace path stay speculative mirrors of each other.
+
+### Examples
+
+```al
+// Good examples
+namespace Contoso.Sales.Invoice;      // src/Sales/Invoice/
+namespace Contoso.Warehouse.Picking;  // src/Warehouse/Picking/
+```
+
+```al
+// Bad examples
+namespace Contoso.Codeunits;          // object type, not a feature
+namespace contoso.sales;              // not PascalCase
+namespace Sales.Invoice;              // missing app-name root segment
 ```
