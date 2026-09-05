@@ -1,0 +1,148 @@
+// ALDC quality metrics — KQL for Application Insights.
+//
+// Every record the plugin sends is one row in `customEvents` with name == "AldcPhase".
+// Dimensions (strings you group by) live in customDimensions; measures (numbers you
+// aggregate) live in customMeasurements and must be unpacked with todouble().
+//
+// Paste any block into Logs on the Application Insights resource. The workbook in
+// workbook.json wires the first four up as tiles.
+
+// ---------------------------------------------------------------------------
+// 0. Everything, most recent first. Start here when you are not sure what you have.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase"
+| project timestamp,
+          project_ = tostring(customDimensions.project),
+          agent    = tostring(customDimensions.agent),
+          phase    = toint(customDimensions.phase),
+          verdict  = tostring(customDimensions.verdict),
+          prescribed = todouble(customMeasurements.prescribed),
+          applied    = todouble(customMeasurements.applied),
+          deviated   = todouble(customMeasurements.deviated),
+          undeclared = todouble(customMeasurements.undeclared),
+          cited      = todouble(customMeasurements.cited),
+          agentFindings = todouble(customMeasurements.agentFindings),
+          independenceRatio = todouble(customMeasurements.independenceRatio)
+| order by timestamp desc
+
+// ---------------------------------------------------------------------------
+// 1. THE ONE THAT MATTERS — independence-ratio over time.
+//
+// agent findings / total findings. Implementer and reviewer draw on the same corpus, so
+// the review can quietly stop being a measurement and become a consistency check. This is
+// the only number that shows it happening. Below 0.15 is weakening; at 0 the review has
+// stopped measuring. Computed from the sums, not as an average of ratios — a mean of
+// ratios would let a phase with two findings outvote one with twenty.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and tostring(customDimensions.agent) == "al-review-subagent"
+| summarize agentFindings = sum(todouble(customMeasurements.agentFindings)),
+            totalFindings = sum(todouble(customMeasurements.totalFindings))
+          by bin(timestamp, 7d)
+| extend independenceRatio = iff(totalFindings > 0, agentFindings / totalFindings, todouble(null))
+| extend health = case(isnull(independenceRatio), "no data",
+                       independenceRatio >= 0.15, "healthy",
+                       independenceRatio > 0,     "LOW - valve weakening",
+                                                  "ZERO - review is only agreeing")
+| project timestamp, independenceRatio, agentFindings, totalFindings, health
+| render timechart
+
+// ---------------------------------------------------------------------------
+// 2. Undeclared deviations — must be zero.
+//
+// Non-zero means the implementer is not reading the prescribed worklist, which makes every
+// other number here meaningless. Grouped by project so you know where to look.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and tostring(customDimensions.agent) == "al-review-subagent"
+| summarize undeclared = sum(todouble(customMeasurements.undeclared)),
+            phases = count()
+          by project_ = tostring(customDimensions.project)
+| where undeclared > 0
+| order by undeclared desc
+
+// ---------------------------------------------------------------------------
+// 3. Deviation rate, and which article keeps being deviated from.
+//
+// An article deviated repeatedly is not an implementer problem: it is a rule that does not
+// fit how we build, and it belongs in /custom/ as an override. This query names it.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase"
+| where isnotempty(tostring(customDimensions.deviationsDeclared))
+| extend paths = split(tostring(customDimensions.deviationsDeclared), "|")
+| mv-expand path = paths to typeof(string)
+| summarize deviations = count(),
+            projects = dcount(tostring(customDimensions.project))
+          by path
+| order by deviations desc
+| take 20
+
+// ---------------------------------------------------------------------------
+// 4. Prescriptive coverage — is the prescribed worklist scoped correctly?
+//
+// `cited` counts what the review found on its own in domains it was NOT prescribed. High
+// relative to `prescribed` means the prescriptive pass is too narrow and the review keeps
+// picking up what planning should have handed the implementer.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and tostring(customDimensions.agent) == "al-review-subagent"
+| summarize prescribed = sum(todouble(customMeasurements.prescribed)),
+            applied    = sum(todouble(customMeasurements.applied)),
+            cited      = sum(todouble(customMeasurements.cited))
+          by project_ = tostring(customDimensions.project)
+| extend appliedPct = iff(prescribed > 0, applied / prescribed, todouble(null)),
+         citedVsPrescribed = iff(prescribed > 0, cited / prescribed, todouble(null))
+| order by citedVsPrescribed desc
+
+// ---------------------------------------------------------------------------
+// 5. Verdict mix per project — the outcome side, for context.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and isnotempty(tostring(customDimensions.verdict))
+| summarize phases = count() by project_ = tostring(customDimensions.project),
+                                verdict = tostring(customDimensions.verdict)
+| render columnchart kind=stacked
+
+// ---------------------------------------------------------------------------
+// 6. Most-cited knowledge — what the corpus is actually catching.
+//
+// Useful in the other direction too: a Microsoft article that never appears here across
+// many phases is either irrelevant to our work or not being retrieved at all.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and isnotempty(tostring(customDimensions.knowledge))
+| extend paths = split(tostring(customDimensions.knowledge), "|")
+| mv-expand path = paths to typeof(string)
+| summarize citations = count(), projects = dcount(tostring(customDimensions.project)) by path
+| order by citations desc
+| take 20
+
+// ---------------------------------------------------------------------------
+// 7. Health check — runs where BCQuality was not mounted.
+//
+// These contribute no prescriptions and skew every ratio above. A steady trickle means a
+// SessionStart hook that is not landing on someone's machine.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase"
+| summarize notMounted = countif(tostring(customDimensions.bcqMounted) == "false"),
+            total = count()
+          by project_ = tostring(customDimensions.project),
+             bin(timestamp, 7d)
+| where notMounted > 0
+| extend pctNotMounted = 100.0 * notMounted / total
+| order by timestamp desc
+
+// ---------------------------------------------------------------------------
+// 8. Which BCQuality pin is in the field.
+//
+// After a pin bump PR merges, this shows how fast the estate actually picks it up — the
+// hook refreshes at most every 12h, so a lagging machine is visible here.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcPhase" and isnotempty(tostring(customDimensions.bcqSha))
+| summarize phases = count(), lastSeen = max(timestamp)
+          by bcqSha = tostring(customDimensions.bcqSha)
+| order by lastSeen desc

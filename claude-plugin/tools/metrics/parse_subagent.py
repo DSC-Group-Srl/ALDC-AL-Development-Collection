@@ -174,9 +174,24 @@ def project_lane(cwd: str) -> str | None:
     return os.path.join(d, "aldc-metrics.jsonl") if os.path.isdir(d) else None
 
 
+def appinsights_lane(rec: dict, log) -> None:
+    """Azure Application Insights, the enterprise lane. Opt-in by the presence of the
+    standard `APPLICATIONINSIGHTS_CONNECTION_STRING`, so a machine or pipeline that already
+    has it configured needs nothing else. Nothing ships in the plugin."""
+    if not os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING", "").strip():
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import appinsights
+
+        appinsights.send(rec, log=log)
+    except Exception as exc:  # a telemetry lane must never disturb a session
+        log(f"appinsights lane failed (non-fatal): {type(exc).__name__}")
+
+
 def endpoint_lane(rec: dict, log) -> None:
-    """Opt-in by configuration. No secret ships in the plugin: the endpoint and token come
-    from the environment, set by whoever runs the estate."""
+    """A plain webhook, for anyone who wants the record somewhere that is not App Insights.
+    Opt-in by configuration; no secret ships in the plugin."""
     url = os.environ.get("ALDC_METRICS_ENDPOINT", "").strip()
     if not url:
         return
@@ -242,6 +257,7 @@ def main() -> int:
         except OSError as exc:
             log(f"project lane failed: {type(exc).__name__}")
 
+    appinsights_lane(rec, log)
     endpoint_lane(rec, log)
     return 0
 

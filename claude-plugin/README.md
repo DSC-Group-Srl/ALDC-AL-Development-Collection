@@ -136,13 +136,20 @@ Microsoft content). Never a message body, never customer AL, never a path inside
 repo, never the full cwd. Enforced in the parser and covered by its self-test
 (`tools/metrics/test_parse.sh`), because these files travel.
 
-Three lanes, two of them off until you turn them on:
+Four lanes, three of them off until you turn them on:
 
 - `$CLAUDE_PLUGIN_DATA/metrics/aldc-metrics.jsonl` — always; survives plugin updates.
 - `<project>/.github/metrics/aldc-metrics.jsonl` — only if that directory exists. Create it to
   version metrics alongside the project.
-- `$ALDC_METRICS_ENDPOINT` (+ optional `$ALDC_METRICS_TOKEN`) — HTTPS POST per record. No
-  credential ships in the plugin; plain HTTP is refused.
+- **`$APPLICATIONINSIGHTS_CONNECTION_STRING`** — the enterprise lane. Each record becomes an
+  `AldcPhase` custom event in Azure Application Insights, numbers in `customMeasurements` and
+  dimensions in `customDimensions`, so KQL can slice the four metrics by project, agent and
+  verdict. Uses the standard Azure variable, so a machine or pipeline that already has it set
+  needs nothing else. No SDK — the public ingestion contract, spoken with stdlib `urllib` and
+  `gzip`. Deployment template, KQL and an importable workbook:
+  [`tools/metrics/azure/`](tools/metrics/azure/README.md).
+- `$ALDC_METRICS_ENDPOINT` (+ optional `$ALDC_METRICS_TOKEN`) — a plain webhook, for anywhere
+  that is not App Insights. No credential ships in the plugin; plain HTTP is refused.
 
 Capture is best-effort and never blocks a session. It needs a python interpreter on `PATH`;
 without one it logs the gap to `metrics/capture.log` rather than failing.

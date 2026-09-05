@@ -60,7 +60,12 @@ Render what the script prints, and add the judgement it cannot make:
 - `$CLAUDE_PLUGIN_DATA/metrics/aldc-metrics.jsonl` — always written, survives plugin updates.
 - `<project>/.github/metrics/aldc-metrics.jsonl` — only when that directory exists. Create it
   to version metrics with the project.
-- `$ALDC_METRICS_ENDPOINT` — an HTTPS endpoint, when set. Off by default; no credential ships
+- **Azure Application Insights** — when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set, each
+  record is also sent as an `AldcPhase` custom event. That is the estate-wide view: this
+  command reports the local machine, KQL reports everyone. If the user is asking about trends
+  across projects or over months, point them at `tools/metrics/azure/queries.kql` and the
+  workbook rather than trying to answer from one machine's JSONL.
+- `$ALDC_METRICS_ENDPOINT` — a plain webhook, when set. Off by default; no credential ships
   in the plugin.
 
 Records hold counts, verdicts and BCQuality knowledge paths. **No message bodies, no customer
