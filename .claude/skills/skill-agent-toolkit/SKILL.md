@@ -449,22 +449,22 @@ end;
 
 ## Task Integration Patterns
 
-See `references/workflow-task.md` for all 8 patterns.
+See the `skill-agent-task-patterns` skill for all 8 task integration patterns.
 
 ## Quick Start
 
 VS Code: `Ctrl+Shift+P` → `AL: New Project` → choose **Agent** template.
 
-Or run scaffold: `python scripts/scaffold_agent.py "Agent Name" ./src`
+Or scaffold a coded agent end-to-end with the `/al-agent-create` command.
 
 ## Workflows
 
-| Need                 | Reference                           |
-| -------------------- | ----------------------------------- |
-| Full coded agent     | `references/workflow-create.md`     |
-| Task integration     | `references/workflow-task.md`       |
-| Agent instructions   | `references/workflow-instructions.md` |
-| Test generation      | `references/workflow-test.md`       |
+| Need                 | Command                        |
+| -------------------- | ------------------------------ |
+| Full coded agent     | `/al-agent-create`             |
+| Task integration     | `/al-agent-task`               |
+| Agent instructions   | `/al-agent-instructions-create` |
+| Test generation      | `/al-agent-test`               |
 
 ## Troubleshooting
 

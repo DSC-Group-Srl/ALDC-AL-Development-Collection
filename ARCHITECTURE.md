@@ -1,47 +1,72 @@
-# ALDC — Repository Architecture Map
+# Architecture
 
-> One-page guide to what is **source**, what is **generated/derived**, and which
-> **distribution channel** consumes each tree. If you are editing a derived tree by hand,
-> stop — edit the source and re-derive.
+One product, one distribution channel.
 
-## Sources of truth
+```
+                    ALDC-AL-Development-Collection  (this repo)
+                                    │
+                             claude-plugin/          the plugin, hand-maintained
+                                    │
+                ┌───────────────────┴───────────────────┐
+                │                                       │
+    scripts/sync-claude-workspace.js        GitHub Action in the marketplace repo
+                │                                       │
+             .claude/                          plugins/bc-dev/
+      this repo dogfooding its own      dscgroup-bc-nav-agentic-dev, published
+      plugin — GENERATED, never edit    to the Claude organisation
+```
 
-| Tree | Role |
-|------|------|
-| `agents/`, `skills/`, `instructions/`, `prompts/` | **Canonical primitives** (GitHub Copilot format: `.agent.md`, `applyTo` globs). Every other surface derives from here. |
-| `docs/` | Source of the public website (MkDocs). |
-| `docs/framework/ALDC-Core-Spec-*.md` | Normative specification. |
-| `aldc.yaml`, `collections/al-development.collection.yml` | Manifests: what the framework contains and ships. |
+## Source of truth
 
-## Derived / consumer surfaces
+| Concern | Lives in |
+|---|---|
+| Agents, skills, commands, hooks | `claude-plugin/` |
+| Always-on AL rules | `claude-plugin/rules-templates/` — and its condensed `rules-floor-cheatsheet.md` |
+| BCQuality source and version | `claude-plugin/tools/bcquality/bcquality.pin` |
+| DSC BCQuality overrides | `claude-plugin/bcquality-custom/` (scaffolded, not yet populated) |
+| Report and plan templates | `claude-plugin/docs/templates/` |
+| Decision records | `.github/plans/`, `docs/decisions/` |
 
-| Surface | Derives from | How | Consumed by |
-|---------|--------------|-----|-------------|
-| **VS Code extension** (local `toolbox/al-coding-agent-collection/`, gitignored) | `packages/foundation/` + `docs/templates/`, `docs/schema/`, `tools/aldc-validate/`, `aldc.yaml` | `prepare-package.js` copies them into the VSIX at build time | **VS Code Marketplace — primary channel (600+ installs)** |
-| `claude-plugin/` | canonical primitives | manual port today → build script planned (`tools-map` VS Code ↔ Claude Code) | Claude Code plugin marketplace |
-| `.claude/` | `claude-plugin/` | copy (same primitive format) | developing THIS repo with Claude Code |
-| `packages/foundation/` | canonical primitives | manual mirror today → sync script + CI drift check planned. **The VS Code extension packages FROM here** — never delete, never let it drift from the root trees |
-| `docs/instructions/` | `instructions/` | manual doc-formatted copies | website navigation |
-| `gh-pages` branch | `docs/` | **build output** of `docs.yml` (MkDocs) on every push to `main` — never edit by hand | GitHub Pages site |
+Nothing outside `claude-plugin/` ships. `.claude/` is generated; `docs/framework/` is
+design background that predates the plugin-only layout.
 
-## Distribution channels
+## Flows
 
-1. **VS Code Marketplace extension** — primary. `prepare-package.js` (in the local
-   extension folder) copies `packages/foundation/` primitives into the VSIX;
-   target state: copy pinned to a release tag, with a root↔foundation drift check
-   in CI so the VSIX can never ship content that diverged from the canonical trees.
-2. **`npx aldc install`** (`scripts/install.js`, npm package `al-development-collection`) —
-   copies canonical root trees into a consuming AL project.
-3. **Claude Code plugin** (`claude-plugin/` + `.claude-plugin/marketplace.json`) — reaches
-   the non-VS Code audience.
-4. **Website** (`docs/` → `gh-pages` via `docs.yml`).
+**Out — to users.** `bc-dev-upstream-drift.yml` in the marketplace repo copies
+`claude-plugin/` over `plugins/bc-dev/` daily at 05:00 UTC and opens a PR. This repo is the
+sole source of truth for that path, so overwriting is correct — and since the sync now
+reconciles deletions, a file removed here is removed there too, with `RECONCILE_KEEP`
+protecting anything the marketplace genuinely owns.
 
-## Editing rules
+**In — from upstream.** `sync-upstream.yml` replays upstream commits touching
+`claude-plugin/**` as patches, weekly. Path-filtered because this fork no longer carries
+upstream's Copilot/VS Code chain; patches rather than an overlay because that directory is
+co-owned and copying over it would clobber our work. A collision surfaces as a conflict and
+stops the run.
 
-- Change primitives → edit the **root trees only**, then propagate to
-  `packages/foundation/` (the extension packages from there) and `claude-plugin/`.
-  Until the sync script exists, propagation is manual — run the conformance check
-  before building the VSIX.
-- Change website → edit `docs/` on `main`; deployment is automatic.
-- Never commit to `gh-pages`; never edit `packages/foundation/` directly — it must
-  stay byte-identical to the root trees.
+**In — from BCQuality.** `bcquality-pin-bump.yml` checks weekly for a newer BCQuality
+release and opens a PR bumping the pin, listing the knowledge files and review leaves that
+changed. The knowledge itself is never vendored: the `SessionStart` hook keeps one shared
+clone at `~/.claude/bcquality`.
+
+## Rules
+
+- Edit `claude-plugin/`; run `node scripts/sync-claude-workspace.js` after.
+- Never edit `.claude/` — it is regenerated and a CI drift check fails on divergence.
+- A rule lives in exactly one place. Where BCQuality has a knowledge file, defer to it.
+- Version bumps are manual, in `claude-plugin/.claude-plugin/plugin.json` and the
+  marketplace entry.
+
+## What was removed, and why
+
+Upstream builds a GitHub Copilot / VS Code product from root-level `agents/`, `skills/`,
+`instructions/` and `prompts/`, mirrored into `packages/foundation/` for a VSIX and
+published to npm, with an mkdocs site on GitHub Pages. This fork carried all of it while
+using none of it, and the duplicate rule tree had drifted into contradicting the plugin's
+on indentation, `TryFunction` scope and the test assert codeunit name.
+
+Removed: those four trees, `packages/`, `collections/`, `archive/`, `tools/aldc-validate/`,
+the packaging and validation scripts, `aldc.yaml`, `aldc.code-workspace`, `mkdocs.yml`, the
+docs site, the npm manifests, and five already-disabled workflows.
+
+Full reasoning: [`.github/plans/bcquality-proactive-integration.md`](.github/plans/bcquality-proactive-integration.md).

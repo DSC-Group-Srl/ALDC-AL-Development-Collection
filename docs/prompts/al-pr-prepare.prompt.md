@@ -1,1 +1,0 @@
---8<-- "prompts/al-pr-prepare.prompt.md:9"

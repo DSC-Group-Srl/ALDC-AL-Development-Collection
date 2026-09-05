@@ -163,3 +163,52 @@ begin
   end;
 end;
 ```
+
+## Rule 5: Isolate Database Writes via Codeunit.Run(), Not TryFunction
+
+### Intent
+`[TryFunction]` shares the caller's transaction. When the wrapped logic writes to the database (inserts, modifies, deletes) and then fails partway through, a TryFunction cannot safely guard that write the same way a properly isolated call can — do not reach for `[TryFunction]` as the error-handling wrapper around logic that writes. Instead, put the writing logic in its own codeunit and invoke it with `Codeunit.Run()` (optionally with `TableNo` set so the record flows in/out via `Run(var Rec)`), then branch on the boolean result exactly like a TryFunction call: `if MyCodeunit.Run(Record) then ... else GetLastErrorText()`. `Run()` gives that codeunit its own isolated transaction with a clean rollback on failure. Reserve `[TryFunction]` for logic that only reads/validates and never writes.
+
+### Examples
+
+```al
+// Good example - isolated write via Codeunit.Run()
+codeunit 50100 "Contoso Order Poster"
+{
+    TableNo = "Sales Header";
+
+    trigger OnRun()
+    begin
+        PostOrder(Rec); // writes ledger entries, updates Rec
+    end;
+
+    local procedure PostOrder(var SalesHeader: Record "Sales Header")
+    begin
+        // ... inserts/modifies records; a mid-way error rolls back cleanly because Run() isolates it
+    end;
+}
+
+procedure AcceptOrder(var SalesHeader: Record "Sales Header")
+var
+    OrderPoster: Codeunit "Contoso Order Poster";
+begin
+    if OrderPoster.Run(SalesHeader) then
+        SalesHeader.Status := SalesHeader.Status::Posted
+    else begin
+        SalesHeader.Status := SalesHeader.Status::Error;
+        SalesHeader."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeader."Error Message"));
+    end;
+    SalesHeader.Modify(false);
+end;
+```
+
+```al
+// Bad example (avoid wrapping database writes in a TryFunction)
+[TryFunction]
+local procedure TryPostOrder(var SalesHeader: Record "Sales Header")
+begin
+    // Writes here share the caller's transaction -- a TryFunction is not a safe boundary for this.
+    SalesHeader.Insert(true);
+    LedgerEntry.Insert(true);
+end;
+```

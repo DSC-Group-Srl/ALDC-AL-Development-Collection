@@ -32,7 +32,7 @@ Before implementing AL code, review the following domain-specific guidelines tha
 ## Key Guidelines Summary
 
 - **File Naming**: Use `<ObjectName>.<ObjectType>.al` pattern consistently
-- **Code Style**: Use two space indentation and PascalCase for variables, PascalCase for objects
+- **Code Style**: Use four space indentation (Microsoft AL formatter default) and PascalCase for variables, PascalCase for objects
 - **Folder Structure**: Organize by feature (`src/feature/subfeature/`) not by object type
 - **Performance**: Filter data early, use temporary tables, avoid unnecessary loops
 - **Events**: Prefer integration events over direct modifications for extensibility

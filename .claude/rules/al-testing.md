@@ -111,7 +111,9 @@ codeunit 50200 "Customer Management Tests"
     Subtype = Test;
 
     var
-        Assert: Codeunit Assert;
+        // "Library Assert" with quotes and the full name. `Codeunit Assert` and
+        // `Codeunit "Assert"` both fail to compile with AL0185.
+        Assert: Codeunit "Library Assert";
         LibrarySales: Codeunit "Library - Sales";
         LibraryInventory: Codeunit "Library - Inventory";
         LibraryRandom: Codeunit "Library - Random";

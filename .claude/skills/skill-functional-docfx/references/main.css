@@ -1,0 +1,431 @@
+/* HEADINGS */
+
+h1 {
+	font-weight: 600;
+	font-size: 32px;
+}
+
+h2 {
+	font-weight: 600;
+	font-size: 24px;
+	line-height: 1.8;
+}
+
+h3 {
+	font-weight: 600;
+	font-size: 20px;
+	line-height: 1.8;
+}
+
+
+h4 {
+	font-weight: 600;
+	font-size: 18px;
+	line-height: 1.8;
+}
+
+h5 {
+	font-size: 14px;
+	padding: 10px 0px;
+}
+
+article p {
+	margin-top: 1rem;
+	margin-bottom: 0;
+	word-wrap: break-word;
+}
+
+article h2,
+article h3,
+article h4 {
+	margin-top: 15px;
+	margin-bottom: 15px;
+}
+
+article h4 {
+	padding-bottom: 8px;
+	border-bottom: 2px solid #ddd;
+}
+.font-weight-bold {
+	font-weight: 700 !important;
+}
+.font-style-italic{
+	font-style: italic !important;
+}
+article .table {
+	font-size: 0.875rem;
+	table-layout: auto;
+	width: 100%;
+}
+article .summaryHolder {
+	margin-top: 24px;
+	display: flex;
+	margin-bottom: 8px;
+}
+
+article .summaryHolder > .summary {
+	flex: 1;
+}
+
+article .summary p:first-of-type {
+	margin-top: 0;
+}
+article .memberNameHolder {
+	word-wrap: break-word;
+	overflow: hidden;
+	white-space: normal;
+	word-break: break-word;
+}
+article .memberInfo {
+	margin-left: 24px;
+}
+article .xref {
+	text-underline-position: auto;
+}
+
+.table td p:first-child {
+	margin-top: 0;
+}
+
+.table th p:first-child {
+	margin-top: 0;
+}
+.navbar-nav {
+	visibility: hidden;
+}
+
+a {
+	color: #1a3a8f;
+}
+
+/* ============================================================
+   DYNA ARX BRAND THEME
+   Brand palette:
+     Magenta  #c0175c
+     Purple   #6b1a9a
+     Blue     #1a3a8f
+     Gold     #f0a800
+   ============================================================ */
+
+/* ── CSS custom properties ── */
+:root {
+  --dynarx-magenta:  #c0175c;
+  --dynarx-purple:   #6b1a9a;
+  --dynarx-blue:     #1a3a8f;
+  --dynarx-gold:     #f0a800;
+  --dynarx-gradient: linear-gradient(135deg, #c0175c 0%, #6b1a9a 45%, #1a3a8f 100%);
+  --dynarx-gradient-hover: linear-gradient(135deg, #d41a6a 0%, #7d20b5 45%, #1e47b8 100%);
+}
+
+/* ── Navbar ── */
+.navbar {
+  background: var(--dynarx-gradient) !important;
+  border-bottom: 3px solid var(--dynarx-gold);
+}
+
+.navbar .navbar-brand,
+.navbar .navbar-brand:hover,
+.navbar .navbar-brand span,
+.navbar a.navbar-brand {
+  color: #ffffff !important;
+}
+
+.navbar-brand img {
+  max-height: 36px;
+  width: auto;
+  border-radius: 8px;
+}
+
+/* ── Sidebar header / filter ── */
+.sidebar-filter-input,
+.sidebar .filter-input {
+  border-color: var(--dynarx-blue);
+}
+
+.sidebar-item-toggle,
+.toc .nav-item a.active,
+.toc .nav-item a:hover {
+  color: var(--dynarx-blue) !important;
+}
+
+.toc .nav-item a.active {
+  font-weight: 700;
+  border-left: 3px solid var(--dynarx-magenta);
+  padding-left: 8px;
+}
+
+/* ── Links ── */
+a {
+  color: var(--dynarx-blue);
+}
+
+a:hover {
+  color: var(--dynarx-magenta);
+}
+
+article .xref,
+article a {
+  color: var(--dynarx-blue);
+}
+
+article .xref:hover,
+article a:hover {
+  color: var(--dynarx-magenta);
+  text-decoration: underline;
+}
+
+/* ── Page / article headings ── */
+article h1 {
+  color: var(--dynarx-blue);
+  border-bottom: 3px solid var(--dynarx-gold);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+article h2 {
+  color: var(--dynarx-blue);
+  border-bottom: 1px solid #dde3f0;
+  padding-bottom: 4px;
+}
+
+article h3 {
+  color: var(--dynarx-purple);
+}
+
+article h4 {
+  color: var(--dynarx-blue);
+  border-bottom: 2px solid var(--dynarx-gold);
+}
+
+/* ── Object-type / namespace badges ── */
+.badge,
+.label {
+  background-color: var(--dynarx-blue) !important;
+  color: #fff !important;
+}
+
+/* ── Breadcrumb active item ── */
+.breadcrumb-item.active {
+  color: var(--dynarx-magenta);
+}
+
+/* ── Code blocks ── */
+pre {
+  background: #f0f3fa;
+  border-left: 4px solid var(--dynarx-blue);
+  border-radius: 0 4px 4px 0;
+  padding: 12px 16px;
+}
+
+code {
+  color: var(--dynarx-purple);
+}
+
+/* ── Table header rows ── */
+article .table thead th {
+  background: var(--dynarx-gradient);
+  color: #ffffff;
+  border: none;
+}
+
+/* ── Member detail separators ── */
+article h4.memberNameHolder,
+article .memberNameHolder {
+  color: var(--dynarx-blue);
+}
+
+/* ── Footer ── */
+.footer {
+  background: #f0f3fa;
+  border-top: 3px solid var(--dynarx-gold);
+  color: #444;
+  font-size: 0.85rem;
+}
+
+.footer a {
+  color: var(--dynarx-blue);
+}
+
+.footer a:hover {
+  color: var(--dynarx-magenta);
+}
+
+/* ── Search input focus ── */
+.search input:focus,
+input[type="search"]:focus {
+  outline-color: var(--dynarx-magenta);
+  border-color: var(--dynarx-magenta);
+  box-shadow: 0 0 0 3px rgba(192, 23, 92, 0.2);
+}
+
+/* ── Scroll-to-top button (if rendered) ── */
+#scroll-to-top {
+  background: var(--dynarx-gradient);
+  color: #fff;
+  border: none;
+}
+
+/* ============================================================
+   DYNA ARX — DARK MODE OVERRIDES
+   Target: [data-bs-theme="dark"] set by DocFX on <html>
+
+   Strategy: keep the brand gradient on the navbar (it's
+   already dark enough); shift all text-role brand colours
+   to their lighter siblings so they stay readable against
+   dark surfaces.
+
+   Light siblings:
+     Blue    #1a3a8f  →  #7eb3ff
+     Purple  #6b1a9a  →  #c084fc
+     Magenta #c0175c  →  #f472b0 (hover)
+     Gold    #f0a800  →  #fbbf24 (slightly brighter)
+   ============================================================ */
+
+[data-bs-theme="dark"] {
+
+  /* ── CSS custom property overrides ── */
+  --dynarx-blue:    #7eb3ff;
+  --dynarx-purple:  #c084fc;
+  --dynarx-magenta: #f472b0;
+  --dynarx-gold:    #fbbf24;
+
+  /* ── Base link colour ── */
+  a {
+    color: #7eb3ff;
+  }
+
+  a:hover {
+    color: #f472b0;
+  }
+
+  /* ── Article links and xrefs ── */
+  article a,
+  article .xref {
+    color: #7eb3ff;
+  }
+
+  article a:hover,
+  article .xref:hover {
+    color: #f472b0;
+  }
+
+  /* ── Headings ── */
+  article h1 {
+    color: #b8d4ff;
+    border-bottom-color: #fbbf24;
+  }
+
+  article h2 {
+    color: #b8d4ff;
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+  }
+
+  article h3 {
+    color: #c084fc;
+  }
+
+  article h4 {
+    color: #b8d4ff;
+    border-bottom-color: #fbbf24;
+  }
+
+  article h4.memberNameHolder,
+  article .memberNameHolder {
+    color: #b8d4ff;
+  }
+
+  /* ── Sidebar TOC ── */
+  .sidebar-item-toggle,
+  .toc .nav-item a:hover {
+    color: #7eb3ff !important;
+  }
+
+  .toc .nav-item a.active {
+    color: #b8d4ff !important;
+    border-left-color: #f472b0;
+  }
+
+  .sidebar-filter-input,
+  .sidebar .filter-input {
+    border-color: #7eb3ff;
+    background: #1e2535;
+    color: #e2e8f0;
+  }
+
+  /* ── Breadcrumb ── */
+  .breadcrumb-item.active {
+    color: #f472b0;
+  }
+
+  .breadcrumb-item + .breadcrumb-item::before {
+    color: #94a3b8;
+  }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #1a2236;
+    border-left-color: #7eb3ff;
+    color: #e2e8f0;
+  }
+
+  pre code {
+    color: #e2e8f0;
+  }
+
+  code {
+    color: #c084fc;
+    background: rgba(192, 132, 252, 0.1);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  /* ── Tables ── */
+  article .table thead th {
+    /* gradient is already dark — stays the same */
+    background: var(--dynarx-gradient);
+    color: #ffffff;
+  }
+
+  article .table tbody tr {
+    color: #e2e8f0;
+  }
+
+  article .table tbody tr:hover {
+    background: rgba(126, 179, 255, 0.07);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    background: #111827;
+    border-top-color: #fbbf24;
+    color: #94a3b8;
+  }
+
+  .footer a {
+    color: #7eb3ff;
+  }
+
+  .footer a:hover {
+    color: #f472b0;
+  }
+
+  /* ── Badges / labels ── */
+  .badge,
+  .label {
+    background-color: #2a4080 !important;
+    color: #b8d4ff !important;
+  }
+
+  /* ── Search focus ring ── */
+  .search input:focus,
+  input[type="search"]:focus {
+    outline-color: #f472b0;
+    border-color: #f472b0;
+    box-shadow: 0 0 0 3px rgba(244, 114, 176, 0.25);
+  }
+
+  /* ── Misc surface colours ── */
+  .summaryHolder {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}

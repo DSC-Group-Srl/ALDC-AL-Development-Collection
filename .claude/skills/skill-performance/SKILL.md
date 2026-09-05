@@ -287,7 +287,7 @@ Performance targets:
 
 ### Step 4: Document Findings
 
-For significant optimizations, create a triage report at `.github/plans/perf-triage-<scope>.md`:
+For significant optimizations, create a triage report at `requirements/{requirement}/perf-triage-<scope>.md`:
 
 ```markdown
 # Performance Triage — <Scope>
