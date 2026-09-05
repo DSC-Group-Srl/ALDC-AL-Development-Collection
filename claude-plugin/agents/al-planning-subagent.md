@@ -83,7 +83,40 @@ You have enough context when you can answer:
 
 **Don't over-research** - Stop when you have actionable AL context, not 100% certainty.
 
-### 3. Return Findings Concisely
+### 3. Build the BCQuality knowledge worklist
+
+**Do this once, here.** The Conductor passes your worklist to the implement subagent for
+each phase, so the retrieval is paid once per plan instead of once per phase.
+
+Probe the shared clone the `SessionStart` hook manages — default `~/.claude/bcquality`
+(override `$BCQUALITY_HOME`) — by reading `<home>/skills/entry.md`. A successful read is
+the presence signal; a read that errors or returns empty means absent, and you emit an
+empty worklist with a one-line note and carry on. **Never block the plan for a missing
+knowledge layer, and never retry the probe.**
+
+When present, build one task-context per phase, per the BCQuality task-context template:
+
+```yaml
+goal: "implement AL objects for <phase objective>"
+inputs-available: [spec, file-path]
+technologies: [al]
+bc-version: <from app.json; OMIT if unknown>
+enabled-layers: [microsoft, community, custom]
+```
+
+Hand it to `entry.md` and **execute whatever `dispatch[]` returns** — do not assume. On an
+implementation goal Entry dispatches `custom/skills/author/al-implementation-guidance.md`,
+DSC's authoring skill, because every skill Microsoft ships is a review skill and would
+`goal-mismatch`. If Entry returns `no-match`, the worklist for that phase is empty: say so
+rather than substituting a review skill, which would produce findings about code that does
+not exist yet.
+
+The skill returns `info` findings, each cited to a knowledge file. Keep them **verbatim** —
+path, message and confidence — and group them by phase. Do not summarise, re-word or merge
+them: the implementer writes against these and the reviewer checks them, so a paraphrase
+here becomes an untraceable rule downstream.
+
+### 4. Return Findings Concisely
 
 Provide structured summary with AL-specific sections.
 
@@ -170,6 +203,21 @@ Structure your findings like this:
 
 ```markdown
 ## AL Planning Findings: {Task Name}
+
+### Knowledge Worklist (BCQuality)
+*(One block per phase. `none` when Entry returned `no-match` for that phase; the whole
+section becomes `⚪ BCQuality not mounted — no worklist` when the probe failed. The
+Conductor passes each phase's block to the implement subagent verbatim.)*
+
+```
+🟢 BCQuality · <sha>  ·  N prescriptions across M phases
+
+Phase 1 — <objective>
+  microsoft/knowledge/events/…  — <imperative rule, one line>
+  microsoft/knowledge/style/…   — <imperative rule, one line>
+Phase 2 — <objective>
+  none
+```
 
 ### Relevant AL Objects
 - **Base Objects**:

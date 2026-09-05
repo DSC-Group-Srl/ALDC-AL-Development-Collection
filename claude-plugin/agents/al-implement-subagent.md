@@ -273,15 +273,48 @@ These are this plugin's own skills. They are **not** auto-loaded in subagent run
 
 </domain_skills>
 
+## The prescribed knowledge worklist
+
+The Conductor passes a **BCQuality knowledge worklist** for this phase: a list of articles,
+each with its repo-relative path and the rule stated imperatively. The planning subagent
+retrieved it once for the whole plan, so it costs you nothing to read and it is the same
+corpus the reviewer will judge against.
+
+**Write against it.** These are not suggestions and they are not style preferences — they
+are the rules the review measures by. Where a prescribed rule and your instinct disagree,
+the rule wins; where a prescribed rule and the rules-floor cheat sheet disagree, **the
+prescribed rule wins** (BCQuality's corpus is the primary authority, ours covers what it
+does not reach).
+
+**Declare every deviation.** If you did not apply a prescribed article, say so — path and
+reason — in `### Knowledge Deviations`. This is the single most important line you emit:
+
+- a declared deviation is a judgement the reviewer can weigh, and often a legitimate one
+  (the rule did not apply to what you actually built, or two prescribed rules collided);
+- an **undeclared** deviation is a `major` finding. The reviewer checks the prescribed list
+  against the diff first, so an omission is found, not missed — declaring costs you nothing
+  and hiding costs the phase a revision round.
+
+`none` is a valid and common answer. Silence is not: the section is mandatory even when
+empty, because an absent section is indistinguishable from a forgotten one.
+
+An empty worklist (`📚 bcq · none`) means BCQuality had nothing for this phase's domains, or
+was not mounted. Then the rules floor and your domain skills are the whole authority — say
+so and proceed; nothing blocks.
+
 ## Skills Evidencing (symbolic)
 
 In the **Phase Implementation Summary** (see Output Format), emit **one symbolic line** — a cheap coverage trace, not a table:
 
 ```
-📐 instr ✓ · 🧠 skill-events·EventSub+TryFunc · skill-performance·SetLoadFields
+📐 instr ✓ · 📚 bcq 5/6 applied · 🧠 skill-events·EventSub+TryFunc · skill-performance·SetLoadFields
 ```
 
 - `📐 instr ✓` — the always-on instruction baseline (passed inline by the Conductor) was in effect.
+- `📚 bcq {applied}/{prescribed} applied` — how many of the prescribed articles you actually
+  applied. The gap must equal the number of entries in `### Knowledge Deviations`; if the two
+  disagree, one of them is wrong and the reviewer will treat the difference as undeclared.
+  No worklist → `📚 bcq none`.
 - `🧠 <skill>·<1–3-word pattern tag>` — one token per skill you **actually invoked (via the Skill tool) and applied**, with the concrete pattern.
 - None: `📐 instr ✓ · 🧠 none`.
 
@@ -393,8 +426,17 @@ After completing a phase, return this structured summary to the Conductor:
 ```markdown
 ## Phase {N} Implementation Summary
 
-📐 instr ✓ · 🧠 skill-events·EventSub+TryFunc · skill-performance·SetLoadFields
-*(One symbolic line — only skills you actually read and applied, each with a 1–3 word pattern tag. None → `📐 instr ✓ · 🧠 none`.)*
+📐 instr ✓ · 📚 bcq 5/6 applied · 🧠 skill-events·EventSub+TryFunc · skill-performance·SetLoadFields
+*(One symbolic line — only skills you actually read and applied, each with a 1–3 word pattern tag. None → `📐 instr ✓ · 📚 bcq none · 🧠 none`.)*
+
+### Knowledge Deviations
+*(MANDATORY, even when empty. Every prescribed BCQuality article you did not apply, with
+the reason. An undeclared deviation is a `major` finding in review.)*
+- `microsoft/knowledge/<domain>/<file>.md` — {why it was not applied}
+
+or
+
+- none
 
 ### Objects Created
 - {Type} {ID} "{Name}" — {purpose}
