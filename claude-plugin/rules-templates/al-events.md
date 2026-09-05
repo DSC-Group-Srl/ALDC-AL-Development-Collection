@@ -91,6 +91,8 @@ codeunit 50102 "Customer Validation Handler"
 ### Intent
 Design event parameters that provide sufficient context while maintaining performance and usability. Pass record variables by reference when possible, include relevant context parameters, use meaningful parameter names, consider performance implications of parameter passing, and implement handled patterns where appropriate. When creating events, ensure parameters provide sufficient context for subscribers while maintaining good performance and use descriptive parameter names that clearly indicate their purpose.
 
+> This rule governs the **publisher** side — the signature you design. It does **not** carry over to subscribers: a subscriber reproduces the publisher's parameter names verbatim, because AL binds them by name. See Rule 4 in `al-naming-conventions.md`.
+
 ### Examples
 
 ```al
