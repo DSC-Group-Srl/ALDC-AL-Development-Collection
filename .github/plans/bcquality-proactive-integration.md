@@ -1,6 +1,6 @@
 # BCQuality da reattivo a proattivo — analisi, rischi, piano
 
-**Stato**: fasi 0-2 eseguite · **Owner**: R&D · **Data**: 2026-09-05
+**Stato**: tutte le fasi eseguite tranne il contenuto di `/custom/knowledge/` · **Owner**: R&D · **Data**: 2026-09-05
 **Repo coinvolti**: `DSC-Group-Srl/ALDC-AL-Development-Collection` (fork, sorgente del plugin) ·
 `DSC-Group-Srl/dscgroup-bc-nav-agentic-dev` (marketplace)
 **Riferimento upstream**: `microsoft/BCQuality` @ `1a5afdc` (2026-09-03)
@@ -24,7 +24,7 @@ Tre decisioni sul tavolo:
 |---|---|---|
 | **A** | Rimuovere la catena Copilot/VS Code dalla fork | **Sì**, ma vincolata a una scelta sul sync upstream |
 | **B** | Portare BCQuality in fase di implementazione | **Sì**, per fasi, con le mitigazioni della §5 |
-| **C** | Valorizzare il layer `/custom/` DSC | **Rinviata** — cartella preparata, contenuti a un'attività dedicata |
+| **C** | Valorizzare il layer `/custom/` DSC | **Plumbing fatta, contenuti rinviati** — overlay cablato e skill di authoring scritta; `knowledge/` resta vuota |
 
 ---
 
@@ -491,14 +491,54 @@ ufficiale `learn.microsoft.com/api/mcp`, che noi raggiungiamo già come
 `ms-learn`. Registrato come sincronizzato **senza applicare la patch**, con la
 motivazione nel file di stato, così la prima run schedulata è un no-op pulito.
 
+### Fasi 3-5 e infrastruttura `/custom/` — eseguite
+
+| Commit | |
+|---|---|
+| `518163f` | Overlay del layer custom cablato nei due hook + skill di authoring `al-implementation-guidance` |
+| `38870ed` | Flusso prescrittivo end-to-end su planning, architect, conductor, implementer, review, dredd |
+
+**Due decisioni di progetto che il piano non aveva previsto.**
+
+*Serviva scrivere una skill.* Il piano dava per scontato che il prescrittivo si
+appoggiasse a BCQuality. Ma tutte e 17 le action skill sono `review/`, e Entry fa
+goal-matching sulla `description`: un goal di implementazione fa `goal-mismatch`
+su tutte e torna `no-match`. Senza una skill di authoring il prescrittivo non ha
+da dove prendere nulla. Scritta in `/custom/skills/author/`, conforme a DO. È
+meccanismo, non knowledge — recupera il corpus Microsoft per una domanda diversa —
+quindi non viola il "non riempire custom": `knowledge/` resta vuota.
+
+Due scelte dentro la skill che vale la pena conoscere: **niente `location`** nei
+findings, perché il codice non esiste ancora e una posizione inventata è peggio di
+nessuna; e **cap a 12 articoli** per worklist, perché READ impone di aprire in full
+ogni articolo citato, e un implementer con dodici regole ne applica dodici, uno con
+sessanta nessuna.
+
+*L'overlay andava applicato a ogni sessione, non solo al fetch.* Il piano diceva
+"dopo il fetch". Ma il refresh gira al massimo ogni 12h, mentre un aggiornamento del
+plugin cambia il layer subito: senza applicazione sincrona a ogni sessione, una
+regola nuova avrebbe potuto restare invisibile mezza giornata.
+
+**Il review emette markdown, non il JSON del piano.** I campi `prescribed[]`,
+`cited[]`, `independence-ratio` erano descritti sul contratto JSON della versione
+root del subagent — che era catena A ed è stata rimossa. La versione spedita nel
+plugin emette markdown, quindi la contabilità è diventata un blocco in testa alla
+review con gli stessi numeri.
+
 ### Resta aperto
 
 - `docs/framework/` e i tre ADR citano ancora la struttura upstream. Sono
   background di design e storia, non stato corrente: lasciati, da valutare.
 - `CONTRIBUTING.md` (14 KB) spiega come contribuire agli alberi rimossi.
   Candidato alla rimozione, non toccato perché fuori dallo scopo approvato.
-- Fasi 3-6 (prescrittivo, ribilanciamento review, architect/planning,
-  valorizzazione `/custom/`) non iniziate.
+- **`/custom/knowledge/` vuota** — l'unica cosa rimasta del piano. La plumbing regge,
+  la checklist per riempirla è nel README del layer.
+- **Nessuna delle metriche §7.3 ha ancora dati.** `independence-ratio`, deviation rate e
+  undeclared deviations si popolano solo eseguendo fasi TDD vere: il primo piano reale
+  è il test del flusso prescrittivo, e va guardato con quei numeri in mano.
+- **Il prescrittivo non è stato eseguito end-to-end su un progetto AL vero.** Le parti
+  meccaniche sono verificate in sandbox (overlay, hook, workflow), il comportamento degli
+  agenti no — è prosa, si valida solo usandola.
 
 ---
 

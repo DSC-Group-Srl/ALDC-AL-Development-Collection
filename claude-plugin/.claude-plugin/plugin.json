@@ -1,7 +1,7 @@
 {
   "name": "bc-dev",
-  "version": "4.7",
-  "description": "AL agents (incl. on-demand triage + dredd audit) + TDD subagents, skills, and workflows for BC extension development with TDD, BCQuality-cited review, event-driven architecture, and HITL gates.",
+  "version": "5.0",
+  "description": "AL agents (incl. on-demand triage + dredd audit) + TDD subagents, skills, and workflows for BC extension development with TDD, BCQuality-guided implementation and review, event-driven architecture, and HITL gates.",
   "author": {
     "name": "DSC Group"
   },
