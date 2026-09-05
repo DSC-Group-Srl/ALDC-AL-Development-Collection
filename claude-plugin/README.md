@@ -4,22 +4,21 @@ AI-Native Development toolkit for Microsoft Dynamics 365 Business Central.
 
 ## Installation
 
-### From Plugin Marketplace (recommended)
-
-Add the marketplace, then install the plugin:
+### From the DSC marketplace (recommended)
 
 ```
-/plugin marketplace add javiarmesto/ALDC-AL-Development-Collection
-/plugin install aldc@aldc-marketplace
+/plugin marketplace add DSC-Group-Srl/dscgroup-bc-nav-agentic-dev
+/plugin install bc-dev
 ```
 
-### Local Development / Testing
+### Local development / testing
 
-From the cloned repo, register this directory as a local marketplace and install:
+From a clone of the source repo ([`DSC-Group-Srl/ALDC-AL-Development-Collection`](https://github.com/DSC-Group-Srl/ALDC-AL-Development-Collection)),
+register this directory as a local marketplace:
 
 ```
 /plugin marketplace add ./claude-plugin
-/plugin install aldc@aldc-marketplace
+/plugin install bc-dev
 ```
 
 Verify registration:
@@ -30,7 +29,7 @@ Verify registration:
 /
 ```
 
-You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 10 slash commands prefixed with `/aldc:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/aldc:`.
 
 ## First-Time Setup
 
@@ -84,6 +83,7 @@ Invoked explicitly from the chat input. Implemented as plugin slash commands und
 | Agent Task | `/aldc:al-agent-task` | Generate agent task integration code |
 | Agent Test | `/aldc:al-agent-test` | Generate test codeunits for agents |
 | Agent Instructions | `/aldc:al-agent-instructions-create` | Generate agent NL instructions |
+| Quality Metrics | `/aldc:al-metrics` | Report independence-ratio, deviation rate, undeclared deviations and prescribed-vs-cited |
 
 ## Knowledge Skills
 
@@ -109,8 +109,50 @@ Loaded automatically by agents when needed:
 
 - First session ever: the hook kicks off a background clone and the session runs the native A–G checklist meanwhile (nothing blocks).
 - Later sessions: the hook re-uses the cache instantly, and refreshes it in the background at most once every 12h (override with `$BCQUALITY_UPDATE_INTERVAL_HOURS`).
-- Override the location with `$BCQUALITY_HOME`, or point at a fork/pin a commit via a project `aldc.yaml → external.bcquality` block (optional, advanced use only).
+- **Source and version live in [`tools/bcquality/bcquality.pin`](tools/bcquality/bcquality.pin)** — the single source of truth both hooks read. It ships pinned to a BCQuality **release tag**, so every machine consults the same corpus and a run is reproducible; a weekly workflow in the source repo opens a PR when a newer release lands, with the added/changed/removed knowledge files listed in the body. To consume a fork, change `url` there.
+- Override the location with `$BCQUALITY_HOME`. A project that must pin differently from the rest of the estate can still override `url`/`ref`/`pinnedCommit` via an `aldc.yaml → external.bcquality` block (optional, advanced use only) — it wins over the shipped pin.
 - Absent or offline is never a blocker — agents fall back to the native A–G checklist and say so.
+
+## Quality metrics (automatic)
+
+A `SubagentStop` hook records what the BCQuality-guided flow actually produced, phase by
+phase, and `/aldc:al-metrics` reports it.
+
+Four numbers, each with a threshold that makes it actionable:
+
+| | |
+|---|---|
+| **independence-ratio** | agent findings / total findings. Implementer and reviewer now draw on the same corpus, so the review can quietly stop being a measurement and become a consistency check. This is the only number that shows it happening — trending to zero means the review is agreeing, not measuring. |
+| **deviation rate** | deviated / prescribed. Persistently high on the same article means that rule does not fit how we build: promote it to a `/custom/` override instead of deviating every phase. The report names the top offenders. |
+| **undeclared deviations** | Must be zero. Non-zero means the worklist is not being read, and nothing else in the report can be trusted. |
+| **cited vs prescribed** | How much the review still finds on its own in prescribed domains. High means the prescriptive pass is scoped too narrowly. |
+
+**Why a hook and not OpenTelemetry.** Claude Code's built-in OTel exports tokens, cost and
+tool decisions, and has no API for a plugin to emit its own metrics. These are semantic and
+live in the subagents' final text; `SubagentStop` is the one hook that receives it.
+
+**What is stored — and what is not.** Counts, verdicts, and BCQuality knowledge paths (public
+Microsoft content). Never a message body, never customer AL, never a path inside the customer
+repo, never the full cwd. Enforced in the parser and covered by its self-test
+(`tools/metrics/test_parse.sh`), because these files travel.
+
+Four lanes, three of them off until you turn them on:
+
+- `$CLAUDE_PLUGIN_DATA/metrics/aldc-metrics.jsonl` — always; survives plugin updates.
+- `<project>/.github/metrics/aldc-metrics.jsonl` — only if that directory exists. Create it to
+  version metrics alongside the project.
+- **`$APPLICATIONINSIGHTS_CONNECTION_STRING`** — the enterprise lane. Each record becomes an
+  `AldcPhase` custom event in Azure Application Insights, numbers in `customMeasurements` and
+  dimensions in `customDimensions`, so KQL can slice the four metrics by project, agent and
+  verdict. Uses the standard Azure variable, so a machine or pipeline that already has it set
+  needs nothing else. No SDK — the public ingestion contract, spoken with stdlib `urllib` and
+  `gzip`. Deployment template, KQL and an importable workbook:
+  [`tools/metrics/azure/`](tools/metrics/azure/README.md).
+- `$ALDC_METRICS_ENDPOINT` (+ optional `$ALDC_METRICS_TOKEN`) — a plain webhook, for anywhere
+  that is not App Insights. No credential ships in the plugin; plain HTTP is refused.
+
+Capture is best-effort and never blocks a session. It needs a python interpreter on `PATH`;
+without one it logs the gap to `metrics/capture.log` rather than failing.
 
 ## Core Principles
 

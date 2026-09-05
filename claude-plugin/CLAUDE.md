@@ -37,13 +37,23 @@ Present the complexity assessment and wait for user confirmation before proceedi
 
 ## AL Coding Standards
 
-- Follow `PascalCase` for all identifiers
-- Use two-space indentation
-- Organize by feature (`src/feature/subfeature/`), not by object type
-- Filter data early, use `SetLoadFields`, avoid unnecessary loops
-- Use `TryFunction` for error handling with meaningful error messages
-- Generate only the minimum permissions required
-- Use XLIFF for all user-facing strings
+**The rules live in `rules-templates/`, not here.** `rules-floor-cheatsheet.md` is the
+condensed form the conductor injects inline into every code-touching subagent; the seven
+`al-*.md` files carry the rationale and worked examples. This file used to restate a few of
+them and had drifted into contradicting them — indentation and `TryFunction` scope both
+said the opposite of the rules floor. Don't restate a rule here; point at it.
+
+The headline shape, for orientation only:
+
+- extension-only, event-driven, AL-Go App/Test separation
+- `PascalCase`, feature-based folders, 4-space indent (the Microsoft AL formatter default)
+- filter early; `SetLoadFields` immediately before the read it governs, with the write-path
+  and small-table exemptions
+- every user-facing string in a `Label`; `[TryFunction]` for read-only/validation risk only
+- minimum permission set; XLIFF for all user-facing strings
+
+Where BCQuality has a knowledge file on a topic, **it wins** — our rules cover what its
+corpus does not reach.
 
 ## Tooling — what this plugin actually has at runtime
 
@@ -85,6 +95,27 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 DSC repos routinely put the base app, test app, and performance app in sibling folders under one `.code-workspace` (see `app/`, `app-test/`, `app-performance/`). This is where agents most often get confused about "symbols not updating." **This CLAUDE.md is a plugin-authoring reference and is not reliably visible to a runtime agent working in a customer's project** — the full, agent-facing version of this guidance (verified `al_build scope='all'` vs. `al workspace compile` behavior, the canonical-path gotcha, the `al_downloadsymbols` stickiness bug, and more) lives in **`skill-al-mcp-workspace`**. Agent/skill/command prose that needs this must tell the agent to load that skill, not to "see CLAUDE.md."
 
 Headline fact (get this into any prose referencing multi-project builds): **`al_build scope='all'` does not rebuild or refresh a sibling dependent project** — it only builds the target project plus its own upstream dependencies, against its own isolated `.alpackages`. The verified way to keep a base app and its test app in sync in one command is `Bash: al workspace compile <workspaceFile>`, which compiles every project in the manifest in dependency order against one shared package cache.
+
+## Quality metrics
+
+`hooks/hooks.json` wires a `SubagentStop` hook (`tools/metrics/capture_subagent.sh` →
+`parse_subagent.py`) that turns the symbolic markers the agents emit — the implementer's
+`📚 bcq {applied}/{prescribed}`, its `### Knowledge Deviations`, the review's
+`**BCQuality accounting:**` block — into JSONL records. `/aldc:al-metrics` aggregates them
+via `tools/metrics/report.py`.
+
+Two constraints to respect when editing any of this:
+
+- **The markers are a contract.** Change the shape of a symbolic line in an agent and you
+  break the parser silently — it will just stop matching. `tools/metrics/test_parse.sh`
+  carries fixtures of every marker; update them in the same commit.
+- **`appinsights.py` mirrors the record into Azure.** Its envelope field names were read out
+  of Microsoft's generated model, not guessed, and its self-test asserts them — if you add a
+  field to the record, add it to `_props` (string) or `_measurements` (float), never both.
+- **The record must never carry free text.** Only counts, an enum-checked verdict, and paths
+  matching `(microsoft|community|custom)/knowledge/…`. Two of the self-test's assertions
+  exist purely to prove no customer path and no message body leak into a record. Do not
+  relax them.
 
 ## Rules Injection
 

@@ -224,7 +224,7 @@ Consolidate estimation into a financial summary:
 1. Score complexity dimensions (Pattern 2)
 2. Count estimated objects (tables, pages, codeunits, reports)
 3. Identify integration points and external dependencies
-4. If existing codebase, use `al_search_objects` to measure current scope
+4. If existing codebase, use `al_symbolsearch` to measure current scope
 
 ### Step 3: Estimate
 
@@ -278,4 +278,4 @@ Consolidate estimation into a financial summary:
 - Do NOT build, compile, or deploy code — estimation only
 - Do NOT modify production source code — analysis and documentation only
 - Do NOT skip the SWOT analysis for any project — risk awareness is mandatory
-- Architecture design → al-architect agent | Technical specifications → al-spec.create workflow | Implementation → al-conductor agent
+- Architecture design → al-architect agent | Technical specifications → al-spec-create workflow | Implementation → al-conductor agent

@@ -1,0 +1,12 @@
+# Last upstream commit whose claude-plugin/ changes are reflected in this fork.
+# Read by .github/workflows/sync-upstream.yml, which takes the first 40-hex token
+# below; everything else here is provenance for humans.
+#
+# 4f3371f  feat(mcp): use the official Microsoft Learn MCP endpoint (#90)
+#          Recorded as synced WITHOUT applying the patch: we already reach the
+#          same endpoint (https://learn.microsoft.com/api/mcp) under the server
+#          name `ms-learn`, and our .mcp.json/plugin.json have since been
+#          restructured, so the upstream hunk no longer applies and would add
+#          nothing. Case 2 of the conflict escape hatch in the workflow.
+
+4f3371f69c3013edb508540673f60e5e8a0b64b6

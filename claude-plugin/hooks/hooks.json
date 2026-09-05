@@ -6,37 +6,67 @@
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh",
+              "SessionStart"
+            ],
             "timeout": 15
           },
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh",
+              "SessionStart"
+            ],
             "timeout": 60
           },
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-alcops.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-alcops.sh",
+              "SessionStart"
+            ],
             "timeout": 30
           },
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/nodejs/ensure-npx.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/nodejs/ensure-npx.sh",
+              "SessionStart"
+            ],
             "timeout": 120
           },
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh",
+              "SessionStart"
+            ],
             "timeout": 15
           },
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/routing/precondition_hook.sh", "SessionStart"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/routing/precondition_hook.sh",
+              "SessionStart"
+            ],
             "timeout": 15
           },
           {
@@ -55,7 +85,11 @@
           {
             "type": "command",
             "command": "cmd",
-            "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/conductor-guard/pretooluse_hook.sh"],
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/conductor-guard/pretooluse_hook.sh"
+            ],
             "timeout": 5
           }
         ]
@@ -80,6 +114,22 @@
             "type": "command",
             "command": "echo 'Task complete. Verify Skills Evidencing was declared.'",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/capture_subagent.sh"
+            ],
+            "timeout": 10
           }
         ]
       }

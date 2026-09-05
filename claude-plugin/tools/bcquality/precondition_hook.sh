@@ -39,6 +39,42 @@ pin=""
 entry="skills/entry.md"
 default_home="${HOME:-${USERPROFILE:-.}}/.claude/bcquality"
 
+# Source and version ship with the plugin in bcquality.pin — the single source of
+# truth, rewritten by the weekly bump workflow. Resolved from this script's own
+# directory so it works whether or not $CLAUDE_PLUGIN_ROOT is exported.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
+pinfile="$script_dir/bcquality.pin"
+pinval() { grep -E "^[[:space:]]*$1[[:space:]]*=" "$pinfile" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]' || true; }
+if [ -f "$pinfile" ]; then
+  v=$(pinval url); [ -n "${v:-}" ] && url="$v"
+  v=$(pinval ref); [ -n "${v:-}" ] && ref="$v"
+  v=$(pinval pin); [ -n "${v:-}" ] && pin="$v"
+fi
+
+# DSC's BCQuality /custom/ layer ships inside the plugin and is overlaid onto the clone.
+# It lives untracked in the clone's custom/ (upstream tracks only .gitkeep there), so it
+# survives the checkout --detach of a refresh. Re-applied every session so a plugin
+# upgrade lands without waiting for the next fetch. Strict no-op while the layer is empty.
+custom_src="$(cd "$script_dir/../.." 2>/dev/null && pwd)/bcquality-custom"
+
+custom_layer_files() {
+  [ -d "$custom_src" ] || { echo 0; return 0; }
+  find "$custom_src/knowledge" "$custom_src/skills" -type f ! -name '.gitkeep' 2>/dev/null | wc -l | tr -d '[:space:]'
+}
+
+apply_custom_overlay() {
+  dest="$1"
+  [ -d "$custom_src" ] || return 0
+  for sub in knowledge skills; do
+    [ -d "$custom_src/$sub" ] || continue
+    if [ -n "$(find "$custom_src/$sub" -type f ! -name '.gitkeep' 2>/dev/null | head -1)" ]; then
+      mkdir -p "$dest/custom/$sub" 2>/dev/null || true
+      cp -rf "$custom_src/$sub/." "$dest/custom/$sub/" 2>/dev/null || true
+    fi
+  done
+}
+
+# A project's aldc.yaml still wins over the shipped pin (advanced/per-project use).
 if [ -f "$ALDC" ]; then
   h=$(grep -E '^[[:space:]]*home:' "$ALDC" | head -1 | sed -E 's/.*home:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
   e=$(grep -E '^[[:space:]]*entryPoint:' "$ALDC" | head -1 | sed -E 's/.*entryPoint:[[:space:]]*"?([^"#]+)"?.*/\1/' | tr -d '[:space:]' || true)
@@ -89,21 +125,33 @@ if ! git -C "$home" fetch --quiet --depth 1 origin "$target"; then
   git -C "$home" fetch --quiet --depth 1 origin "$ref" || exit 0
 fi
 git -C "$home" checkout --quiet --detach FETCH_HEAD
+# Re-apply the plugin's /custom/ layer: a fresh clone has none, and a refresh does not
+# remove untracked files but a first install has nothing to preserve.
+for sub in knowledge skills; do
+  if [ -d "$custom_src/\$sub" ] && [ -n "\$(find "$custom_src/\$sub" -type f ! -name .gitkeep 2>/dev/null | head -1)" ]; then
+    mkdir -p "$home/custom/\$sub"
+    cp -rf "$custom_src/\$sub/." "$home/custom/\$sub/"
+  fi
+done
 EOF
   chmod +x "$syncscript" 2>/dev/null || true
   ( bash "$syncscript" >>"$logfile" 2>&1 & )
 }
 
 if [ -f "$entrypath" ]; then
+  apply_custom_overlay "$home"
+  custom_n=$(custom_layer_files)
+  custom_note=""
+  [ "${custom_n:-0}" -gt 0 ] && custom_note=" DSC custom layer overlaid (${custom_n} files) - it wins over the microsoft and community layers."
   sha=$(git -C "$home" rev-parse --short HEAD 2>/dev/null || echo unknown)
   now=$(date +%s)
   last=$(cat "$stamp" 2>/dev/null || echo 0)
   age_h=$(( (now - last) / 3600 ))
   if [ "$age_h" -ge "$interval_h" ] && acquire_lock; then
     spawn_background_sync
-    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project). A background refresh just started (last synced ${age_h}h ago); this session still uses SHA ${sha} unaffected. Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report."
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project). A background refresh just started (last synced ${age_h}h ago); this session still uses SHA ${sha} unaffected. Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report.${custom_note}"
   else
-    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project, last synced ${age_h}h ago). Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report."
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project, last synced ${age_h}h ago). Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report.${custom_note}"
   fi
 else
   if command -v git >/dev/null 2>&1 && acquire_lock; then
