@@ -1,7 +1,12 @@
 # BCQuality `/custom/` layer — DSC Group
 
-Scaffolding for the DSC-owned BCQuality layer. **Prepared, deliberately not populated.**
-Filling it is a separate, scheduled activity — see *Activation checklist* at the bottom.
+The DSC-owned BCQuality layer. **Wired and active; the knowledge folder is deliberately
+still empty.**
+
+`skills/author/al-implementation-guidance.md` is here because BCQuality ships review skills
+only — an implementation goal would otherwise reach Entry and come back `no-match`. That
+file is *mechanism*: it retrieves Microsoft's corpus for a different question. DSC-specific
+*rules* go in `knowledge/`, and filling that is a separate, scheduled activity.
 
 ## What this is
 
@@ -20,11 +25,18 @@ for partners. This folder is our copy of it, versioned with the plugin instead o
 fork of BCQuality, so it ships through the normal `claude-plugin/ → plugins/bc-dev/`
 marketplace sync and needs no second repository.
 
-At activation time the contents of `knowledge/` and `skills/` are overlaid onto
-`$BCQUALITY_HOME/custom/` (default `~/.claude/bcquality/custom/`) by the BCQuality
-precondition hook. The overlay survives the hook's `git fetch` + `checkout --detach`
-because only `.gitkeep` is tracked in the upstream `custom/` tree, so untracked files
-dropped there are never removed by the checkout.
+The contents of `knowledge/` and `skills/` are overlaid onto `$BCQUALITY_HOME/custom/`
+(default `~/.claude/bcquality/custom/`) by the BCQuality precondition hook, in both the
+bash and PowerShell variants. Two details make that safe:
+
+- The overlay survives the hook's `git fetch` + `checkout --detach`, because upstream tracks
+  only `.gitkeep` under `custom/` and a checkout never removes untracked files.
+- It is re-applied **synchronously on every session**, not only after a fetch, so a plugin
+  upgrade lands immediately instead of waiting up to 12 hours for the next refresh.
+
+It is a strict no-op while a folder holds nothing but `.gitkeep`, so `knowledge/` staying
+empty costs nothing. When the layer is non-empty the hook says so in its `SessionStart`
+message, with the file count.
 
 ## Why here and not in a fork of BCQuality
 
@@ -78,19 +90,20 @@ Templates: [`templates/knowledge-file.template.md`](templates/knowledge-file.tem
 > scans `*/skills/**/*.md` and the knowledge index scans `*/knowledge/**`; a template
 > parked in either would be discovered as real content.
 
-## Activation checklist (future activity)
+## Filling `knowledge/` — the remaining activity
 
-1. Write the first knowledge files under `knowledge/<domain>/`.
-2. Wire the overlay in `claude-plugin/tools/bcquality/precondition_hook.sh` (+ `.ps1`):
-   after a successful fetch/checkout, copy `$CLAUDE_PLUGIN_ROOT/bcquality-custom/knowledge`
-   and `.../skills` into `$home/custom/`. Make it a strict no-op when both folders hold
-   only `.gitkeep`.
-3. Force an index rebuild so the new articles are discoverable — delete
-   `$home/knowledge-index.json`; Entry's Preparation step regenerates it.
-4. Confirm precedence: an overriding `/custom/` file must appear in the review report's
-   `suppressed[]` against the `/microsoft/` file it replaces.
-5. Remove from `claude-plugin/rules-templates/` every rule that has been promoted to a
-   knowledge file. A rule must live in exactly one place.
+The plumbing is done; what is left is content. When that activity is scheduled:
+
+1. Write the first knowledge files under `knowledge/<domain>/`, using
+   [`templates/knowledge-file.template.md`](templates/knowledge-file.template.md).
+2. Force an index rebuild so the new articles are discoverable — delete
+   `$BCQUALITY_HOME/knowledge-index.json`; Entry's Preparation step regenerates it over the
+   live clone, which by then includes the overlay.
+3. Confirm precedence on the first override: the `/microsoft/` file it replaces must show up
+   in the review report's `suppressed[]`.
+4. Remove from `claude-plugin/rules-templates/` every rule promoted to a knowledge file. A
+   rule lives in exactly one place — this is the step that keeps the cleanup from undoing
+   itself.
 
 See `.github/plans/bcquality-proactive-integration.md` for the reasoning behind all of
 the above.

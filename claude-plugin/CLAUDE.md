@@ -37,13 +37,23 @@ Present the complexity assessment and wait for user confirmation before proceedi
 
 ## AL Coding Standards
 
-- Follow `PascalCase` for all identifiers
-- Use two-space indentation
-- Organize by feature (`src/feature/subfeature/`), not by object type
-- Filter data early, use `SetLoadFields`, avoid unnecessary loops
-- Use `TryFunction` for error handling with meaningful error messages
-- Generate only the minimum permissions required
-- Use XLIFF for all user-facing strings
+**The rules live in `rules-templates/`, not here.** `rules-floor-cheatsheet.md` is the
+condensed form the conductor injects inline into every code-touching subagent; the seven
+`al-*.md` files carry the rationale and worked examples. This file used to restate a few of
+them and had drifted into contradicting them — indentation and `TryFunction` scope both
+said the opposite of the rules floor. Don't restate a rule here; point at it.
+
+The headline shape, for orientation only:
+
+- extension-only, event-driven, AL-Go App/Test separation
+- `PascalCase`, feature-based folders, 4-space indent (the Microsoft AL formatter default)
+- filter early; `SetLoadFields` immediately before the read it governs, with the write-path
+  and small-table exemptions
+- every user-facing string in a `Label`; `[TryFunction]` for read-only/validation risk only
+- minimum permission set; XLIFF for all user-facing strings
+
+Where BCQuality has a knowledge file on a topic, **it wins** — our rules cover what its
+corpus does not reach.
 
 ## Tooling — what this plugin actually has at runtime
 

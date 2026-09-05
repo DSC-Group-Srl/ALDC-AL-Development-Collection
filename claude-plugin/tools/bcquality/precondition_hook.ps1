@@ -52,6 +52,40 @@ if (Test-Path $pinfile) {
     }
 }
 
+# DSC's BCQuality /custom/ layer ships inside the plugin and is overlaid onto the clone.
+# Untracked there (upstream tracks only .gitkeep), so it survives the checkout --detach of
+# a refresh. Re-applied every session so a plugin upgrade lands without waiting for a fetch.
+# Strict no-op while the layer is empty.
+$customSrc = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'bcquality-custom'
+
+function Get-CustomLayerFileCount {
+    if (-not (Test-Path $customSrc)) { return 0 }
+    $n = 0
+    foreach ($sub in @('knowledge', 'skills')) {
+        $dir = Join-Path $customSrc $sub
+        if (Test-Path $dir) {
+            $n += @(Get-ChildItem -Path $dir -Recurse -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -ne '.gitkeep' }).Count
+        }
+    }
+    return $n
+}
+
+function Apply-CustomOverlay {
+    param([string]$Dest)
+    if (-not (Test-Path $customSrc)) { return }
+    foreach ($sub in @('knowledge', 'skills')) {
+        $src = Join-Path $customSrc $sub
+        if (-not (Test-Path $src)) { continue }
+        $has = @(Get-ChildItem -Path $src -Recurse -File -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -ne '.gitkeep' }).Count
+        if ($has -eq 0) { continue }
+        $target = Join-Path (Join-Path $Dest 'custom') $sub
+        New-Item -ItemType Directory -Path $target -Force -ErrorAction SilentlyContinue | Out-Null
+        Copy-Item -Path (Join-Path $src '*') -Destination $target -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # A project's aldc.yaml still wins over the shipped pin (advanced/per-project use).
 if (Test-Path $aldc) {
     $h = (Select-String -Path $aldc -Pattern '^\s*home:\s*"?([^"#]+)"?' -AllMatches | Select-Object -First 1).Matches.Groups[1].Value
@@ -107,6 +141,18 @@ try {
         git -C '$bcqHome' fetch --quiet --depth 1 origin '$ref'
     }
     git -C '$bcqHome' checkout --quiet --detach FETCH_HEAD
+    foreach (`$sub in @('knowledge','skills')) {
+        `$src = Join-Path '$customSrc' `$sub
+        if (Test-Path `$src) {
+            `$has = @(Get-ChildItem -Path `$src -Recurse -File -ErrorAction SilentlyContinue |
+                     Where-Object { `$_.Name -ne '.gitkeep' }).Count
+            if (`$has -gt 0) {
+                `$dst = Join-Path (Join-Path '$bcqHome' 'custom') `$sub
+                New-Item -ItemType Directory -Path `$dst -Force -ErrorAction SilentlyContinue | Out-Null
+                Copy-Item -Path (Join-Path `$src '*') -Destination `$dst -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
 }
 finally {
     Remove-Item -Path '$lockdir' -Recurse -Force -ErrorAction SilentlyContinue
@@ -119,6 +165,10 @@ finally {
 }
 
 if (Test-Path $entrypath) {
+    Apply-CustomOverlay -Dest $bcqHome
+    $customN = Get-CustomLayerFileCount
+    $customNote = ''
+    if ($customN -gt 0) { $customNote = " DSC custom layer overlaid ($customN files) - it wins over the microsoft and community layers." }
     $sha = (git -C $bcqHome rev-parse --short HEAD 2>$null)
     if (-not $sha) { $sha = 'unknown' }
     $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
@@ -127,10 +177,10 @@ if (Test-Path $entrypath) {
     $ageH = [math]::Floor(($now - $last) / 3600)
     if ($ageH -ge $intervalH -and (Acquire-Lock)) {
         Spawn-BackgroundSync
-        Emit "BCQuality is PRESENT at $bcqHome (SHA $sha, one shared user-scope cache reused by every project). A background refresh just started (last synced ${ageH}h ago); this session still uses SHA $sha unaffected. Treat it as the citation source of truth for review/audit: read $entry and follow its entry then read then do dispatch; record the SHA in your report."
+        Emit "BCQuality is PRESENT at $bcqHome (SHA $sha, one shared user-scope cache reused by every project). A background refresh just started (last synced ${ageH}h ago); this session still uses SHA $sha unaffected. Treat it as the citation source of truth for review/audit: read $entry and follow its entry then read then do dispatch; record the SHA in your report.$customNote"
     }
     else {
-        Emit "BCQuality is PRESENT at $bcqHome (SHA $sha, one shared user-scope cache reused by every project, last synced ${ageH}h ago). Treat it as the citation source of truth for review/audit: read $entry and follow its entry then read then do dispatch; record the SHA in your report."
+        Emit "BCQuality is PRESENT at $bcqHome (SHA $sha, one shared user-scope cache reused by every project, last synced ${ageH}h ago). Treat it as the citation source of truth for review/audit: read $entry and follow its entry then read then do dispatch; record the SHA in your report.$customNote"
     }
 }
 else {
