@@ -525,6 +525,44 @@ root del subagent — che era catena A ed è stata rimossa. La versione spedita 
 plugin emette markdown, quindi la contabilità è diventata un blocco in testa alla
 review con gli stessi numeri.
 
+### Telemetria delle metriche — implementata
+
+`fb620e7`. Le quattro metriche della §7.3 esistevano solo come numeri stampati in un
+checkpoint e persi a fine sessione. Ora vengono raccolte e conservate.
+
+**Perché un hook e non OpenTelemetry.** La documentazione di Claude Code è esplicita:
+l'OTel integrato esporta token, costi, decisioni sui tool e conteggi di sessione, e
+**non espone alcuna API perché un plugin emetta metriche proprie**. Le nostre sono
+semantiche e vivono nel testo finale dei subagenti. `SubagentStop` è l'unico hook che
+riceve quel testo (`last_assistant_message`) insieme a `agent_type` — quindi è lì che si
+raccolgono, senza chiedere agli agenti una contabilità che a volte dimenticherebbero.
+
+| Pezzo | |
+|---|---|
+| Cattura | `tools/metrics/capture_subagent.sh` → `parse_subagent.py`, su `SubagentStop` |
+| Store | `$CLAUDE_PLUGIN_DATA/metrics/` — directory dati del plugin, sopravvive agli aggiornamenti |
+| Lettura | `/aldc:al-metrics` → `tools/metrics/report.py`, ogni metrica con la propria soglia |
+
+**Privacy come vincolo, non come intenzione.** Il record si compone campo per campo da
+catture regex, mai copiando pezzi di messaggio: solo conteggi, un verdetto validato contro
+un enum, e path `(microsoft|community|custom)/knowledge/…`. Mai il corpo del messaggio, mai
+AL del cliente, mai un path dentro il repo del cliente, mai la cwd completa. Due asserzioni
+del self-test esistono solo per dimostrarlo — questi file finiscono in progetti cliente e
+potenzialmente su un endpoint condiviso.
+
+**Tre lane, due spente di default.** Plugin-data sempre; lane progetto solo se
+`.github/metrics/` esiste già (opt-in per costruzione: l'hook non la crea); lane centrale
+solo se `$ALDC_METRICS_ENDPOINT` è impostato, con `http://` rifiutato e nessun segreto
+spedito nel plugin.
+
+**Non blocca mai.** Stdin vuoto, JSON rotto, agente non tracciato, python assente o rete
+giù: tutti escono 0 senza scrivere. Un hook di metriche che può far fallire una sessione è
+peggio di nessuna metrica.
+
+Verificato in sandbox su una serie sintetica in peggioramento: ha segnalato tutte e quattro
+le soglie e indicato da solo l'articolo ripetutamente deviato come candidato a override in
+`/custom/` — che è esattamente il loop di feedback che la §7.3 descriveva.
+
 ### Resta aperto
 
 - `docs/framework/` e i tre ADR citano ancora la struttura upstream. Sono
@@ -533,9 +571,14 @@ review con gli stessi numeri.
   Candidato alla rimozione, non toccato perché fuori dallo scopo approvato.
 - **`/custom/knowledge/` vuota** — l'unica cosa rimasta del piano. La plumbing regge,
   la checklist per riempirla è nel README del layer.
-- **Nessuna delle metriche §7.3 ha ancora dati.** `independence-ratio`, deviation rate e
-  undeclared deviations si popolano solo eseguendo fasi TDD vere: il primo piano reale
-  è il test del flusso prescrittivo, e va guardato con quei numeri in mano.
+- **Nessuna delle metriche §7.3 ha ancora dati.** La raccolta ora esiste ed è provata, ma si
+  popola solo eseguendo fasi TDD vere: il primo piano reale è il test del flusso
+  prescrittivo, e va guardato con `/aldc:al-metrics` alla mano. Sotto le cinque review i
+  rapporti sono rumore.
+- **La lane centrale non ha un endpoint.** Il meccanismo c'è; se volessimo aggregare a
+  livello di azienda serve decidere dove (una Function + Table Storage sarebbe la via breve,
+  dato il vostro stack) e distribuire `ALDC_METRICS_ENDPOINT`/`_TOKEN` via variabili
+  d'ambiente o CI — mai dentro il plugin.
 - **Il prescrittivo non è stato eseguito end-to-end su un progetto AL vero.** Le parti
   meccaniche sono verificate in sandbox (overlay, hook, workflow), il comportamento degli
   agenti no — è prosa, si valida solo usandola.
