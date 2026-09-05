@@ -173,9 +173,18 @@ For each phase in the plan, execute this cycle with **visual progress tracking**
    - Test requirements following AL-Go structure
    - AL-specific patterns (SetLoadFields, error handling, etc.)
    - **The rules-floor cheat sheet + tool-failure protocol inline** + **domain skill hints** for this phase (per §"Passing Context to Subagents" — the subagent invokes the Skill tool on demand, not you)
+   - **This phase's BCQuality knowledge worklist, verbatim.** The planning subagent built it
+     once for the whole plan (§"Knowledge Worklist"); pass this phase's block unchanged —
+     path, imperative rule, confidence. Do **not** paraphrase or merge entries: the reviewer
+     checks the implementer against these exact paths, so a re-worded rule becomes
+     untraceable. Empty block or absent layer → say `📚 bcq · none` and pass nothing; the
+     phase is then native-residual territory and the review will treat it as such.
    - Explicit instruction to work autonomously and follow TDD
    - If resuming after an interrupted attempt, the phase objective/excerpts plus a pointer to any partial artifact (see §"Subagent Recovery Protocol")
-   - **RETURN** a structured summary including the **symbolic skills line** (`📐 instr ✓ · 🧠 skill-x·tag`), not a verbose table
+   - **RETURN** a structured summary including the **symbolic skills line**
+     (`📐 instr ✓ · 📚 bcq {applied}/{prescribed} · 🧠 skill-x·tag`), not a verbose table, plus
+     a **`### Knowledge Deviations`** section — every prescribed article it did not apply,
+     with the reason. `none` is a valid and expected answer; silence is not.
 
 2. Monitor implementation completion and collect the phase summary. If the invocation ends without a structured summary (turn cap, error, interruption), apply the **Subagent Recovery Protocol** (see `<stopping_rules>`) rather than reading the files yourself to figure out what happened.
 
@@ -203,6 +212,10 @@ Build success ≠ review approval. NEVER skip review.
    - Files that were modified/created
    - **The event-subscriber list the implement-subagent returned** (each subscriber's exact base object + event name + signature). Pass it inline so the reviewer **validates against it** and does not re-discover base events via **al-mcp** (a measured token sink — trial-and-error symbol searches). Tell it to query symbols only to spot-confirm a single signature it cannot resolve from the list.
    - **The BCQuality task-context, built inline.** You already hold `app.json` and this phase's changed objects, so build the task-context (per the BCQuality task-context template; OMIT unknown dimensions; no `disabled-skills` — every leaf is active) and pass it — the review subagent consumes it instead of re-deriving `bc-version`/`application-area`. It still reads the external BCQuality clone itself for the knowledge files.
+   - **The prescribed worklist and the implementer's declared deviations**, both verbatim.
+     This is what turns the review from "find violations" into "verify what was prescribed,
+     then find what the corpus does not reach". Without it the reviewer re-derives the whole
+     corpus against the diff and you pay for the retrieval twice.
    - **A review-depth flag: `light` or `full`.** Default `full` for phases touching posting/performance/security-sensitive code paths, or any phase you're unsure about. Use `light` for low-risk phases (simple scaffolding, permission sets, UI-only changes with no business logic) — in `light` mode the reviewer reports verdict + issues found only, skipping the full checklist enumeration when nothing is flagged. This is your call to make per phase, not the reviewer's.
    - The rules-floor cheat sheet + tool-failure protocol inline (same as passed to implement — see §"Passing Context to Subagents")
    - AL-specific validation requirements:
@@ -752,11 +765,19 @@ Icons: 🔍 planning · 💻 implement · ✅ review. One box per state transiti
 ```markdown
 🚦 Checkpoint — Phase {N}/{Total}: {Phase Name}
 📦 {AL objects} · 🔌 {event subscribers} · 🧪 {X/X ✅ | n/a}
-🔎 {🟢 BCQuality <sha> | ⚪ native} · 📐 instr ✓ · 🧠 {skill·tag, …}
+🔎 {🟢 BCQuality <sha> | ⚪ native} · 📚 bcq {P presc / C cited / D dev} · 📐 instr ✓ · 🧠 {skill·tag, …}
 ✅ {verdict} — {b}/{M}/{m}{ · ⚠️ {top actionable finding}}
 💾 {commit & next-step question}   (or ⏸️ revise)
 ```
 The `🔎` row consumes the BCQuality one-liner + the subagent's symbolic skills line (`📐 instr ✓ · 🧠 skill-x·tag`) — it is how the user *sees* instructions/skills/BCQuality fired.
+
+The `📚` counts are the bias signal, so read them rather than just printing them:
+**P** = articles prescribed to the implementer, **C** = articles the review cited on its own,
+**D** = prescribed articles the implementer declared it did not apply. A high `C` relative to
+`P` means the prescriptive pass is missing what the review then finds — the worklist is
+scoped wrong. A `D` that keeps naming the same article means that rule is wrong or
+inapplicable for us, and belongs in `/custom/` as an override rather than being deviated
+from every phase. Omit the segment entirely when BCQuality was not mounted.
 
 **Concise Updates:**
 - Don't repeat full plan each checkpoint

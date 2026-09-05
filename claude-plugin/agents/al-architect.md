@@ -272,18 +272,72 @@ This agent draws on this plugin's own skills. They are **not** auto-loaded — i
 
 **Load = invoke `Skill(skill: "bc-dev:skill-x")`.** Naming a skill without invoking it is not loading it.
 
+## BCQuality at design time
+
+The costliest defects to correct are the ones baked into a data model or an upgrade path —
+by review they are already load-bearing. So consult BCQuality **before** you commit to a
+design, not only after code exists.
+
+**Probe first, never block.** Read `<home>/skills/entry.md` from the shared clone the
+`SessionStart` hook manages (default `~/.claude/bcquality`, override `$BCQUALITY_HOME`). A
+successful read is the presence signal. If it errors or returns empty the layer is absent:
+note it in one line, design against your domain skills, and move on. Do not retry.
+
+When present, hand Entry a task-context scoped to the **design** domains — not the whole
+corpus:
+
+```yaml
+goal: "design AL solution architecture for <requirement>"
+inputs-available: [spec]
+technologies: [al]
+enabled-layers: [microsoft, community, custom]
+```
+
+Entry dispatches DSC's `al-implementation-guidance` authoring skill (Microsoft ships review
+skills only, which would `goal-mismatch` a design goal). Weight its worklist toward the
+domains a design decision actually forecloses — **data-modeling, interfaces, events,
+upgrade, breaking-changes, appsource** — and let style and formatting go: those are the
+implementer's and the reviewer's concern, not an architectural commitment.
+
+Read the cited articles before you decide, not after. A knowledge file that contradicts a
+design you already wrote costs a rewrite; one you read first costs nothing.
+
 ## Skills Evidencing
 
 When generating `{req_name}.architecture.md`, include at the TOP of the document (after the frontmatter):
 
 ```markdown
 > **Skills applied**: skill-api, skill-events
+> **Knowledge applied**: bcq:data-modeling(3) · bcq:events(2) · bcq:upgrade(1)
 ```
 
 - List only the skills you actually loaded and applied during the architecture design
 - If no domain skills were loaded: `> **Skills applied**: None (general architecture patterns only)`
+- **Knowledge applied** counts the BCQuality articles you actually read, by domain. Absent
+  layer → `> **Knowledge applied**: ⚪ BCQuality not mounted`. Present but nothing relevant
+  → `none`. Never pad it: the Conductor compares it against what the review later cites.
 - This declaration is MANDATORY — the Conductor and Review Subagent use it to verify skill coverage downstream
 - The skills applied line is already included in the architecture template (`<response_style>` section) — ensure you populate it accurately
+
+### `## Known Quality Constraints` — a required section
+
+When BCQuality was mounted and returned anything, `{req_name}.architecture.md` **must**
+carry a `## Known Quality Constraints` section listing every article that constrains the
+design, one line each: the knowledge path, the rule stated imperatively, and *what in this
+design it constrains*. Not a reading list — a set of commitments the implementation is
+expected to honour and the review is expected to check.
+
+```markdown
+## Known Quality Constraints
+
+- `microsoft/knowledge/data-modeling/<file>.md` — <rule> → constrains: the Customer
+  extension's key design, because <why>.
+- `microsoft/knowledge/upgrade/<file>.md` — <rule> → constrains: whether field 50101 can
+  change type after the first release.
+```
+
+Omit the section entirely when the layer was absent or returned nothing; an empty section
+reads as "we checked and there is nothing", which is a different and stronger claim.
 
 <stopping_rules>
 ## Stopping Rules - When to Stop or Escalate

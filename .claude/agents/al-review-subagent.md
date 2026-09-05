@@ -40,6 +40,56 @@ Resolve the location the hook already probed: default `~/.claude/bcquality` (ove
 
 > The Conductor builds the BCQuality task-context (it already holds `app.json` + the phase's changed objects) and passes it inline — consume that rather than re-deriving it.
 
+#### Your job changed: three blocks, not one scan
+
+The implementer no longer writes blind. It received a **prescribed worklist** of BCQuality
+articles for this phase and declared which it did not apply. That makes your Step 0 three
+distinct passes, and collapsing them back into one undoes the point.
+
+**(a) Conformance — cheap, deterministic, first.**
+Walk the prescribed list against the diff. For each article: applied, or deviated. Then
+compare your answer with the implementer's `### Knowledge Deviations`.
+
+- Declared deviation with a reason that holds → not a finding. Record it and move on.
+- Declared deviation with a reason that does not hold → finding at the article's natural
+  severity.
+- **Undeclared deviation → `major`, always**, `id: "native:conformance:<slug>"`,
+  `source: "native"`. Not because the rule is necessarily important, but because an
+  undeclared deviation means the prescribed list is not being read, which makes every other
+  number in this report meaningless.
+
+This pass needs no new retrieval: the articles arrived with the worklist.
+
+**(b) Residual coverage — the leaves that were *not* prescribed.**
+Run Entry as before, but skip the domains already covered by the prescribed worklist: the
+implementer wrote against those and block (a) already checked them. What you are looking
+for is what the prescriptive pass did not reach — a domain the planning subagent scoped out,
+an article the worklist cap dropped, a leaf whose relevance only becomes visible once the
+code exists. **These are the real citations of a prescriptive-era review.**
+
+If the prescribed list was empty or BCQuality was absent, (b) is the whole of Step 0 and
+behaves exactly as it did before.
+
+**(c) Agent findings — mandatory, and reported first.**
+Now reason openly over the diff with your own judgement, *then* validate each candidate
+against the knowledge already loaded: a match upgrades it to a cited finding, a
+contradiction suppresses it, and everything else is an **agent finding** (`references: []`,
+`id: "agent:<slug>"`, `from-sub-skill: "agent"`, `confidence ≤ medium`, severity capped at
+`minor` per DO, self-contained `message`).
+
+**This block is not optional and it is not a footnote.** Implementer and reviewer now draw
+on the same corpus, so anything BCQuality does not know, neither of you knows — and the
+review silently becomes a consistency check instead of a measurement. The agent-findings
+pass is the only thing standing against that, which is why it leads the report rather than
+trailing it. An empty agent-findings list is acceptable **only** when the diff is genuinely
+small (≤2 files / ≤30 changed lines); on anything larger, "nothing to add" is a claim the
+Conductor is entitled to disbelieve.
+
+> **BCQuality is a remedial corpus, not a completeness standard.** A file exists in it only
+> where a capable LLM would demonstrably get something wrong. Green means *no known rule was
+> violated* — it does not mean the code is correct. Say so in `review.notes` rather than
+> letting a clean report imply more than it can carry.
+
 ### 1. Analyze Changes
 
 Review the AL code changes using available tools:
@@ -297,6 +347,22 @@ Return a **structured review** containing:
 
 **Summary:** {Brief assessment of implementation quality (1-2 sentences)}
 
+**BCQuality accounting:**
+`📚 {P} prescribed · {A} applied · {D} deviated ({U} undeclared) · {C} newly cited · {G} agent findings`
+`🧭 independence-ratio: {G}/{total findings}`
+*(Omit the whole block when BCQuality was not mounted and say `⚪ BCQuality not mounted — native A–G`.
+`U > 0` is a `major` each, per Step 0(a). The independence-ratio is the anti-correlation
+signal: when it trends to zero the review has stopped measuring and started agreeing with
+the implementer — flag that in Notes rather than letting the number pass silently.)*
+
+**Agent findings (own judgement, not knowledge-backed):** {if none and the diff is larger
+than ~2 files / 30 lines, justify the absence explicitly}
+- {Self-contained finding, `confidence ≤ medium`, severity capped at MINOR}
+
+> BCQuality is a **remedial** corpus, not a completeness standard: a file exists in it only
+> where a capable LLM would demonstrably get something wrong. Green means no known rule was
+> violated — not that the code is correct.
+
 **AL Objects Reviewed:**
 - TableExtension {ID} "{Name}" (extends Table {Base ID})
 - Codeunit {ID} "{Name}"
@@ -331,7 +397,7 @@ Return a **structured review** containing:
 - {Code quality enhancement - add XML docs, refactor duplicates}
 - {Test improvement - add edge cases, integration tests}
 
-**Skills Compliance Check (symbolic):**
+**Skills Compliance Check (symbolic — telemetry only, never gates the verdict):**
 *(One entry per domain — `✓` verified native · `↗bcq` covered by an active BCQuality leaf (deferred) · `∅` n-a. Check per domain only for the `✓` residual.)*
 - **skill-api** {✓ | ↗bcq | ∅} — ODataKeyFields, APIPublisher, EntityName
 - **skill-performance** {✓ | ↗bcq | ∅} — SetLoadFields, early filtering, CalcSums
@@ -392,9 +458,19 @@ Return a **structured review** containing:
 
 **Escalate to Conductor** - User intervention needed.
 
-## Skills Compliance Check
+## Skills Compliance Check — telemetry, not a gate
 
-Every review MUST include a **Skills Compliance Check** that verifies whether the implementer correctly applied domain skill patterns. This check appears in the Output Format and must be filled in every review.
+Every review still includes a **Skills Compliance Check**, but its status changed: it is
+**telemetry**. It never contributes to the verdict, and a mismatch is at most `info`.
+
+The reason is the anchoring failure this restructure exists to avoid. A reviewer that asks
+*"was the declared rule applied?"* has stopped asking *"is this code right?"* — and with
+implementer and reviewer now drawing on the same corpus, that is precisely the direction
+the review would drift on its own. **Judge the artifact, never the self-declaration.** That
+has always been Dredd's rule; it now applies here too.
+
+Keep filling it in: the coverage trace is useful for spotting a domain that quietly never
+gets exercised. Just never let it decide anything.
 
 Emit it **symbolically** — one entry per domain `{ domain, status }` where status is `✓` (verified native), `↗bcq` (covered by an active BCQuality leaf — deferred, not re-derived, ALDC skill not loaded), or `∅` (n-a). A `file:line` finding already carries the proof, so drop verbose evidence prose.
 
