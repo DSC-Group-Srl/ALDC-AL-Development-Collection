@@ -1,0 +1,24 @@
+# BCQuality source pin — single source of truth.
+#
+# Read by both precondition hooks (precondition_hook.sh / .ps1) and rewritten by
+# the weekly bump workflow (.github/workflows/bcquality-pin-bump.yml). Never
+# hardcode the source or the version in the hooks: change it here.
+#
+# Format: one key=value per line, no quotes, no spaces around '='.
+#   url  the clone source. Point it at a fork to consume a customised corpus.
+#   ref  what the hook fetches and what reports display. A release tag
+#        (v{major}.{minor}) is the intended consumption unit: BCQuality cuts
+#        releases on demand, roughly monthly, and the minor is a monotonic
+#        counter that only ever increments.
+#   pin  the 40-hex commit `ref` resolved to when it was pinned. Fetched in
+#        preference to `ref`, with `ref` as the fallback. This is what makes a
+#        run reproducible and what validate_evidence.py checks citations
+#        against. Leave empty to always track the tip of `ref`.
+#
+# A project's aldc.yaml, if it has an external.bcquality block, still overrides
+# all three — that path is for a project that must pin differently from the rest
+# of the estate, and is not required for normal use.
+
+url=https://github.com/microsoft/BCQuality.git
+ref=v1.5
+pin=ad8ccde5953fd6ce072e3b59049406783066ed60
