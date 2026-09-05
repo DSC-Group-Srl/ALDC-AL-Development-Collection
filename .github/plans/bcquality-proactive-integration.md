@@ -563,6 +563,33 @@ Verificato in sandbox su una serie sintetica in peggioramento: ha segnalato tutt
 le soglie e indicato da solo l'articolo ripetutamente deviato come candidato a override in
 `/custom/` — che è esattamente il loop di feedback che la §7.3 descriveva.
 
+### Aggregazione aziendale su Application Insights — implementata
+
+`c3d62ad`. La lane centrale aveva il meccanismo ma nessuna destinazione.
+
+**Evento, non metrica.** Ogni record diventa un custom event `AldcPhase`: numeri in
+`customMeasurements`, dimensioni in `customDimensions`. Una riga per fase resta affettabile
+per progetto, agente e verdetto e ri-aggregabile a posteriori — una `customMetric`
+pre-aggregata butterebbe via le dimensioni al momento della scrittura, e questi numeri sono
+interessanti *solo* affettati: un independence-ratio mediato sull'azienda nasconde proprio il
+progetto dove la review ha smesso di misurare.
+
+**Niente SDK.** Il contratto di ingestion è pubblico e `appinsights.py` lo parla con `urllib`
+e `gzip` di stdlib. Richiedere `pip install azure-monitor-opentelemetry` su ogni workstation
+per registrare quattro numeri non è uno scambio sensato, e un hook che fallisce perché manca
+un pacchetto è peggio di nessuna telemetria.
+
+**L'envelope non è andato a memoria**: nomi dei campi letti dal modello generato da Microsoft
+stessa in `azure-monitor-opentelemetry-exporter`. Verificato con un POST reale contro un
+listener HTTP locale — path `/v2/track`, `Content-Encoding: gzip`, envelope decodificabile.
+
+Configurazione: `APPLICATIONINSIGHTS_CONNECTION_STRING`, la variabile standard Azure. Nessuna
+stringa, chiave o endpoint di default spedito nel plugin.
+
+In `claude-plugin/tools/metrics/azure/`: Bicep (Log Analytics + App Insights workspace-based,
+cap giornaliero come stop hard, sampling 100), otto blocchi KQL, e un workbook importabile con
+le quattro metriche a tile e il trend dell'independence-ratio contro la soglia 0.15.
+
 ### Resta aperto
 
 - `docs/framework/` e i tre ADR citano ancora la struttura upstream. Sono
@@ -575,10 +602,14 @@ le soglie e indicato da solo l'articolo ripetutamente deviato come candidato a o
   popola solo eseguendo fasi TDD vere: il primo piano reale è il test del flusso
   prescrittivo, e va guardato con `/aldc:al-metrics` alla mano. Sotto le cinque review i
   rapporti sono rumore.
-- **La lane centrale non ha un endpoint.** Il meccanismo c'è; se volessimo aggregare a
-  livello di azienda serve decidere dove (una Function + Table Storage sarebbe la via breve,
-  dato il vostro stack) e distribuire `ALDC_METRICS_ENDPOINT`/`_TOKEN` via variabili
-  d'ambiente o CI — mai dentro il plugin.
+- **Il deploy Azure è da lanciare.** Bicep, KQL e workbook sono in repo e verificati per
+  quanto si può senza una subscription; `az deployment group create` e la distribuzione della
+  connection string restano a mano, perché servono credenziali che questo repo non ha e non
+  deve avere. Finché non è fatto, la telemetria resta locale e `/aldc:al-metrics` funziona
+  comunque.
+- **Il Bicep non è stato compilato.** Nessun `az`/`bicep` in questo container: le proprietà
+  sono state verificate una per una sulla reference `Microsoft.Insights/components@2020-02-02`,
+  ma il primo `az deployment` è anche il primo test vero.
 - **Il prescrittivo non è stato eseguito end-to-end su un progetto AL vero.** Le parti
   meccaniche sono verificate in sandbox (overlay, hook, workflow), il comportamento degli
   agenti no — è prosa, si valida solo usandola.
