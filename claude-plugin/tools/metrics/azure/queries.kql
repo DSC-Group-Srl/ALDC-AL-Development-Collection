@@ -146,3 +146,31 @@ customEvents
 | summarize phases = count(), lastSeen = max(timestamp)
           by bcqSha = tostring(customDimensions.bcqSha)
 | order by lastSeen desc
+
+// ---------------------------------------------------------------------------
+// 9. What version is actually deployed — AldcHeartbeat, not AldcPhase.
+//
+// Fires on every SessionStart, so it does not wait for anyone to run a review: everyone
+// updates the plugin before everyone runs one. One row per machine per day at most, plus
+// one extra row the moment a machine's version changes.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcHeartbeat"
+| summarize machines = dcount(tostring(customDimensions.project)),
+            lastSeen = max(timestamp)
+          by pluginVersion = tostring(customDimensions.pluginVersion)
+| order by lastSeen desc
+
+// ---------------------------------------------------------------------------
+// 10. Upgrade events — who moved, from what, to what, and when.
+//
+// customDimensions.upgraded == "true" is set only on the row where the version actually
+// changed on that machine, so this is a rollout timeline, not just a version count.
+// ---------------------------------------------------------------------------
+customEvents
+| where name == "AldcHeartbeat" and tostring(customDimensions.upgraded) == "true"
+| project timestamp,
+          project_ = tostring(customDimensions.project),
+          from_ = tostring(customDimensions.previousVersion),
+          to_ = tostring(customDimensions.pluginVersion)
+| order by timestamp desc

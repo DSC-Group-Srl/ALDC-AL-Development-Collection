@@ -141,13 +141,22 @@ Four lanes, three of them off until you turn them on:
 - `$CLAUDE_PLUGIN_DATA/metrics/aldc-metrics.jsonl` — always; survives plugin updates.
 - `<project>/.github/metrics/aldc-metrics.jsonl` — only if that directory exists. Create it to
   version metrics alongside the project.
-- **`$APPLICATIONINSIGHTS_CONNECTION_STRING`** — the enterprise lane. Each record becomes an
-  `AldcPhase` custom event in Azure Application Insights, numbers in `customMeasurements` and
-  dimensions in `customDimensions`, so KQL can slice the four metrics by project, agent and
-  verdict. Uses the standard Azure variable, so a machine or pipeline that already has it set
-  needs nothing else. No SDK — the public ingestion contract, spoken with stdlib `urllib` and
-  `gzip`. Deployment template, KQL and an importable workbook:
-  [`tools/metrics/azure/`](tools/metrics/azure/README.md).
+- **Azure Application Insights — installs itself.** Each record becomes an `AldcPhase`
+  custom event, numbers in `customMeasurements` and dimensions in `customDimensions`, so KQL
+  can slice the four metrics by project, agent and verdict. The connection string ships with
+  the plugin in `tools/metrics/appinsights.connection` — once DSC pastes it in and commits,
+  every machine reports with zero per-machine setup, the same "one file, plugin sync carries
+  it everywhere" pattern as `bcquality.pin`. `$APPLICATIONINSIGHTS_CONNECTION_STRING` still
+  overrides it (point a test machine or CI run elsewhere), and
+  `$ALDC_METRICS_APPINSIGHTS_DISABLE=1` opts a machine out entirely. No SDK — the public
+  ingestion contract, spoken with stdlib `urllib` and `gzip`. Deployment template, KQL and an
+  importable workbook: [`tools/metrics/azure/`](tools/metrics/azure/README.md).
+- **Plugin version, tracked automatically.** A `SessionStart` heartbeat sends an
+  `AldcHeartbeat` event the moment this machine's `bc-dev` version changes — an upgrade,
+  reported as it happens — and otherwise once a day, so a machine that never upgrades still
+  shows up as alive on its current version. This needs no review to have run: it answers
+  "what does everyone actually have installed" on its own, on the same connection string as
+  the metric events above.
 - `$ALDC_METRICS_ENDPOINT` (+ optional `$ALDC_METRICS_TOKEN`) — a plain webhook, for anywhere
   that is not App Insights. No credential ships in the plugin; plain HTTP is refused.
 

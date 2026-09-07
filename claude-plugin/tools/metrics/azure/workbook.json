@@ -154,6 +154,23 @@
         "visualization": "table"
       },
       "name": "per-project-health"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'AldcHeartbeat'\n| summarize machines = dcount(tostring(customDimensions.project)), lastSeen = max(timestamp)\n          by pluginVersion = tostring(customDimensions.pluginVersion)\n| order by lastSeen desc",
+        "size": 0,
+        "title": "bc-dev version adoption — from AldcHeartbeat, not from a review",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "version-adoption"
     }
   ],
   "isLocked": false,

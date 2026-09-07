@@ -104,18 +104,36 @@ Headline fact (get this into any prose referencing multi-project builds): **`al_
 `**BCQuality accounting:**` block — into JSONL records. `/aldc:al-metrics` aggregates them
 via `tools/metrics/report.py`.
 
-Two constraints to respect when editing any of this:
+`hooks/hooks.json` also wires a `SessionStart` heartbeat (`tools/metrics/heartbeat.sh` →
+`heartbeat.py`) that reports `bc-dev`'s own version as an `AldcHeartbeat` event — immediately
+when the version on that machine changed since last seen (an upgrade), otherwise at most
+once a day. This is how "what does everyone actually have installed" gets answered without
+waiting for anyone to run a review.
+
+Both paths send through `tools/metrics/appinsights.py`, which resolves the connection string
+itself (`resolve_connection_string()`): an explicit arg, then `$APPLICATIONINSIGHTS_CONNECTION_STRING`,
+then `tools/metrics/appinsights.connection` shipped with the plugin — the file that makes
+telemetry "install itself" once DSC pastes the estate's connection string into it and
+commits. `$ALDC_METRICS_APPINSIGHTS_DISABLE=1` overrides all of that to nothing, per machine.
+
+Constraints to respect when editing any of this:
 
 - **The markers are a contract.** Change the shape of a symbolic line in an agent and you
-  break the parser silently — it will just stop matching. `tools/metrics/test_parse.sh`
-  carries fixtures of every marker; update them in the same commit.
-- **`appinsights.py` mirrors the record into Azure.** Its envelope field names were read out
-  of Microsoft's generated model, not guessed, and its self-test asserts them — if you add a
-  field to the record, add it to `_props` (string) or `_measurements` (float), never both.
+  break the parser silently — it will just stop matching. `tools/metrics/test_metrics.sh`
+  (parser + appinsights + heartbeat self-tests together) carries fixtures of every marker;
+  update them in the same commit.
+- **`appinsights.py` mirrors every event into Azure.** Its envelope field names were read out
+  of Microsoft's generated model, not guessed, and its self-test asserts them. `send_event()`
+  is the generic primitive both `AldcPhase` (`send()`) and `AldcHeartbeat` (`heartbeat.py`) go
+  through — a new event type calls it directly rather than growing `send()`'s AldcPhase-shaped
+  `_props`/`_measurements`.
 - **The record must never carry free text.** Only counts, an enum-checked verdict, and paths
-  matching `(microsoft|community|custom)/knowledge/…`. Two of the self-test's assertions
-  exist purely to prove no customer path and no message body leak into a record. Do not
-  relax them.
+  matching `(microsoft|community|custom)/knowledge/…`. Several of the self-test's assertions
+  exist purely to prove no customer path and no message body leak into a record or an
+  envelope. Do not relax them.
+- **`appinsights.connection` ships empty and stays that way in this repo.** Filling it in is
+  a one-time, DSC-owned action taken directly against the plugin's distribution, not
+  something to do from a feature branch — see `tools/metrics/azure/README.md`.
 
 ## Rules Injection
 
