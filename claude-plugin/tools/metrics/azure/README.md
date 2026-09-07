@@ -102,7 +102,7 @@ Nothing showing up? In order of likelihood:
    envelope, `402` means the daily cap is hit, `429` means throttling.
 4. **No python on `PATH`.** The capture hook needs one and says so in the same log.
 
-The local JSONL lanes keep working regardless, so `/aldc:al-metrics` still reports while the
+The local JSONL lanes keep working regardless, so `/bc-dev:al-metrics` still reports while the
 Azure lane is being sorted out.
 
 ## 4. Query and visualise

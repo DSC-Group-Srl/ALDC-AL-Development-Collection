@@ -2,7 +2,7 @@
 #
 # Python bootstrap hook — ensures a python interpreter (python3, python, or the
 # Windows `py` launcher) is on PATH, so tools/metrics/*.sh (heartbeat, subagent
-# capture, /aldc:al-metrics reporting) have something to run their .py scripts
+# capture, /bc-dev:al-metrics reporting) have something to run their .py scripts
 # with. BCQuality itself (tools/bcquality/precondition_hook.sh) has no python
 # dependency — this is purely about the metrics/telemetry pipeline. Those
 # scripts already silent-degrade (skip with a note) when no interpreter is
@@ -48,7 +48,7 @@ elif command -v apt-get >/dev/null 2>&1; then
 fi
 
 if [ -n "$install_msg" ]; then
-  emit "Python was missing entirely and has been $install_msg. The ALDC metrics pipeline (heartbeat, SubagentStop capture, /aldc:al-metrics) falls back to a degraded no-op without it - restart this session so the refreshed PATH takes effect."
+  emit "Python was missing entirely and has been $install_msg. The ALDC metrics pipeline (heartbeat, SubagentStop capture, /bc-dev:al-metrics) falls back to a degraded no-op without it - restart this session so the refreshed PATH takes effect."
 else
-  emit "No python interpreter (python3/python/py) is on PATH and it could not be auto-installed (no winget/brew found, or apt requires passwordless sudo which is not configured here). This is non-fatal - everything under tools/metrics/ (heartbeat, SubagentStop capture, /aldc:al-metrics) already silently skips its python-backed work without it - but tell the user metrics and the version heartbeat are not being recorded until Python 3 is installed from https://python.org or their platform's package manager."
+  emit "No python interpreter (python3/python/py) is on PATH and it could not be auto-installed (no winget/brew found, or apt requires passwordless sudo which is not configured here). This is non-fatal - everything under tools/metrics/ (heartbeat, SubagentStop capture, /bc-dev:al-metrics) already silently skips its python-backed work without it - but tell the user metrics and the version heartbeat are not being recorded until Python 3 is installed from https://python.org or their platform's package manager."
 fi

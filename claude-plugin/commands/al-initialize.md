@@ -58,8 +58,8 @@ This project uses **ALDC** (AL Development Collection) plugin for Claude Code.
 All agents, skills, and workflows are available via the `aldc:` namespace.
 
 ## Quick Start
-- `/aldc:al-spec-create` — Create specifications
-- `/aldc:al-build` — Build extension
+- `/bc-dev:al-spec-create` — Create specifications
+- `/bc-dev:al-build` — Build extension
 - `agent "aldc:al-architect"` — Architecture design
 - `agent "aldc:al-developer"` — Implementation
 

@@ -4,7 +4,7 @@
     equivalent of precondition_hook.sh.
 
 .DESCRIPTION
-    Detects whether /aldc:al-initialize has already copied the always-on rule
+    Detects whether /bc-dev:al-initialize has already copied the always-on rule
     templates into this project's .claude/rules/ directory, and INJECTS a
     directive into the agent session via additionalContext. Same Layer-2
     precondition-hook design as tools/bcquality/precondition_hook.ps1.
@@ -26,8 +26,8 @@ function Emit($text) {
 }
 
 if (Test-Path $marker) {
-    Emit "ALDC rules are INSTALLED at .claude/rules/ (this project has run /aldc:al-initialize). Read the 7 always-on rule files from there once per session and pass them inline to every code-touching subagent (implement, review); do not re-run init and do not re-read the same rule file twice this session."
+    Emit "ALDC rules are INSTALLED at .claude/rules/ (this project has run /bc-dev:al-initialize). Read the 7 always-on rule files from there once per session and pass them inline to every code-touching subagent (implement, review); do not re-run init and do not re-read the same rule file twice this session."
 }
 else {
-    Emit "ALDC rules are NOT installed (no $marker). Before writing, editing, or reviewing any AL code this session, tell the user that /aldc:al-initialize has not been run for this project and offer to run it now - it copies the 7 always-on rule templates from $pluginRoot/rules-templates/ into .claude/rules/ so they persist and stay editable per project. Until the user responds, still apply the baselines yourself by reading them directly from $pluginRoot/rules-templates/al-*.md (excluding the conditional al-agent-toolkit) so no AL code is generated ungoverned. NEVER block or fail the task for the missing install - this is a human-in-the-loop nudge, not a hard gate."
+    Emit "ALDC rules are NOT installed (no $marker). Before writing, editing, or reviewing any AL code this session, tell the user that /bc-dev:al-initialize has not been run for this project and offer to run it now - it copies the 7 always-on rule templates from $pluginRoot/rules-templates/ into .claude/rules/ so they persist and stay editable per project. Until the user responds, still apply the baselines yourself by reading them directly from $pluginRoot/rules-templates/al-*.md (excluding the conditional al-agent-toolkit) so no AL code is generated ungoverned. NEVER block or fail the task for the missing install - this is a human-in-the-loop nudge, not a hard gate."
 }

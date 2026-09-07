@@ -29,14 +29,14 @@ Verify registration:
 /
 ```
 
-You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/aldc:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/bc-dev:`.
 
 ## First-Time Setup
 
 After installing the plugin, initialize your project:
 
 ```
-/aldc:al-initialize
+/bc-dev:al-initialize
 ```
 
 This will:
@@ -59,8 +59,8 @@ This will:
 ### Agent Routing
 
 ```
-New feature (MEDIUM/HIGH)?  -> aldc:al-architect -> /aldc:al-spec-create -> aldc:al-conductor
-New feature (LOW)?          -> /aldc:al-spec-create -> aldc:al-developer
+New feature (MEDIUM/HIGH)?  -> aldc:al-architect -> /bc-dev:al-spec-create -> aldc:al-conductor
+New feature (LOW)?          -> /bc-dev:al-spec-create -> aldc:al-developer
 Bug fix / debugging?        -> aldc:al-developer
 Architecture review?        -> aldc:al-architect
 Full TDD cycle?             -> aldc:al-conductor
@@ -73,17 +73,17 @@ Invoked explicitly from the chat input. Implemented as plugin slash commands und
 
 | Workflow | Command | Purpose |
 |----------|---------|---------|
-| Spec Create | `/aldc:al-spec-create` | Create functional-technical specifications |
-| Build | `/aldc:al-build` | Build, package, deploy extensions |
-| PR Prepare | `/aldc:al-pr-prepare` | Prepare pull requests with validation |
-| Memory Create | `/aldc:al-memory-create` | Generate session continuity memory |
-| Context Create | `/aldc:al-context-create` | Generate project context for AI |
-| Initialize | `/aldc:al-initialize` | Full environment and workspace setup |
-| Agent Create | `/aldc:al-agent-create` | Create a coded BC agent (Agent SDK) |
-| Agent Task | `/aldc:al-agent-task` | Generate agent task integration code |
-| Agent Test | `/aldc:al-agent-test` | Generate test codeunits for agents |
-| Agent Instructions | `/aldc:al-agent-instructions-create` | Generate agent NL instructions |
-| Quality Metrics | `/aldc:al-metrics` | Report independence-ratio, deviation rate, undeclared deviations and prescribed-vs-cited |
+| Spec Create | `/bc-dev:al-spec-create` | Create functional-technical specifications |
+| Build | `/bc-dev:al-build` | Build, package, deploy extensions |
+| PR Prepare | `/bc-dev:al-pr-prepare` | Prepare pull requests with validation |
+| Memory Create | `/bc-dev:al-memory-create` | Generate session continuity memory |
+| Context Create | `/bc-dev:al-context-create` | Generate project context for AI |
+| Initialize | `/bc-dev:al-initialize` | Full environment and workspace setup |
+| Agent Create | `/bc-dev:al-agent-create` | Create a coded BC agent (Agent SDK) |
+| Agent Task | `/bc-dev:al-agent-task` | Generate agent task integration code |
+| Agent Test | `/bc-dev:al-agent-test` | Generate test codeunits for agents |
+| Agent Instructions | `/bc-dev:al-agent-instructions-create` | Generate agent NL instructions |
+| Quality Metrics | `/bc-dev:al-metrics` | Report independence-ratio, deviation rate, undeclared deviations and prescribed-vs-cited |
 
 ## Knowledge Skills
 
@@ -116,7 +116,7 @@ Loaded automatically by agents when needed:
 ## Quality metrics (automatic)
 
 A `SubagentStop` hook records what the BCQuality-guided flow actually produced, phase by
-phase, and `/aldc:al-metrics` reports it.
+phase, and `/bc-dev:al-metrics` reports it.
 
 Four numbers, each with a threshold that makes it actionable:
 
@@ -187,9 +187,9 @@ claude-plugin/
 │   └── marketplace.json   # Marketplace entry (for local / remote distribution)
 ├── agents/                # user-facing agents (design, TDD conductor, dev, presales, agent builder,
 │                          #   docs conductor, triage, dredd) + internal subagents (TDD + docs)
-├── commands/              # 10 slash commands (/aldc:*)
+├── commands/              # 10 slash commands (/bc-dev:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
-├── rules-templates/       # AL coding rules copied by /aldc:al-initialize
+├── rules-templates/       # AL coding rules copied by /bc-dev:al-initialize
 ├── hooks/hooks.json       # SessionStart preconditions (rules, BCQuality, AL CLI, Node/npx) + PostToolUse/Stop reminders
 ├── .mcp.json              # MCP server config (al-mcp, nab-al-tools)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code

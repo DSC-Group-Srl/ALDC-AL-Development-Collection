@@ -159,7 +159,7 @@ Invoke with:
    now or in a follow-up pass.
 4. Recommend next steps where relevant: a recompile + re-run if `aldoc build` was pending; a
    human pass to add screenshots to the functional site's `images/` placeholders;
-   `/aldc:al-pr-prepare` if the docs are going into a PR.
+   `/bc-dev:al-pr-prepare` if the docs are going into a PR.
 
 ## Tool Boundaries
 

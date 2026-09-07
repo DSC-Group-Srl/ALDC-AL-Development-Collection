@@ -29,9 +29,9 @@ Route user requests to the appropriate agent:
 
 | Level | Scope | Route |
 |-------|-------|-------|
-| LOW | Single phase, no integrations | `/aldc:al-spec-create` -> `aldc:al-developer` |
-| MEDIUM | 2-3 areas, internal integrations | `aldc:al-architect` -> `/aldc:al-spec-create` -> `aldc:al-conductor` |
-| HIGH | 4+ phases, external integrations | `aldc:al-architect` -> `/aldc:al-spec-create` -> `aldc:al-conductor` |
+| LOW | Single phase, no integrations | `/bc-dev:al-spec-create` -> `aldc:al-developer` |
+| MEDIUM | 2-3 areas, internal integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
+| HIGH | 4+ phases, external integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
 
 Present the complexity assessment and wait for user confirmation before proceeding.
 
@@ -101,7 +101,7 @@ Headline fact (get this into any prose referencing multi-project builds): **`al_
 `hooks/hooks.json` wires a `SubagentStop` hook (`tools/metrics/capture_subagent.sh` →
 `parse_subagent.py`) that turns the symbolic markers the agents emit — the implementer's
 `📚 bcq {applied}/{prescribed}`, its `### Knowledge Deviations`, the review's
-`**BCQuality accounting:**` block — into JSONL records. `/aldc:al-metrics` aggregates them
+`**BCQuality accounting:**` block — into JSONL records. `/bc-dev:al-metrics` aggregates them
 via `tools/metrics/report.py`.
 
 `hooks/hooks.json` also wires a `SessionStart` heartbeat (`tools/metrics/heartbeat.sh` →
@@ -139,6 +139,6 @@ Constraints to respect when editing any of this:
 
 ## Rules Injection
 
-Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/aldc:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
+Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/bc-dev:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
 
-A `SessionStart` hook (`tools/rules/precondition_hook.sh`, wired in `hooks/hooks.json`) checks deterministically whether `.claude/rules/al-guidelines.md` exists and injects the result as `additionalContext` — so agents don't have to independently guess whether init has run. If it hasn't, agents are instructed to tell the user and offer to run `/aldc:al-initialize` before touching AL code, while still applying the rules from `rules-templates/` as a fallback for that session. This never blocks the task — it's a human-in-the-loop nudge, matching the BCQuality precondition-hook pattern.
+A `SessionStart` hook (`tools/rules/precondition_hook.sh`, wired in `hooks/hooks.json`) checks deterministically whether `.claude/rules/al-guidelines.md` exists and injects the result as `additionalContext` — so agents don't have to independently guess whether init has run. If it hasn't, agents are instructed to tell the user and offer to run `/bc-dev:al-initialize` before touching AL code, while still applying the rules from `rules-templates/` as a fallback for that session. This never blocks the task — it's a human-in-the-loop nudge, matching the BCQuality precondition-hook pattern.

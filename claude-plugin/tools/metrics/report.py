@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Aggregate the ALDC quality metrics JSONL into a report.
 
-Arithmetic belongs in code, not in a model's head: `/aldc:al-metrics` runs this and renders
+Arithmetic belongs in code, not in a model's head: `/bc-dev:al-metrics` runs this and renders
 what it prints. Reads the plugin-data lane by default, plus the project lane when present,
 de-duplicating records that landed in both.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Thin launcher for report.py — finds a python interpreter and passes the flags through.
-# Invoked by /aldc:al-metrics so the command does not have to know which python is present.
+# Invoked by /bc-dev:al-metrics so the command does not have to know which python is present.
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
 for c in python3 python py; do

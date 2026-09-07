@@ -1,6 +1,6 @@
 ---
 name: skill-changelog
-description: "AL changelog management for Business Central extensions. Use when creating or updating a versioned changelog.json for an AL app, writing release notes after a version bump, or preparing changelog entries for /aldc:al-pr-prepare."
+description: "AL changelog management for Business Central extensions. Use when creating or updating a versioned changelog.json for an AL app, writing release notes after a version bump, or preparing changelog entries for /bc-dev:al-pr-prepare."
 ---
 
 # Skill: AL Changelog Management
@@ -11,8 +11,8 @@ Maintain a structured, versioned JSON changelog for an AL/Business Central exten
 
 ## When to Load
 
-- After `/aldc:al-build` bumps the extension's version, before the build is published
-- During `/aldc:al-pr-prepare`, to draft the release-notes section of the PR
+- After `/bc-dev:al-build` bumps the extension's version, before the build is published
+- During `/bc-dev:al-pr-prepare`, to draft the release-notes section of the PR
 - When `al-conductor` finishes a plan and needs to log the change for the version it produced
 - On explicit user request: "aggiorna il changelog", "genera una voce di changelog", "cosa è cambiato nella versione X"
 - When auditing/cleaning up an existing changelog file for consistency
