@@ -71,6 +71,16 @@
           },
           {
             "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/heartbeat.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "& \"${CLAUDE_PLUGIN_ROOT}/tools/environment/git-bash-check.ps1\" SessionStart",
             "shell": "powershell",
             "timeout": 10

@@ -66,6 +66,21 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def plugin_version() -> str:
+    """bc-dev's own version, read from the plugin manifest two directories up (this file
+    lives at claude-plugin/tools/metrics/, the manifest at claude-plugin/.claude-plugin/).
+    Best-effort: an unreadable or malformed manifest yields an empty string, never a hard
+    failure — a version tag is a nice-to-have on a metrics record, not a precondition for it.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.normpath(os.path.join(here, "..", "..", ".claude-plugin", "plugin.json"))
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return str(json.load(fh).get("version", ""))
+    except (OSError, ValueError):
+        return ""
+
+
 def short_agent(agent_type: str) -> str | None:
     """'plugin_bc-dev:al-review-subagent' -> 'al-review-subagent', if we track it."""
     tail = agent_type.split(":")[-1].strip() if agent_type else ""
@@ -90,6 +105,9 @@ def build_record(payload: dict) -> dict | None:
         "project": os.path.basename(str(payload.get("cwd", "")).rstrip("/\\")) or "unknown",
         "agent": agent,
     }
+    v = plugin_version()
+    if v:
+        rec["pluginVersion"] = v
 
     m = RE_PHASE.search(msg)
     if m:
@@ -306,6 +324,7 @@ def self_test() -> int:
                        "cwd": "/p/Proj", "last_assistant_message": impl})
     checks += [
         ("impl parsed", r2 is not None),
+        ("plugin_version present on records", r2 and "pluginVersion" in r2),
         ("impl applied/prescribed", r2 and r2["bcq"]["applied"] == 4 and r2["bcq"]["prescribed"] == 5),
         ("impl deviated derived", r2 and r2["bcq"]["deviated"] == 1),
         ("impl declared", r2 and r2["bcq"]["declared"] == 1),

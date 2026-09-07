@@ -1,0 +1,30 @@
+# ALDC metrics — default Application Insights connection string.
+#
+# Ships with the plugin so every install reports to the DSC estate automatically, with zero
+# per-machine setup — the same "single file the plugin carries" pattern as
+# tools/bcquality/bcquality.pin, just for a write key instead of a knowledge-base pin.
+#
+# EMPTY BY DEFAULT. Telemetry to Application Insights is off until this is filled in: no
+# connection string here and none in the environment means appinsights_lane() in
+# parse_subagent.py returns immediately. The local JSONL lanes keep working exactly as
+# before either way — this file only controls the estate-wide lane.
+#
+# TO ACTIVATE FOR THE WHOLE ESTATE (one-time, by whoever owns the Azure resource — see
+# tools/metrics/azure/README.md for the deploy):
+#   1. az monitor app-insights component show -g <rg> -a <name> --query connectionString -o tsv
+#   2. Uncomment the connectionString= line below and paste the value in.
+#   3. Commit and push. The next plugin sync carries it to every machine on the next update
+#      — that is what makes this "install itself": nobody sets an environment variable.
+#
+# An App Insights connection string is a *write* key: whoever has it can send this resource
+# garbage telemetry, but cannot read anything back through it. Treat it as configuration,
+# not as a credential in the read-access sense — but this file still belongs only in
+# private DSC repos, never in a public fork or a customer-facing distribution.
+#
+# OVERRIDE OR OPT OUT, per machine or per pipeline, without touching this file:
+#   - APPLICATIONINSIGHTS_CONNECTION_STRING in the environment wins over this file — point a
+#     CI run or a test machine at a different resource without editing the plugin.
+#   - ALDC_METRICS_APPINSIGHTS_DISABLE=1 turns the Application Insights lane off entirely on
+#     that machine, regardless of what is configured here or in the environment.
+#
+# connectionString=InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://westeurope-1.in.applicationinsights.azure.com/

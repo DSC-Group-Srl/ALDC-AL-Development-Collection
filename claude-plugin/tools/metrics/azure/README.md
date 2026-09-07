@@ -54,30 +54,35 @@ Application Insights component. Two settings worth knowing about:
 - **`SamplingPercentage: 100`** — never sample. The point is counting every phase, and at
   this volume sampling would only add error.
 
-## 2. Distribute the connection string
+## 2. Activate it for the whole estate — one file, one commit
 
 ```bash
 az monitor app-insights component show \
   -g rg-aldc-metrics -a appi-aldc-metrics-prod --query connectionString -o tsv
 ```
 
-Set it as `APPLICATIONINSIGHTS_CONNECTION_STRING` — the standard Azure variable, so a machine
-or pipeline that already has it configured needs nothing else:
-
-| Where | How |
-|---|---|
-| Developer machine (Windows) | `setx APPLICATIONINSIGHTS_CONNECTION_STRING "InstrumentationKey=...;IngestionEndpoint=..."` |
-| Developer machine (macOS/Linux) | export it from `~/.zshrc` / `~/.bashrc` |
-| GitHub Actions | a repository or organisation secret, exported as an `env:` on the job |
-| Azure DevOps | a variable group linked to Key Vault |
-
-Optionally set `ALDC_METRICS_CLOUD_ROLE` to separate estates (defaults to `aldc-plugin`); it
-lands in `ai.cloud.role`.
+Paste that value into [`../appinsights.connection`](../appinsights.connection), uncommenting
+the `connectionString=` line, and commit. **This is what makes it install itself**: the file
+ships with the plugin, so the next sync (the daily marketplace sync, or whoever pulls the
+next `bc-dev` release) carries it to every machine with zero per-developer setup — the same
+"one file the plugin carries" pattern as `tools/bcquality/bcquality.pin`, for a write key
+instead of a knowledge-base pin.
 
 **On treating it as a secret.** An App Insights connection string is a *write* key: someone
-who has it can send you junk telemetry, but cannot read anything. So it is configuration
-rather than a credential — but it still does not belong in a committed file, which is why the
-plugin ships no default and reads it only from the environment.
+who has it can send this resource junk telemetry, but cannot read anything back through it.
+So it is configuration rather than a credential in the read-access sense — which is exactly
+why shipping it in the plugin is reasonable here. It still belongs only in private DSC repos:
+never in a public fork, never in a customer-facing distribution of the plugin.
+
+**Per-machine override or opt-out, without touching the shipped file:**
+
+| Need | How |
+|---|---|
+| Point one machine or a CI run at a different resource | set `APPLICATIONINSIGHTS_CONNECTION_STRING` in its environment — it wins over the shipped file |
+| Separate estates on the same resource (e.g. `dev` vs `prod` builds) | set `ALDC_METRICS_CLOUD_ROLE`; it lands in `ai.cloud.role` |
+| Turn Application Insights off on one machine entirely | set `ALDC_METRICS_APPINSIGHTS_DISABLE=1` — beats the shipped file *and* the environment variable |
+
+None of these need touching `appinsights.connection` or redeploying anything.
 
 ## 3. Confirm it arrives
 

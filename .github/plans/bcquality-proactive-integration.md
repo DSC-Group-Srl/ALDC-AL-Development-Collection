@@ -603,16 +603,67 @@ le quattro metriche a tile e il trend dell'independence-ratio contro la soglia 0
   prescrittivo, e va guardato con `/aldc:al-metrics` alla mano. Sotto le cinque review i
   rapporti sono rumore.
 - **Il deploy Azure è da lanciare.** Bicep, KQL e workbook sono in repo e verificati per
-  quanto si può senza una subscription; `az deployment group create` e la distribuzione della
-  connection string restano a mano, perché servono credenziali che questo repo non ha e non
-  deve avere. Finché non è fatto, la telemetria resta locale e `/aldc:al-metrics` funziona
-  comunque.
+  quanto si può senza una subscription; `az deployment group create` resta a mano, perché
+  serve una subscription e credenziali che questo repo non ha e non deve avere. Finché non è
+  fatto, la telemetria resta locale e `/aldc:al-metrics` funziona comunque.
+- **`appinsights.connection` è vuoto.** La distribuzione della connection string non richiede
+  più setup per-macchina (§7ter), ma il file shippato è ancora un placeholder commentato:
+  finché DSC non ci incolla la connection string vera e non fa commit, nessun evento parte
+  verso Azure — resta un'azione manuale una-tantum, non automatizzabile da questo repo.
 - **Il Bicep non è stato compilato.** Nessun `az`/`bicep` in questo container: le proprietà
   sono state verificate una per una sulla reference `Microsoft.Insights/components@2020-02-02`,
   ma il primo `az deployment` è anche il primo test vero.
 - **Il prescrittivo non è stato eseguito end-to-end su un progetto AL vero.** Le parti
   meccaniche sono verificate in sandbox (overlay, hook, workflow), il comportamento degli
   agenti no — è prosa, si valida solo usandola.
+
+---
+
+## 7ter. Auto-install della connection string e heartbeat di versione (v5.2)
+
+Ultimo pezzo del piano metriche: fin qui, portare i dati su Azure richiedeva impostare
+`APPLICATIONINSIGHTS_CONNECTION_STRING` a mano su ogni macchina — un setup per-sviluppatore
+che nessuno avrebbe fatto in pratica, e che rendeva impossibile sapere quali versioni del
+plugin girassero davvero sul parco macchine DSC senza chiedere in giro.
+
+**Auto-install della connection string.** `resolve_connection_string()` in `appinsights.py`
+ora prova, in ordine: `$ALDC_METRICS_APPINSIGHTS_DISABLE` (se truthy, disattiva tutto),
+poi un argomento esplicito, poi `$APPLICATIONINSIGHTS_CONNECTION_STRING` (override standard
+Azure), infine il file shippato `tools/metrics/appinsights.connection` — stesso pattern di
+`tools/bcquality/bcquality.pin`: un file che il plugin porta con sé, letto in automatico,
+niente da esportare a mano su ogni macchina. Una volta che DSC incolla la connection string
+vera in quel file e fa commit, il prossimo sync del plugin la porta a tutte le macchine con
+zero configurazione locale. È una write-key (non permette lettura), quindi ha senso
+shipparla nel plugin come configurazione — mai in un fork pubblico o in una distribuzione
+verso clienti.
+
+**Heartbeat di versione.** Un nuovo hook `SessionStart` (`tools/metrics/heartbeat.sh` +
+`heartbeat.py`) manda un evento `AldcHeartbeat` — dimensioni `pluginVersion`,
+`previousVersion`, `upgraded` — ogni volta che la versione di `plugin.json` su quella
+macchina cambia (riportato subito, non si aspetta il prossimo ciclo), e altrimenti al più
+una volta al giorno (`$ALDC_METRICS_HEARTBEAT_INTERVAL_HOURS`, default 24h) così anche chi
+non aggiorna mai risulta comunque vivo sulla versione che ha. A differenza delle quattro
+metriche di qualità, non serve che nessuna review sia mai girata: risponde da solo alla
+domanda "che versione ha in mano la gente", perché tutti aggiornano il plugin prima di
+lanciare una review, non dopo.
+
+`send_event()` è ora la primitiva generica (costruzione envelope + POST gzip) usata sia da
+`send()` (evento `AldcPhase`) sia da `heartbeat.py` (evento `AldcHeartbeat`), invece di
+avere due percorsi HTTP duplicati. `queries.kql` (blocchi 9-10) e `workbook.json` hanno una
+tile in più per l'adozione di versione e la timeline degli upgrade.
+
+**Cosa è stato verificato.** `python3 appinsights.py --self-test`, `python3 heartbeat.py
+--self-test` e `parse_subagent.py --self-test` (nuova asserzione `pluginVersion` sui record),
+raccolti in `test_metrics.sh`; un vero `http.server` locale ha confermato l'envelope reale
+sia per `AldcPhase` sia per `AldcHeartbeat` (gzip, `/v2/track`, shape corretta); la logica di
+throttling/upgrade-detection di `heartbeat.sh` è stata provata in sandbox su 5 casi (prima
+installazione, ripetizione entro la finestra, cambio versione immediato, scadenza
+dell'intervallo, manifest assente).
+
+**Cosa resta manuale, onestamente.** `appinsights.connection` rimane vuoto finché DSC non ci
+incolla la vera connection string e fa commit — nessun evento (né `AldcPhase` né
+`AldcHeartbeat`) parte verso Azure prima di quel momento. Il deploy Azure stesso (§7bis) non
+è cambiato: resta da lanciare a mano.
 
 ---
 
