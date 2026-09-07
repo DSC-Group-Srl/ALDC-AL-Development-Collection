@@ -1,9 +1,7 @@
 name: Deploy Documentation
 
+# Disabled (upstream workflow): manual dispatch only.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

@@ -1,23 +1,8 @@
 name: ALDC Core Validation
+
+# Disabled (upstream workflow): manual dispatch only.
 on:
-  push:
-    paths:
-      - "aldc.yaml"
-      - ".github/plans/**"
-      - "agents/**"
-      - "prompts/**"
-      - "skills/**"
-      - "instructions/**"
-      - "docs/templates/**"
-  pull_request:
-    paths:
-      - "aldc.yaml"
-      - ".github/plans/**"
-      - "agents/**"
-      - "prompts/**"
-      - "skills/**"
-      - "instructions/**"
-      - "docs/templates/**"
+  workflow_dispatch:
 
 jobs:
   validate:
