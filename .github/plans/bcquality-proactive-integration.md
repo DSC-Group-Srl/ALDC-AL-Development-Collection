@@ -602,14 +602,11 @@ le quattro metriche a tile e il trend dell'independence-ratio contro la soglia 0
   popola solo eseguendo fasi TDD vere: il primo piano reale è il test del flusso
   prescrittivo, e va guardato con `/aldc:al-metrics` alla mano. Sotto le cinque review i
   rapporti sono rumore.
-- **Il deploy Azure è da lanciare.** Bicep, KQL e workbook sono in repo e verificati per
-  quanto si può senza una subscription; `az deployment group create` resta a mano, perché
-  serve una subscription e credenziali che questo repo non ha e non deve avere. Finché non è
-  fatto, la telemetria resta locale e `/aldc:al-metrics` funziona comunque.
-- **`appinsights.connection` è vuoto.** La distribuzione della connection string non richiede
-  più setup per-macchina (§7ter), ma il file shippato è ancora un placeholder commentato:
-  finché DSC non ci incolla la connection string vera e non fa commit, nessun evento parte
-  verso Azure — resta un'azione manuale una-tantum, non automatizzabile da questo repo.
+- **Il deploy Azure è stato lanciato.** `rg-aldc-metrics-weu` esiste con Log Analytics +
+  Application Insights (Bicep, §7ter), e `appinsights.connection` porta la connection string
+  vera — attivato via commit su questo branch. Non ancora verificato: un evento reale che
+  arriva in `customEvents` dopo il merge (§3 del README Azure), perché finché la PR non è
+  in `main` il sync verso il marketplace non l'ha ancora distribuita a nessuna macchina.
 - **Il Bicep non è stato compilato.** Nessun `az`/`bicep` in questo container: le proprietà
   sono state verificate una per una sulla reference `Microsoft.Insights/components@2020-02-02`,
   ma il primo `az deployment` è anche il primo test vero.
@@ -660,10 +657,11 @@ throttling/upgrade-detection di `heartbeat.sh` è stata provata in sandbox su 5 
 installazione, ripetizione entro la finestra, cambio versione immediato, scadenza
 dell'intervallo, manifest assente).
 
-**Cosa resta manuale, onestamente.** `appinsights.connection` rimane vuoto finché DSC non ci
-incolla la vera connection string e fa commit — nessun evento (né `AldcPhase` né
-`AldcHeartbeat`) parte verso Azure prima di quel momento. Il deploy Azure stesso (§7bis) non
-è cambiato: resta da lanciare a mano.
+**Cosa resta manuale, onestamente.** Deploy Azure e attivazione della connection string sono
+ormai fatti (sopra), ma solo su questo branch: finché la PR non è mergiata in `main`, il sync
+verso il marketplace non ha ancora portato il file valorizzato a nessuna macchina reale, e
+`customEvents` non ha ancora ricevuto nulla da verificare — quel controllo (§3 del README
+Azure) resta da fare dopo il merge.
 
 ---
 
