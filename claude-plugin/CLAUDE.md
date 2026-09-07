@@ -131,9 +131,11 @@ Constraints to respect when editing any of this:
   matching `(microsoft|community|custom)/knowledge/…`. Several of the self-test's assertions
   exist purely to prove no customer path and no message body leak into a record or an
   envelope. Do not relax them.
-- **`appinsights.connection` ships empty and stays that way in this repo.** Filling it in is
-  a one-time, DSC-owned action taken directly against the plugin's distribution, not
-  something to do from a feature branch — see `tools/metrics/azure/README.md`.
+- **`appinsights.connection` carries a live write-key for the DSC estate's Application
+  Insights resource (`rg-aldc-metrics-weu`).** It is DSC-owned configuration, not a
+  read-access secret (see the file's own header and `tools/metrics/azure/README.md`), but
+  it still only belongs in this private repo — never copy it into a public fork or a
+  customer-facing distribution of the plugin.
 
 ## Rules Injection
 
