@@ -4,8 +4,11 @@
 // Dimensions (strings you group by) live in customDimensions; measures (numbers you
 // aggregate) live in customMeasurements and must be unpacked with todouble().
 //
-// Paste any block into Logs on the Application Insights resource. The workbook in
-// workbook.json wires the first four up as tiles.
+// Paste any single block into Logs on the Application Insights resource. Each block ends
+// with ";" so Logs also accepts the whole file pasted at once and runs it as a batch of
+// queries (Application Insights would otherwise parse two un-terminated tabular blocks as
+// one continuous query and fail with e.g. "could not be parsed at 'customEvents'"). The
+// workbook in workbook.json wires the first four up as tiles.
 
 // ---------------------------------------------------------------------------
 // 0. Everything, most recent first. Start here when you are not sure what you have.
@@ -13,7 +16,7 @@
 customEvents
 | where name == "AldcPhase"
 | project timestamp,
-          project_ = tostring(customDimensions.project),
+          project_ = tostring(customDimensions.['project']),
           agent    = tostring(customDimensions.agent),
           phase    = toint(customDimensions.phase),
           verdict  = tostring(customDimensions.verdict),
@@ -24,7 +27,7 @@ customEvents
           cited      = todouble(customMeasurements.cited),
           agentFindings = todouble(customMeasurements.agentFindings),
           independenceRatio = todouble(customMeasurements.independenceRatio)
-| order by timestamp desc
+| order by timestamp desc;
 
 // ---------------------------------------------------------------------------
 // 1. THE ONE THAT MATTERS — independence-ratio over time.
@@ -40,13 +43,13 @@ customEvents
 | summarize agentFindings = sum(todouble(customMeasurements.agentFindings)),
             totalFindings = sum(todouble(customMeasurements.totalFindings))
           by bin(timestamp, 7d)
-| extend independenceRatio = iff(totalFindings > 0, agentFindings / totalFindings, todouble(null))
+| extend independenceRatio = iff(totalFindings > 0, agentFindings / totalFindings, 0.0)
 | extend health = case(isnull(independenceRatio), "no data",
                        independenceRatio >= 0.15, "healthy",
                        independenceRatio > 0,     "LOW - valve weakening",
                                                   "ZERO - review is only agreeing")
 | project timestamp, independenceRatio, agentFindings, totalFindings, health
-| render timechart
+| render timechart;
 
 // ---------------------------------------------------------------------------
 // 2. Undeclared deviations — must be zero.
@@ -58,9 +61,9 @@ customEvents
 | where name == "AldcPhase" and tostring(customDimensions.agent) == "al-review-subagent"
 | summarize undeclared = sum(todouble(customMeasurements.undeclared)),
             phases = count()
-          by project_ = tostring(customDimensions.project)
+          by project_ = tostring(customDimensions.['project'])
 | where undeclared > 0
-| order by undeclared desc
+| order by undeclared desc;
 
 // ---------------------------------------------------------------------------
 // 3. Deviation rate, and which article keeps being deviated from.
@@ -74,10 +77,10 @@ customEvents
 | extend paths = split(tostring(customDimensions.deviationsDeclared), "|")
 | mv-expand path = paths to typeof(string)
 | summarize deviations = count(),
-            projects = dcount(tostring(customDimensions.project))
+            projects = dcount(tostring(customDimensions.['project']))
           by path
 | order by deviations desc
-| take 20
+| take 20;
 
 // ---------------------------------------------------------------------------
 // 4. Prescriptive coverage — is the prescribed worklist scoped correctly?
@@ -91,19 +94,19 @@ customEvents
 | summarize prescribed = sum(todouble(customMeasurements.prescribed)),
             applied    = sum(todouble(customMeasurements.applied)),
             cited      = sum(todouble(customMeasurements.cited))
-          by project_ = tostring(customDimensions.project)
-| extend appliedPct = iff(prescribed > 0, applied / prescribed, todouble(null)),
-         citedVsPrescribed = iff(prescribed > 0, cited / prescribed, todouble(null))
-| order by citedVsPrescribed desc
+          by project_ = tostring(customDimensions.['project'])
+| extend appliedPct = iff(prescribed > 0, applied / prescribed, 0.0),
+         citedVsPrescribed = iff(prescribed > 0, cited / prescribed, 0.0)
+| order by citedVsPrescribed desc;
 
 // ---------------------------------------------------------------------------
 // 5. Verdict mix per project — the outcome side, for context.
 // ---------------------------------------------------------------------------
 customEvents
 | where name == "AldcPhase" and isnotempty(tostring(customDimensions.verdict))
-| summarize phases = count() by project_ = tostring(customDimensions.project),
+| summarize phases = count() by project_ = tostring(customDimensions.['project']),
                                 verdict = tostring(customDimensions.verdict)
-| render columnchart kind=stacked
+| render columnchart kind=stacked;
 
 // ---------------------------------------------------------------------------
 // 6. Most-cited knowledge — what the corpus is actually catching.
@@ -115,9 +118,9 @@ customEvents
 | where name == "AldcPhase" and isnotempty(tostring(customDimensions.knowledge))
 | extend paths = split(tostring(customDimensions.knowledge), "|")
 | mv-expand path = paths to typeof(string)
-| summarize citations = count(), projects = dcount(tostring(customDimensions.project)) by path
+| summarize citations = count(), projects = dcount(tostring(customDimensions.['project'])) by path
 | order by citations desc
-| take 20
+| take 20;
 
 // ---------------------------------------------------------------------------
 // 7. Health check — runs where BCQuality was not mounted.
@@ -129,11 +132,11 @@ customEvents
 | where name == "AldcPhase"
 | summarize notMounted = countif(tostring(customDimensions.bcqMounted) == "false"),
             total = count()
-          by project_ = tostring(customDimensions.project),
+          by project_ = tostring(customDimensions.['project']),
              bin(timestamp, 7d)
 | where notMounted > 0
 | extend pctNotMounted = 100.0 * notMounted / total
-| order by timestamp desc
+| order by timestamp desc;
 
 // ---------------------------------------------------------------------------
 // 8. Which BCQuality pin is in the field.
@@ -145,7 +148,7 @@ customEvents
 | where name == "AldcPhase" and isnotempty(tostring(customDimensions.bcqSha))
 | summarize phases = count(), lastSeen = max(timestamp)
           by bcqSha = tostring(customDimensions.bcqSha)
-| order by lastSeen desc
+| order by lastSeen desc;
 
 // ---------------------------------------------------------------------------
 // 9. What version is actually deployed — AldcHeartbeat, not AldcPhase.
@@ -156,10 +159,10 @@ customEvents
 // ---------------------------------------------------------------------------
 customEvents
 | where name == "AldcHeartbeat"
-| summarize machines = dcount(tostring(customDimensions.project)),
+| summarize machines = dcount(tostring(customDimensions.['project'])),
             lastSeen = max(timestamp)
           by pluginVersion = tostring(customDimensions.pluginVersion)
-| order by lastSeen desc
+| order by lastSeen desc;
 
 // ---------------------------------------------------------------------------
 // 10. Upgrade events — who moved, from what, to what, and when.
@@ -170,7 +173,7 @@ customEvents
 customEvents
 | where name == "AldcHeartbeat" and tostring(customDimensions.upgraded) == "true"
 | project timestamp,
-          project_ = tostring(customDimensions.project),
+          project_ = tostring(customDimensions.['project']),
           from_ = tostring(customDimensions.previousVersion),
           to_ = tostring(customDimensions.pluginVersion)
-| order by timestamp desc
+| order by timestamp desc;
