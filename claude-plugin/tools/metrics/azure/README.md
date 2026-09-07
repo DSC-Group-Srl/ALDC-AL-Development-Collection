@@ -41,8 +41,8 @@ and a hook is not the place for a retry queue.
 ## 1. Deploy
 
 ```bash
-az group create -n rg-aldc-metrics -l westeurope
-az deployment group create -g rg-aldc-metrics -f main.bicep -p environment=prod
+az group create -n rg-aldc-metrics-weu -l westeurope
+az deployment group create -g rg-aldc-metrics-weu -f main.bicep -p environment=prod
 ```
 
 [`main.bicep`](main.bicep) creates a Log Analytics workspace and a workspace-based
@@ -58,7 +58,7 @@ Application Insights component. Two settings worth knowing about:
 
 ```bash
 az monitor app-insights component show \
-  -g rg-aldc-metrics -a appi-aldc-metrics-prod --query connectionString -o tsv
+  -g rg-aldc-metrics-weu -a appi-aldc-metrics-prod-weu --query connectionString -o tsv
 ```
 
 Paste that value into [`../appinsights.connection`](../appinsights.connection), uncommenting
