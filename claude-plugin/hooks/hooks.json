@@ -53,6 +53,17 @@
             "args": [
               "/c",
               "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/python/ensure-python.sh",
+              "SessionStart"
+            ],
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
               "${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh",
               "SessionStart"
             ],
