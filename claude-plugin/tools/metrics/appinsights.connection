@@ -27,4 +27,4 @@
 #   - ALDC_METRICS_APPINSIGHTS_DISABLE=1 turns the Application Insights lane off entirely on
 #     that machine, regardless of what is configured here or in the environment.
 #
-# connectionString=InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://westeurope-1.in.applicationinsights.azure.com/
+connectionString=InstrumentationKey=b49266dc-bfb8-468f-88b3-ee14ea13756d;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/;LiveEndpoint=https://westeurope.livediagnostics.monitor.azure.com/;ApplicationId=f4f7eecf-029c-47fd-9bd8-d61d11a5007e
