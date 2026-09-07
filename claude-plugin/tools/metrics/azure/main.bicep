@@ -6,8 +6,8 @@
 // with the numbers in `customMeasurements` and the dimensions in `customDimensions`.
 //
 // Deploy:
-//   az group create -n rg-aldc-metrics -l westeurope
-//   az deployment group create -g rg-aldc-metrics -f main.bicep -p environment=prod
+//   az group create -n rg-aldc-metrics-weu -l westeurope
+//   az deployment group create -g rg-aldc-metrics-weu -f main.bicep -p environment=prod
 //
 // Then read the connection string and distribute it as APPLICATIONINSIGHTS_CONNECTION_STRING
 // (see README.md — it is not a secret in the credential sense, but it is a write key: treat
@@ -31,8 +31,8 @@ param retentionInDays int = 90
 @description('Daily ingestion cap in GB. A hard stop so a runaway loop cannot produce a bill. -1 disables the cap.')
 param dailyQuotaGb int = 1
 
-var workspaceName = 'log-${baseName}-${environment}'
-var appInsightsName = 'appi-${baseName}-${environment}'
+var workspaceName = 'log-${baseName}-${environment}-weu'
+var appInsightsName = 'appi-${baseName}-${environment}-weu'
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: workspaceName
