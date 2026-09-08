@@ -1,6 +1,6 @@
 ---
 name: skill-demo-data
-description: "AL demo/sample data generation patterns for Business Central, following the same module-scoped Configure + Generate shape as Microsoft's own Contoso Demo Data tool. Use when building or extending a 'Demo Tool' page, Setup/Master/Transactional demo-data codeunits, or scenario-driven sample data for an app."
+description: "AL demo/sample data generation for Business Central. Prefers plugging directly into Microsoft's real Contoso Demo Tool (Enum/Interface 'Contoso Demo Data Module', Page 'Contoso Demo Tool') via the Contoso Coffee Demo Dataset dependency; falls back to a bespoke module-scoped Configure + Generate page/table/enum only when that dependency isn't viable. Use when building or extending demo data for an app, a 'Demo Tool' page, Setup/Master/Transactional demo-data codeunits, or scenario-driven sample data."
 ---
 
 # Skill: Demo Data Generation (Contoso-style)
@@ -12,6 +12,11 @@ Microsoft structures Contoso Demo Data (the Contoso Coffee apps): a config page
 listing **modules**, each with a **Configure** action (map real records to
 scenario roles) and a **Create Demo Data** action (generate setup, master, and
 transactional records for a documented set of walkthrough scenarios).
+
+**Two ways to get this shape**: plug straight into Microsoft's own already-shipped
+Contoso Demo Tool (preferred — see "Decision" below), or build a bespoke
+equivalent when that isn't viable. Don't default to bespoke without checking the
+decision first — that's the exact mistake this skill previously invited.
 
 This is the implementation skill `al-demo-architect` loads after its demo-data
 plan document is approved. It is not a documentation skill — `skill-functional-docfx`
@@ -25,7 +30,206 @@ generate data.
 - Any request to "generate sample data", "seed demo records", "add a Contoso-style
   demo tool" for a custom app.
 
-## Core Shape
+## Decision: plug into Microsoft's real Contoso Demo Tool, or build bespoke
+
+**Default to the real integration below.** Microsoft already ships a working
+module registry, config page, and dispatch engine — `Table`/`Page "Contoso Demo
+Tool"`, `Enum`/`Interface "Contoso Demo Data Module"`, `Codeunit "Generate Contoso
+Demo Data"` — in the `Contoso Coffee Demo Dataset` app (id
+`5a0b41e9-7a42-4123-d521-2265186cfb31`, namespace `Microsoft.DemoTool`). For an
+app that can take a dependency on it, building a second, bespoke Demo Tool
+page/table/enum (Core Shape §1 below) duplicates infrastructure Microsoft already
+maintains and gives the developer a UI that doesn't show up alongside every other
+module they already know.
+
+Use the **real integration** (`Real Integration` section below) when:
+- The target app runs on Business Central Online / SaaS, and
+- It's acceptable for the app to depend on `Contoso Coffee Demo Dataset` (it's
+  available from AppSource/the marketplace in the target environments).
+
+Fall back to the **bespoke Core Shape** (§1–§7 below) only when the real
+integration isn't viable — e.g. an on-prem target where that Microsoft app can't
+be guaranteed present. Record which path was taken, and why, in the demo-data
+plan doc's `## Integration Approach` section before generating anything; don't
+default to bespoke out of habit.
+
+Sections 2–7 of the bespoke Core Shape below (Configure, Preview, the
+Setup/Master/Transactional split, scenario docs, Job Queue, the smoke test) are
+**not bespoke-only** — under the real integration they still apply, just invoked
+from the interface's `RunConfigurationPage()`/`Create*Data()` methods instead of
+a bespoke page's actions. Only §1 (the Demo Tool page/table itself) is skipped
+when the real integration is used.
+
+## Real Integration — plugging into Microsoft's Contoso Demo Tool
+
+Confirmed against `Contoso Coffee Demo Dataset` (Microsoft, app id
+`5a0b41e9-7a42-4123-d521-2265186cfb31`), namespace `Microsoft.DemoTool`. There is
+no narrative MS Learn documentation of this AL-level contract — MS Learn only
+covers the end-user Configure/Generate workflow. Ground every detail here against
+the live symbols (`al_symbolsearch`) before writing AL, since ordinals and
+signatures can drift across BC versions.
+
+### The contract
+
+1. **`Enum "Contoso Demo Data Module"`** (extensible, namespace `Microsoft.DemoTool`)
+   — one value per module. Already-taken ordinals — do not reuse, do not assume
+   you can redirect their implementation: `Common Module`=0, `Manufacturing
+   Module`=1, `Warehouse Module`=2, `Service Module`=3, `Fixed Asset Module`=4,
+   `Human Resources Module`=5 (Microsoft's own base-BC HR demo data — unrelated
+   to and not reusable by an HR-flavored custom app), `Job Module`=6,
+   `Foundation`=10, `Finance`=11, `CRM`=12, `Bank`=13, `Inventory`=14,
+   `Purchase`=15, `Sales`=16, `EService`=17, `Analytics`=18. Each value's
+   declaration binds an implementation (`Implementation = "Contoso Demo Data
+   Module" = <SomeCodeunit>;`), fixed by whoever declares it — you can only
+   **add a new value**, never override an existing one's binding.
+
+2. **`Interface "Contoso Demo Data Module"`** (namespace `Microsoft.DemoTool`) —
+   every module codeunit implements:
+   ```al
+   procedure RunConfigurationPage()
+   procedure GetDependencies(): List of [Enum "Contoso Demo Data Module"]
+   procedure CreateSetupData()
+   procedure CreateMasterData()
+   procedure CreateTransactionalData()
+   procedure CreateHistoricalData()
+   ```
+   An empty body is a valid implementation for any stage the app has nothing to
+   contribute to.
+
+3. **`Table "Contoso Demo Data Module"`** and **`Page "Contoso Demo Tool"`** are
+   Microsoft's real, already-shipped module registry and UI — **do not build your
+   own equivalents**. `Codeunit "Contoso Demo Tool".RefreshModules()` /
+   `GetRefreshedModules()` walks the enum's values itself and inserts/refreshes a
+   row per value automatically; adding a new enum value is enough for it to
+   appear on Microsoft's real page with no further wiring.
+
+4. **`Codeunit "Generate Contoso Demo Data".Run(var Record: Record "Contoso Demo
+   Data Module"): Boolean`** resolves each row's enum value to its bound
+   interface implementation and calls the `Create*Data` methods in
+   `GetDependencies()`-resolved order.
+
+5. **Per-module setup tables are separate, small, module-owned tables** (e.g.
+   `"Manufacturing Demo Data Setup"`, `"Whse Demo Data Setup"`, the generic
+   `"Contoso Coffee Demo Data Setup"`) — not fields on the shared registry table.
+   Build one per module for whatever Configure-time role-mapping it needs; this
+   is exactly Core Shape §2's "Per-module Configure" pattern, just invoked from
+   `RunConfigurationPage()` instead of a bespoke `Configure()` action.
+
+### What to build for a new module
+
+1. **Add the dependency** in `app.json`:
+   ```json
+   { "id": "5a0b41e9-7a42-4123-d521-2265186cfb31", "name": "Contoso Coffee Demo Dataset", "publisher": "Microsoft", "version": "<matching major>" }
+   ```
+   Download symbols (`al_downloadsymbols`), add the project to al-mcp
+   (`al_addproject`), and confirm with `al_symbolsearch` (`query: "Contoso Demo
+   Data Module"`, `scope: "dependencies"`) before writing any AL.
+
+2. **Enum extension** — exactly one new value, with an ID pinned explicitly from
+   the app's own `idRanges` (never let AL auto-assign it):
+   ```al
+   enumextension 18141160 "Dyna HR Demo Data Module" extends "Contoso Demo Data Module"
+   {
+       value(18141160; "Dyna HR Module")
+       {
+           Caption = 'Dyna HR';
+           Implementation = "Contoso Demo Data Module" = "Dyna HR Demo Data Module";
+       }
+   }
+   ```
+
+3. **Interface-implementing codeunit** — one per module, dispatching into real
+   generation logic kept in separate helper codeunits (small, focused
+   procedures, same as everywhere else):
+   ```al
+   codeunit 18141164 "Dyna HR Demo Data Module" implements "Contoso Demo Data Module"
+   {
+       procedure RunConfigurationPage()
+       begin
+           Page.RunModal(Page::"DSC HR Demo Data Cfg. Common");
+       end;
+
+       procedure GetDependencies(): List of [Enum "Contoso Demo Data Module"]
+       var
+           Dependencies: List of [Enum "Contoso Demo Data Module"];
+       begin
+           Dependencies.Add(Enum::"Contoso Demo Data Module"::"Common Module");
+           exit(Dependencies);
+       end;
+
+       procedure CreateSetupData()
+       begin
+           DemoDataCommon.CreateSetupData();
+       end;
+
+       procedure CreateMasterData()
+       begin
+           DemoDataCommon.CreateMasterData();
+           DemoDataMobile.CreateMasterData();
+       end;
+
+       procedure CreateTransactionalData()
+       begin
+           DemoDataMobile.CreateTransactionalData();
+       end;
+
+       procedure CreateHistoricalData()
+       begin
+           // no historical documents in this app — empty is a valid implementation
+       end;
+
+       var
+           DemoDataCommon: Codeunit "DSC HR Demo Data - Common";
+           DemoDataMobile: Codeunit "DSC HR Demo Data - Mobile";
+   }
+   ```
+
+4. **`GetDependencies()` is a real design decision, not boilerplate.** Only list
+   `"Common Module"` unless the module deliberately wants its data generated
+   *after*, and layered on top of, another module's data. In particular: **do
+   not** depend on `"Human Resources Module"` just because the app is
+   HR-flavored — that ordinal is Microsoft's own base-BC HR demo data, with
+   employee identities the app doesn't control. If the app needs a specific,
+   predictable roster (specific Nos., names, an approver persona another app's
+   demo data will reference by name), keep the module self-contained and
+   generate its own roster in `CreateMasterData()`.
+
+5. **Nothing else is needed.** No bespoke Demo Tool page, no bespoke
+   module-registry table, no bespoke module enum, no bespoke "Preview" action —
+   Microsoft's real page already provides Configure / Generate / Generate Setup
+   once the enum value and interface implementation exist. (An internal
+   `Preview()` helper on the module's own setup codeunit — Core Shape §3, called
+   from `RunConfigurationPage()`'s setup page or from tests before
+   `CreateMasterData()` actually writes — is still fine to keep for the "resolve
+   and report before writing" discipline; it's just not a page action
+   Microsoft's UI calls.)
+
+### Mapping onto the bespoke Core Shape sections below
+
+| Bespoke section | Real-integration equivalent |
+|---|---|
+| §1 Demo Tool page | Skip — Microsoft's `Page "Contoso Demo Tool"` already lists the module once the enum value exists. |
+| §2 Per-module Configure | Still applies — build a dedicated setup table/page, invoked from `RunConfigurationPage()`. |
+| §3 Preview | Keep as an internal helper if useful; not a real interface method. |
+| §4 Setup/Master/Transactional split | Maps directly onto `CreateSetupData()`/`CreateMasterData()`/`CreateTransactionalData()`, plus a 4th stage, `CreateHistoricalData()`, for backdated/archived documents. |
+| §5 Scenario documentation | Unchanged — keep in the demo-data plan doc. |
+| §6 Job Queue integration | Unchanged. |
+| §7 Smoke test | Unchanged in spirit — call the interface-implementing codeunit's methods directly, or via `Codeunit.Run(Codeunit::"Generate Contoso Demo Data", TempRec)`, rather than a bespoke table's `Generate()`. |
+
+### Real-integration anti-patterns
+
+- Don't build a bespoke Demo Tool page/table/enum/interface for an app that
+  could take a dependency on `Contoso Coffee Demo Dataset` — check the decision
+  section above first.
+- Don't reuse or assume you can redirect an already-declared enum value's
+  `Implementation` (e.g. `"Human Resources Module"`) — add a new value instead.
+- Don't let `GetDependencies()` casually include a domain module (like Human
+  Resources) whose demo data isn't under the app's control, if a downstream
+  app/dataset needs to reference those records by a predictable key.
+- Don't auto-assign the enum extension value's ID — pin it explicitly inside the
+  app's own `idRanges`, same as any other object ID in this codebase.
+
+## Bespoke Core Shape (fallback — real integration not viable)
 
 ### 1. The Demo Tool page
 

@@ -10,12 +10,27 @@
 **Related**: `{req_name}.demo-user-stories.md`, `{req_name}.demo-use-cases.md`
 
 > **HARD GATE**: no AL demo-data object is generated until this document's Status
-> is `Approved` and the Developer Customization Input section below has been
-> filled in or explicitly waved off by the developer.
+> is `Approved`, section 1's integration approach is decided, and the Developer
+> Customization Input section below has been filled in or explicitly waved off
+> by the developer.
 
 ---
 
-## 1. Proposed Modules
+## 1. Integration Approach
+
+**Chosen approach**: [Real integration with Contoso Coffee Demo Dataset / Bespoke Demo Tool]
+
+**Reasoning**: {Why. If bespoke, state specifically why the real integration
+(dependency on `Contoso Coffee Demo Dataset`, app id
+`5a0b41e9-7a42-4123-d521-2265186cfb31`) isn't viable — e.g. on-prem target that
+can't guarantee that app is present. "Simpler to build our own" is not a valid
+reason — see `skill-demo-data`'s Decision section.}
+
+{**If real integration**: new enum value ID (pinned from this app's `idRanges`),
+its `GetDependencies()` choice and why, and which existing enum module (if any)
+it depends on.}
+
+## 2. Proposed Modules
 
 {One module per coherent feature area, Contoso-style — a module should map to
 something a developer would want to Configure and Generate independently.}
@@ -24,7 +39,7 @@ something a developer would want to Configure and Generate independently.}
 |--------|---------|--------------------|-------------------|
 | {Module name} | {What it demonstrates} | {UC-01, UC-02} | {Yes / No — incremental only} |
 
-## 2. Scenarios per Module
+## 3. Scenarios per Module
 
 ### Module: {Name}
 
@@ -38,7 +53,7 @@ something a developer would want to Configure and Generate independently.}
 
 ---
 
-## 3. Developer Customization Input
+## 4. Developer Customization Input
 
 > **Fill in what you know; leave the rest blank for al-demo-architect to propose a
 > default from existing company data.** Nothing here is generated speculatively —
@@ -73,7 +88,7 @@ Mirrors Contoso's own Configure fields (e.g. "Location Bin", "Customer No.",
 
 ---
 
-## 4. Incremental Diff Summary
+## 5. Incremental Diff Summary
 
 {**Incremental mode only** — omit entirely in bootstrap mode.}
 
@@ -86,11 +101,15 @@ Mirrors Contoso's own Configure fields (e.g. "Location Bin", "Customer No.",
 ## Rules
 
 - Every module must trace to at least one use case in `{req_name}.demo-use-cases.md`.
-- Section 3 must be reviewed by the developer before Status can move to `Approved`
+- Section 1's approach must default to real integration; bespoke requires a
+  stated, specific reason it isn't viable, checked against `skill-demo-data`'s
+  Decision criteria — not chosen out of habit.
+- Section 4 must be reviewed by the developer before Status can move to `Approved`
   — a blank section is a valid review outcome (defaults apply) but it must be a
   deliberate blank, not a skipped step.
 - On `Approved`, `al-demo-architect` loads `skill-demo-data` and generates exactly
-  the modules listed in section 1 minus anything excluded in section 3.
+  the modules listed in section 2 minus anything excluded in section 4, using the
+  approach recorded in section 1.
 - After generation, update Status to `Generated` and record the result in
   `{req_name}.demo-data-manifest.json` — this document itself is never deleted or
   overwritten by a later incremental run; a new run appends a dated new plan
