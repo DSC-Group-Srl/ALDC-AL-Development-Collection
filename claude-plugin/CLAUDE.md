@@ -24,6 +24,7 @@ Route user requests to the appropriate agent:
 | Diagnose a bug / incident (existing code) | `aldc:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `aldc:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
 | Document an app end-to-end (on demand) | `aldc:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
+| Extract user stories/use cases + generate or customize demo data | `aldc:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then generates a Contoso-style Configure+Generate AL demo dataset; bootstrap and incremental (diff-based) modes |
 
 ## Complexity Routing
 

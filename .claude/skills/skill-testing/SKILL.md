@@ -326,9 +326,9 @@ codeunit 50210 "Copilot Suggestion Tests"
 
 Read the requirement contracts before creating any tests:
 ```
-requirements/{req_name}/{req_name}.spec.md          ← acceptance criteria to test
-requirements/{req_name}/{req_name}.architecture.md   ← components to cover
-requirements/{req_name}/{req_name}.test-plan.md      ← existing plan (if any)
+app/requirements/in-progress/{req_name}/{req_name}.spec.md          ← acceptance criteria to test
+app/requirements/in-progress/{req_name}/{req_name}.architecture.md   ← components to cover
+app/requirements/in-progress/{req_name}/{req_name}.test-plan.md      ← existing plan (if any)
 CLAUDE.md                                            ← context and conventions
 ```
 
@@ -350,7 +350,7 @@ Coverage targets:
 
 ### Step 2: Create Test Plan Document
 
-Create `requirements/{req_name}/{req_name}.test-plan.md` using `docs/templates/test-plan-template.md`:
+Create `app/requirements/in-progress/{req_name}/{req_name}.test-plan.md` using `docs/templates/test-plan-template.md`:
 - List every scenario as Given/When/Then with a test method name
 - Group by unit / integration / UI / edge case
 - Define library codeunits needed
@@ -424,7 +424,7 @@ end;
 
 1. Run full test suite
 2. Verify all tests pass — zero tolerance for flaky tests
-3. Update coverage metrics in `requirements/{req_name}/{req_name}.test-plan.md`
+3. Update coverage metrics in `app/requirements/in-progress/{req_name}/{req_name}.test-plan.md`
 4. Update `CLAUDE.md` with test results summary
 
 ## References

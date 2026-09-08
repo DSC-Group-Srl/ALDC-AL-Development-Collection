@@ -702,7 +702,7 @@ create an architectural design considering:
 - Integration points: [identified]
 - Risk factors: [from 03-swot-analysis.md]
 
-Create requirements/{req_name}/{req_name}.architecture.md"
+Create app/requirements/in-progress/{req_name}/{req_name}.architecture.md"
 ```
 
 ### Update Project Memory
@@ -724,12 +724,12 @@ Parameters:
 - FeatureName: [project-name from intake]
 - Scope: [defined scope from Phase 1]
 
-Output: requirements/{req_name}/{req_name}.spec.md
+Output: app/requirements/in-progress/{req_name}/{req_name}.spec.md
 ```
 
 ### Handoff Contracts
 
-When handing off to other agents, ensure requirement contracts exist in `requirements/`:
+When handing off to other agents, ensure requirement contracts exist in `app/requirements/in-progress/{req_name}/`:
 - `{req_name}.architecture.md` → Created by agent `al-architect` (COPY from `docs/templates/architecture-template.md`)
 - `{req_name}.spec.md` → Created by al-spec-create (COPY from `docs/templates/spec-template.md`)
 - `{req_name}.test-plan.md` → Created during implementation planning

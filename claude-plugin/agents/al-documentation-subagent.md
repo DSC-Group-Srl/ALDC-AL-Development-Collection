@@ -65,9 +65,10 @@ content models.
 
 ## Step 1 — Determine run mode
 
+`guides/` lives at the **repo root**, as a sibling of `app/` — never nested inside `app/`.
 Check whether the documentation folders already exist:
-- `docs/functional/it-IT/` and `docs/functional/en-US/`
-- `docs/developer/en-US/`
+- `guides/functional/it-IT/` and `guides/functional/en-US/`
+- `guides/developer/en-US/`
 
 - **Bootstrap** — folders absent (first documentation pass for this app). Run each applicable
   skill's full standalone workflow against the whole app, exactly as it runs when invoked by a
@@ -148,12 +149,12 @@ the skill's own SKILL.md instructs, only when bootstrap mode and file count requ
 **App type detected:** {PTE | AppSource/Global} (idRanges: {from}–{to})
 **Run mode:** {Bootstrap | Incremental}
 
-**Functional site (docs/functional/):**
+**Functional site (guides/functional/):**
 - Status: {Updated | Built from scratch | Skipped — reason}
 - Pages touched: {list, or "all" if bootstrap}
 - Build: {✅ it-IT + en-US | ⚠️ issue}
 
-**Developer/technical site (docs/developer/en-US/):**
+**Developer/technical site (guides/developer/en-US/):**
 - Skill used: {skill-aldoc | skill-developer-docfx}
 - Status: {Updated | Built from scratch | Skipped — reason}
 - Pages/objects touched: {list, or "all" if bootstrap}

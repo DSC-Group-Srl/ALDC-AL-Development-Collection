@@ -83,14 +83,14 @@ Read every file listed below. Build a mental model of:
 - What it depends on / what depends on it
 
 ## Step B — Classify
-For any existing page under docs/developer/en-US/internals/ covering this module, classify it:
+For any existing page under guides/developer/en-US/internals/ covering this module, classify it:
 - MISSING: no page exists for this subsystem yet
 - SHALLOW: a page exists but doesn't explain the actual algorithm (just restates names)
 - OK: already documented with real technical content — skip it
 
 ## Step C — Write
 For every MISSING or SHALLOW subsystem, write one page under
-docs/developer/en-US/internals/[subsystem-name].md using this structure:
+guides/developer/en-US/internals/[subsystem-name].md using this structure:
 
 # [Subsystem name]
 [One paragraph: responsibility and where it sits in the app.]
@@ -109,8 +109,8 @@ Quality bar: every page must explain WHAT it does (step by step), WHY it's built
 what would surprise a developer extending it later. A page that only restates object names is
 unacceptable.
 
-Also report anything relevant to the shared docs/developer/en-US/architecture-overview.md
-(module responsibility, dependencies) and docs/developer/en-US/data-model.md (tables owned by
+Also report anything relevant to the shared guides/developer/en-US/architecture-overview.md
+(module responsibility, dependencies) and guides/developer/en-US/data-model.md (tables owned by
 this group and why they're modeled that way) — the calling workflow consolidates these across
 all groups after every agent completes.
 

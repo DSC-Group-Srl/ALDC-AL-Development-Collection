@@ -53,7 +53,7 @@
               ],
               "showDefault": false
             },
-            "query": "customEvents\n| where name == 'AldcPhase'\n| distinct tostring(customDimensions.project)",
+            "query": "customEvents\n| where name == 'AldcPhase'\n| distinct tostring(customDimensions.['project'])",
             "value": [
               "value::all"
             ],
@@ -71,7 +71,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let src = customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.project) in ({Project});\nlet rev = src | where tostring(customDimensions.agent) == 'al-review-subagent';\nlet agg = rev\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings)),\n            prescribed = sum(todouble(customMeasurements.prescribed)),\n            deviated = sum(todouble(customMeasurements.deviated)),\n            undeclared = sum(todouble(customMeasurements.undeclared)),\n            cited = sum(todouble(customMeasurements.cited)),\n            phases = count();\nagg\n| project\n    ['independence-ratio'] = iff(totalF > 0, round(agentF / totalF, 3), todouble(null)),\n    ['deviation rate']     = iff(prescribed > 0, round(deviated / prescribed, 3), todouble(null)),\n    ['undeclared deviations'] = undeclared,\n    ['cited vs prescribed'] = iff(prescribed > 0, round(cited / prescribed, 3), todouble(null)),\n    ['reviews'] = todouble(phases)",
+        "query": "let src = customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project});\nlet rev = src | where tostring(customDimensions.agent) == 'al-review-subagent';\nlet agg = rev\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings)),\n            prescribed = sum(todouble(customMeasurements.prescribed)),\n            deviated = sum(todouble(customMeasurements.deviated)),\n            undeclared = sum(todouble(customMeasurements.undeclared)),\n            cited = sum(todouble(customMeasurements.cited)),\n            phases = count();\nagg\n| project\n    ['independence-ratio'] = iff(totalF > 0, round(agentF / totalF, 3), todouble(null)),\n    ['deviation rate']     = iff(prescribed > 0, round(deviated / prescribed, 3), todouble(null)),\n    ['undeclared deviations'] = undeclared,\n    ['cited vs prescribed'] = iff(prescribed > 0, round(cited / prescribed, 3), todouble(null)),\n    ['reviews'] = todouble(phases)",
         "size": 3,
         "timeContext": {
           "durationMs": 0
@@ -108,7 +108,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase' and tostring(customDimensions.agent) == 'al-review-subagent'\n| where '*' in ({Project}) or tostring(customDimensions.project) in ({Project})\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings))\n          by bin(timestamp, 7d)\n| extend ['independence-ratio'] = iff(totalF > 0, agentF / totalF, todouble(null))\n| extend ['floor (0.15)'] = 0.15\n| project timestamp, ['independence-ratio'], ['floor (0.15)']\n| order by timestamp asc",
+        "query": "customEvents\n| where name == 'AldcPhase' and tostring(customDimensions.agent) == 'al-review-subagent'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings))\n          by bin(timestamp, 7d)\n| extend ['independence-ratio'] = iff(totalF > 0, agentF / totalF, todouble(null))\n| extend ['floor (0.15)'] = 0.15\n| project timestamp, ['independence-ratio'], ['floor (0.15)']\n| order by timestamp asc",
         "size": 0,
         "title": "Independence-ratio, weekly — the anti-correlation signal",
         "timeContext": {
@@ -125,7 +125,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.project) in ({Project})\n| where isnotempty(tostring(customDimensions.deviationsDeclared))\n| extend paths = split(tostring(customDimensions.deviationsDeclared), '|')\n| mv-expand path = paths to typeof(string)\n| summarize deviations = count(), projects = dcount(tostring(customDimensions.project)) by path\n| order by deviations desc\n| take 10",
+        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| where isnotempty(tostring(customDimensions.deviationsDeclared))\n| extend paths = split(tostring(customDimensions.deviationsDeclared), '|')\n| mv-expand path = paths to typeof(string)\n| summarize deviations = count(), projects = dcount(tostring(customDimensions.['project'])) by path\n| order by deviations desc\n| take 10",
         "size": 0,
         "title": "Most-deviated knowledge — candidates for a /custom/ override",
         "timeContext": {
@@ -142,7 +142,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.project) in ({Project})\n| summarize phases = count(),\n            notMounted = countif(tostring(customDimensions.bcqMounted) == 'false'),\n            undeclared = sum(todouble(customMeasurements.undeclared))\n          by ['project'] = tostring(customDimensions.project)\n| extend ['BCQuality missing %'] = round(100.0 * notMounted / phases, 1)\n| order by undeclared desc, ['BCQuality missing %'] desc",
+        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize phases = count(),\n            notMounted = countif(tostring(customDimensions.bcqMounted) == 'false'),\n            undeclared = sum(todouble(customMeasurements.undeclared))\n          by ['project'] = tostring(customDimensions.['project'])\n| extend ['BCQuality missing %'] = round(100.0 * notMounted / phases, 1)\n| order by undeclared desc, ['BCQuality missing %'] desc",
         "size": 0,
         "title": "Per project — undeclared deviations and runs with BCQuality missing",
         "timeContext": {
@@ -159,7 +159,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcHeartbeat'\n| summarize machines = dcount(tostring(customDimensions.project)), lastSeen = max(timestamp)\n          by pluginVersion = tostring(customDimensions.pluginVersion)\n| order by lastSeen desc",
+        "query": "customEvents\n| where name == 'AldcHeartbeat'\n| summarize machines = dcount(tostring(customDimensions.['project'])), lastSeen = max(timestamp)\n          by pluginVersion = tostring(customDimensions.pluginVersion)\n| order by lastSeen desc",
         "size": 0,
         "title": "bc-dev version adoption — from AldcHeartbeat, not from a review",
         "timeContext": {

@@ -439,14 +439,14 @@ If you can't find something or aren't sure, document it:
 
 ### Context Files to Read Before Research
 
-Before starting your research, **ALWAYS check for existing context** in `requirements/`:
+Before starting your research, **ALWAYS check for existing context** in `app/requirements/in-progress/`:
 
 ```
 Checking for context:
 1. CLAUDE.md → Project conventions and configuration (project root)
-2. requirements/*.architecture.md → Architectural designs (from agent `al-architect`)
-3. requirements/*.spec.md → Technical specifications
-4. requirements/*.test-plan.md → Test strategies
+2. app/requirements/in-progress/**/*.architecture.md → Architectural designs (from agent `al-architect`)
+3. app/requirements/in-progress/**/*.spec.md → Technical specifications
+4. app/requirements/in-progress/**/*.test-plan.md → Test strategies
 ```
 
 **Why this matters**:
@@ -478,7 +478,7 @@ Checking for context:
 **Integration Pattern:**
 ```markdown
 1. agent `al-conductor` delegates research task → You receive objective
-2. Check requirements/ for existing context → Read *.architecture.md, *.spec.md
+2. Check app/requirements/in-progress/ for existing context → Read *.architecture.md, *.spec.md
 3. Conduct AL-specific research → Objects, events, structure
 4. Stop at 90% confidence → Don't over-research
 5. Return structured findings → Conductor creates plan

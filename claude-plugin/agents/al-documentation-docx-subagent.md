@@ -73,7 +73,7 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
 
 **CANNOT:**
 - Modify AL source code
-- Write into `docs/functional/` or `docs/developer/` — those belong to
+- Write into `guides/functional/` or `guides/developer/` — those belong to
   `al-documentation-subagent`
 - Ask the user mid-task — flag ambiguities in the document instead
 

@@ -3,7 +3,7 @@ description: >
   Create a detailed technical specification (.spec.md) that serves as an implementable
   blueprint for Business Central features. Use when you need to create a spec, write
   a specification, or detail a requirement. Reads architecture.md if exists.
-  Outputs to requirements/{req_name}/.
+  Outputs to app/requirements/in-progress/{req_name}/.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, Skill
 ---
 
@@ -16,7 +16,9 @@ This is **NOT** the architecture phase. This phase produces the implementable bl
 ## Guardrails
 
 - **Never** create or modify real AL objects during this phase
-- **Never** output to `/specs/` — always output to `requirements/{req_name}/`
+- **Never** output to `/specs/` — always output to `app/requirements/in-progress/{req_name}/` (a
+  requirement moves to `app/requirements/archived/{req_name}/` only once it ships — that move is
+  `al-conductor`'s job at plan completion, not this command's)
 - If `{req_name}.architecture.md` exists, read it first — the spec must implement what the architect designed
 - If spec already exists, confirm with user before overwriting
 - Complexity drives depth within a section, not which sections exist: LOW condenses §§6-8 and may omit §12; MEDIUM/HIGH fills every applicable section in full. At every tier, **omit a conditional section entirely if the feature doesn't touch that object type** (see the template's own `## Rules`) — never scaffold a code skeleton for an object type this feature never creates
@@ -34,7 +36,7 @@ Extract: project app ID range, naming conventions (prefix), existing table IDs i
 ### 1.2 Read architecture document (if exists)
 
 ```
-Read requirements/${input:req_name}/${input:req_name}.architecture.md
+Read app/requirements/in-progress/${input:req_name}/${input:req_name}.architecture.md
 ```
 
 If it exists: the spec MUST align with the architectural decisions (data flows, chosen patterns, integration points).
@@ -65,7 +67,7 @@ This keeps the median cost low (most specs touch 1–2 domains) while making the
 
 ## Step 2 — Generate Specification
 
-Create `requirements/${input:req_name}/${input:req_name}.spec.md` following the canonical structure in `${CLAUDE_PLUGIN_ROOT}/docs/templates/spec-template.md` — `Read` that file (it's the single source of truth for the 12-section structure; **do not** re-derive the section layout from memory) and fill in every placeholder with real values from this feature (object IDs from `app.json` idRanges, actual field/procedure signatures, symbol-verified events).
+Create `app/requirements/in-progress/${input:req_name}/${input:req_name}.spec.md` following the canonical structure in `${CLAUDE_PLUGIN_ROOT}/docs/templates/spec-template.md` — `Read` that file (it's the single source of truth for the 12-section structure; **do not** re-derive the section layout from memory) and fill in every placeholder with real values from this feature (object IDs from `app.json` idRanges, actual field/procedure signatures, symbol-verified events).
 
 **Apply the template's own `## Rules` section, in particular:**
 - Omit §3/§5/§6/§8/§9 entirely for any object type this feature doesn't touch (a permission-set-only change doesn't get a Data Model or Pages section) — this is the largest lever on this document's size, since most features touch 2-4 of the 5 conditional sections, not all five.
@@ -114,7 +116,7 @@ For the **Next Steps** section at the end of the generated file, use:
 
 ## Success Criteria
 
-- ✅ Spec file created at `requirements/${input:req_name}/${input:req_name}.spec.md`
+- ✅ Spec file created at `app/requirements/in-progress/${input:req_name}/${input:req_name}.spec.md`
 - ✅ Object IDs verified against `app.json` idRanges
 - ✅ Architecture document consulted (if exists)
 - ✅ The feature's **own** procedure signatures are complete (no "TBD"); base-app event targets recorded as **verified publisher + event name + consumed fields** (exact param list resolved from symbols at code time, not transcribed)

@@ -194,7 +194,7 @@ Set once per session; all commands below reuse them.
 ```powershell
 $aldoc = "<full path to aldoc.exe found above>"
 $app   = "C:\<repo>\app\<Publisher>_<Name>_<version>.app"   # always the highest version
-$docs  = "C:\<repo>\docs\developer\en-US"
+$docs  = "C:\<repo>\guides\developer\en-US"   # guides/ sits at the repo root, sibling of app/ — never under app/
 ```
 
 Find latest `.app`:
@@ -231,7 +231,7 @@ To allow `preview_start` to serve the docfx site, create `.claude/launch.json` i
     {
       "name": "dyna-arx-docs",
       "runtimeExecutable": "docfx",
-      "runtimeArgs": ["serve", "docs\\developer\\en-US\\_site", "-p", "9090"],
+      "runtimeArgs": ["serve", "guides\\developer\\en-US\\_site", "-p", "9090"],
       "port": 9090
     }
   ]

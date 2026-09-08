@@ -69,7 +69,8 @@ again); pass your determination to it inline so it skips its own Step 0.
 
 ### Step 3 — Determine run mode
 
-Check whether `docs/functional/it-IT/`, `docs/functional/en-US/`, and `docs/developer/en-US/`
+`guides/` lives at the **repo root**, as a sibling of `app/` — **never** nested inside `app/`.
+Check whether `guides/functional/it-IT/`, `guides/functional/en-US/`, and `guides/developer/en-US/`
 already exist.
 
 - **First build** — none exist. The plan is a from-scratch build of both sites.
@@ -128,7 +129,7 @@ approved.
 ## Phase 2 — Generation
 
 Delegate via `Task`, **in parallel** — the two workstreams write to disjoint outputs
-(`docs/functional/` + `docs/developer/` vs. a single `.docx` file) and only *read* the shared AL
+(`guides/functional/` + `guides/developer/` vs. a single `.docx` file) and only *read* the shared AL
 source, so there's no conflict running them concurrently.
 
 ### 2A — Docfx sites → `al-documentation-subagent`
@@ -151,7 +152,8 @@ Invoke with:
 ## Phase 3 — Consolidation & Report
 
 1. Collect both subagents' structured reports.
-2. Write `requirements/documentation/<app-name>-<date>-documentation-complete.md` summarizing:
+2. Write `app/requirements/in-progress/documentation/<app-name>-<date>-documentation-complete.md`
+   summarizing:
    deliverables produced, build status per site, docx path (if produced), every warning and
    `[DA CHIARIRE: ...]` flag surfaced, and any recompile-pending note from the aldoc branch.
 3. Present the completion summary to the user — **a documentation gap or build warning is
@@ -159,19 +161,19 @@ Invoke with:
    now or in a follow-up pass.
 4. Recommend next steps where relevant: a recompile + re-run if `aldoc build` was pending; a
    human pass to add screenshots to the functional site's `images/` placeholders;
-   `/aldc:al-pr-prepare` if the docs are going into a PR.
+   `/bc-dev:al-pr-prepare` if the docs are going into a PR.
 
 ## Tool Boundaries
 
 **CAN:**
 - Read AL source, `app.json`, and existing documentation content (to determine app type, run
   mode, and to detect multi-app ambiguity)
-- Write the completion report under `requirements/documentation/`
+- Write the completion report under `app/requirements/in-progress/documentation/`
 - Delegate to `al-documentation-subagent` and `al-documentation-docx-subagent` via `Task`
 
 **CANNOT:**
 - Modify AL source code — you document what exists, you never change it
-- Write directly into `docs/` or produce the `.docx` yourself — that's always delegated, so the
+- Write directly into `guides/` or produce the `.docx` yourself — that's always delegated, so the
   subagents' own skills (with their templates, checklists, and build steps) are the single source
   of truth for content shape
 - Skip the Phase 1 approval gate, even when re-running on an app you documented before

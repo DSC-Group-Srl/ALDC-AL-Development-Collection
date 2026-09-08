@@ -104,7 +104,7 @@ Both analyze AL codebases, but serve different roles:
 
 **Strategic Design**: Focus on creating architectures that are extensible, testable, and aligned with Microsoft's AL development guidelines.
 
-**Documentation-Driven**: **ALWAYS create `requirements/{req_name}/{req_name}.architecture.md`** immediately after user approves your architectural design. This is MANDATORY, not optional. COPY from `docs/templates/architecture-template.md` — **MUST NOT** edit templates directly.
+**Documentation-Driven**: **ALWAYS create `app/requirements/in-progress/{req_name}/{req_name}.architecture.md`** immediately after user approves your architectural design. This is MANDATORY, not optional. COPY from `docs/templates/architecture-template.md` — **MUST NOT** edit templates directly.
 
 **Memory-Aware**: After creating architecture documents, **ALWAYS** save key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root for persistent, critical information.
 
@@ -121,10 +121,10 @@ Both analyze AL codebases, but serve different roles:
 
 ### What to Do
 
-1. **COPY** `docs/templates/architecture-template.md` → `requirements/{req_name}/{req_name}.architecture.md` (kebab-case, e.g., `requirements/customer-loyalty/customer-loyalty.architecture.md`)
+1. **COPY** `docs/templates/architecture-template.md` → `app/requirements/in-progress/{req_name}/{req_name}.architecture.md` (kebab-case, e.g., `app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md`)
 2. **POPULATE** with the architectural design you just discussed
 3. **SAVE** key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root for persistent, critical information
-4. **CONFIRM** to user: "✅ Created `requirements/{req_name}/{req_name}.architecture.md`"
+4. **CONFIRM** to user: "✅ Created `app/requirements/in-progress/{req_name}/{req_name}.architecture.md`"
 5. **SUGGEST** next steps (agent `al-conductor`, /al-spec-create, etc.)
 
 ### Example Workflow
@@ -136,13 +136,13 @@ You (al-architect): "Here's the architectural design for customer loyalty points
 User: "Approved, let's implement this"
 
 You (al-architect):
-[COPY docs/templates/architecture-template.md → requirements/customer-loyalty/customer-loyalty.architecture.md]
+[COPY docs/templates/architecture-template.md → app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md]
 [POPULATE with approved design]
 [SAVE key decisions to memory / append to CLAUDE.md]
 
 "✅ Architecture approved and documented!
 
-Created: requirements/customer-loyalty/customer-loyalty.architecture.md
+Created: app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md
 Saved: Key decisions to memory
 
 Next steps:
@@ -389,7 +389,7 @@ Based on requirements, create comprehensive architectural design following secti
    - Performance considerations
    - Testing strategy
 
-2. **IMPORTANT: Automatically create `requirements/{req_name}/{req_name}.architecture.md`** after user approves design:
+2. **IMPORTANT: Automatically create `app/requirements/in-progress/{req_name}/{req_name}.architecture.md`** after user approves design:
    - COPY from `docs/templates/architecture-template.md` (never edit template)
    - Populate and save immediately after approval
    - Save key decisions to memory (agent built-in) or append to `CLAUDE.md` at project root
@@ -402,20 +402,20 @@ Based on requirements, create comprehensive architectural design following secti
    If single spec:
    ```
    /al-spec-create
-   Create spec for {req_name}. Read requirements/{req_name}/{req_name}.architecture.md
+   Create spec for {req_name}. Read app/requirements/in-progress/{req_name}/{req_name}.architecture.md
    ```
 
    If decomposed (multiple specs):
    ```
    /al-spec-create
-   Create spec for {req_name}-core. Read requirements/{req_name}/{req_name}.architecture.md section "Spec Decomposition"
+   Create spec for {req_name}-core. Read app/requirements/in-progress/{req_name}/{req_name}.architecture.md section "Spec Decomposition"
    ```
    Then repeat for each sub-spec.
 
    After all specs are created:
    ```
    agent `al-conductor`
-   Implement {req_name}. Contracts in requirements/{req_name}/
+   Implement {req_name}. Contracts in app/requirements/in-progress/{req_name}/
    ```
 
 ### Step 4: Integration with v1.1 Agents
@@ -865,15 +865,15 @@ The `{req_name}.architecture.md` MUST include all 14 sections:
 
 ```markdown
 1. `CLAUDE.md` at project root - Key decisions and project context
-2. `requirements/*/*.spec.md` - Existing technical specifications
-3. `requirements/*/*.architecture.md` - Previous architecture decisions
-4. `requirements/*/*.test-plan.md` - Test strategies
+2. `app/requirements/in-progress/**/*.spec.md` - Existing technical specifications
+3. `app/requirements/in-progress/**/*.architecture.md` - Previous architecture decisions
+4. `app/requirements/in-progress/**/*.test-plan.md` - Test strategies
 ```
 
 **How to check**:
 ```
 Read: CLAUDE.md
-List files matching: requirements/*/*.md
+List files matching: app/requirements/in-progress/**/*.md
 Also check docs/*/*.md (legacy folder - may contain older specs)
 ```
 
@@ -885,12 +885,12 @@ Also check docs/*/*.md (legacy folder - may contain older specs)
 
 ### After Completing Design: Create Architecture Document
 
-**MANDATORY**: COPY `docs/templates/architecture-template.md` → `requirements/{req_name}/{req_name}.architecture.md`, then populate.
+**MANDATORY**: COPY `docs/templates/architecture-template.md` → `app/requirements/in-progress/{req_name}/{req_name}.architecture.md`, then populate.
 
-**Directory & file naming**: `requirements/{req_name}/{req_name}.architecture.md` (kebab-case req_name):
-- Example: `requirements/customer-loyalty/customer-loyalty.architecture.md`
-- Example: `requirements/sales-approval-workflow/sales-approval-workflow.architecture.md`
-- Example: `requirements/api-integration-crm/api-integration-crm.architecture.md`
+**Directory & file naming**: `app/requirements/in-progress/{req_name}/{req_name}.architecture.md` (kebab-case req_name):
+- Example: `app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md`
+- Example: `app/requirements/in-progress/sales-approval-workflow/sales-approval-workflow.architecture.md`
+- Example: `app/requirements/in-progress/api-integration-crm/api-integration-crm.architecture.md`
 
 **MUST NOT** edit `docs/templates/architecture-template.md` directly — templates are immutable.
 
@@ -1039,31 +1039,31 @@ Also check docs/*/*.md (legacy folder - may contain older specs)
 If single spec:
 ```
 /al-spec-create
-Create spec for {req_name}. Read requirements/{req_name}/{req_name}.architecture.md
+Create spec for {req_name}. Read app/requirements/in-progress/{req_name}/{req_name}.architecture.md
 ```
 
 If decomposed (multiple specs, see "Spec Decomposition" section above):
 ```
 /al-spec-create
-Create spec for {req_name}-core. Read section "Spec Decomposition" in requirements/{req_name}/{req_name}.architecture.md
+Create spec for {req_name}-core. Read section "Spec Decomposition" in app/requirements/in-progress/{req_name}/{req_name}.architecture.md
 ```
 Then repeat for each sub-spec in the defined order.
 
 After all specs are created → implement:
 ```
 agent `al-conductor`
-Implement {req_name}. Contracts in requirements/{req_name}/
+Implement {req_name}. Contracts in app/requirements/in-progress/{req_name}/
 ```
 
 For LOW complexity (no architect needed):
 ```
 agent `al-developer`
-Implement {req_name}. Read requirements/{req_name}/{req_name}.spec.md
+Implement {req_name}. Read app/requirements/in-progress/{req_name}/{req_name}.spec.md
 ```
 
 ## References
-- Related specifications: `requirements/<related>/<related>.spec.md`
-- Previous architectures: `requirements/<related>/<related>.architecture.md`
+- Related specifications: `app/requirements/in-progress/<related>/<related>.spec.md`
+- Previous architectures: `app/requirements/in-progress/<related>/<related>.architecture.md`
 - Microsoft Docs: [Link to relevant BC documentation]
 
 ---
@@ -1085,7 +1085,7 @@ Implement {req_name}. Read requirements/{req_name}/{req_name}.spec.md
 - [ ] Confirmation phrase received ("approved", "looks good", "let's proceed", etc.)
 
 ### Architecture Document Creation
-- [ ] Create `requirements/{req_name}/{req_name}.architecture.md` IMMEDIATELY after approval
+- [ ] Create `app/requirements/in-progress/{req_name}/{req_name}.architecture.md` IMMEDIATELY after approval
 - [ ] Use complete template structure
 - [ ] Include all discussed decisions
 - [ ] Confirm creation to user
@@ -1126,9 +1126,9 @@ al-architect:
 2. Proposes architecture
 3. Discusses alternatives
 4. User approves design
-5. 👉 COPY docs/templates/architecture-template.md → requirements/customer-loyalty/customer-loyalty.architecture.md
+5. 👉 COPY docs/templates/architecture-template.md → app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md
 6. 👉 SAVE key decisions to memory / append to CLAUDE.md at project root
-7. Confirm creation: "✅ Created requirements/customer-loyalty/customer-loyalty.architecture.md"
+7. Confirm creation: "✅ Created app/requirements/in-progress/customer-loyalty/customer-loyalty.architecture.md"
 8. Suggest next step: "agent `al-conductor`" or "/al-spec-create"
 
 IMPORTANT: Steps 5-6 happen AUTOMATICALLY after approval - DO NOT wait for user request.
@@ -1172,7 +1172,7 @@ Update the **Status** field in the document:
 You: "Let me check existing project context first..."
 
 [Read CLAUDE.md at project root]
-[List requirements/*/*.md files]
+[List app/requirements/in-progress/**/*.md files]
 [List docs/*/*.md files (legacy folder)]
 
 You: "I see you already have:
@@ -1188,10 +1188,10 @@ This documentation system ensures **continuity across sessions** and **alignment
 **Integration Pattern:**
 ```markdown
 1. User requests feature design → agent `al-architect` activated
-2. al-architect reads context → CLAUDE.md + requirements/*/*.architecture.md (+ docs/ legacy)
+2. al-architect reads context → CLAUDE.md + app/requirements/in-progress/**/*.architecture.md (+ docs/ legacy)
 3. Design discussion → Present options, discuss trade-offs
 4. User approval gate → MANDATORY before documentation
-5. al-architect COPY template → requirements/{req_name}/{req_name}.architecture.md
+5. al-architect COPY template → app/requirements/in-progress/{req_name}/{req_name}.architecture.md
 6. al-architect SAVES → key decisions to memory / CLAUDE.md
 7. Handoff to al-spec-create:
    - Single spec: "/al-spec-create"
@@ -1203,7 +1203,7 @@ This documentation system ensures **continuity across sessions** and **alignment
 ## Delegation Rules
 
 When your work is complete and approved by the user:
-- **MEDIUM/HIGH complexity** → Use the Task tool to delegate to agent `al-conductor` with context: "Implement the approved architecture using TDD orchestration. Architecture contract: requirements/{req_name}/{req_name}.architecture.md"
-- **LOW complexity** → Use the Task tool to delegate to agent `al-developer` with context: "Implement simple feature directly. Spec: requirements/{req_name}/{req_name}.spec.md"
+- **MEDIUM/HIGH complexity** → Use the Task tool to delegate to agent `al-conductor` with context: "Implement the approved architecture using TDD orchestration. Architecture contract: app/requirements/in-progress/{req_name}/{req_name}.architecture.md"
+- **LOW complexity** → Use the Task tool to delegate to agent `al-developer` with context: "Implement simple feature directly. Spec: app/requirements/in-progress/{req_name}/{req_name}.spec.md"
 
 CRITICAL: NEVER auto-delegate. Always present your output to the user and wait for explicit approval before delegating. This is a HITL gate.

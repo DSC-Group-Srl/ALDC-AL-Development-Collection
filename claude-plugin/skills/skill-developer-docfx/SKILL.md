@@ -21,7 +21,7 @@ description: >
 ## Overview
 
 This skill is the **PTE counterpart to `skill-aldoc`**. Both produce a technical, developer-facing
-docfx site at the same location — `docs/developer/en-US/` — but they map fundamentally different
+docfx site at the same location — `guides/developer/en-US/` — but they map fundamentally different
 things:
 
 - **skill-aldoc** documents the app's **public interface surface** (objects, public procedures,

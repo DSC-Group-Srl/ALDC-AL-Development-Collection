@@ -258,7 +258,7 @@ Document and prepare rollback before executing migration:
 2. **Download current symbols**: **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth), or VS Code `AL: Download Symbols` (or `AL: Download Source` for full base/app source — still a human step). If the migration spans multiple sibling projects (app + test app), Load `skill-al-mcp-workspace` first — `al_downloadsymbols`'s `projectPath` can get stuck on the wrong project across multiple calls in one session.
 3. **Document dependencies**: read `app.json` `dependencies` plus **al-mcp** `al_getpackagedependencies` — list all with current versions
 4. **Review release notes**: Check BC target version breaking changes
-5. **Create migration plan** in `requirements/{project}-migration.md`
+5. **Create migration plan** in `app/requirements/in-progress/{project}-migration/{project}-migration.md`
 
 **PAUSE — wait for user approval before modifying files.**
 

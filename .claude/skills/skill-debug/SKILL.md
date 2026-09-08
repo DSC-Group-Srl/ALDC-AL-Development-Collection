@@ -116,7 +116,7 @@ Compare snapshots between success and failure cases:
 Read existing plans context first:
 ```
 CLAUDE.md                            ← project state and recent decisions
-requirements/**/*-diagnosis.md          ← previous debug sessions (similar issues)
+app/requirements/**/*-diagnosis.md      ← previous debug sessions (similar issues, in-progress or archived)
 ```
 
 Gather issue information:
@@ -183,7 +183,7 @@ Common AL root causes by scenario:
 
 ### Step 4: Document Diagnosis (MANDATORY)
 
-Create `requirements/<issue-kebab-case>-diagnosis.md` before proposing any fix:
+Create `app/requirements/in-progress/<issue-kebab-case>/<issue-kebab-case>-diagnosis.md` before proposing any fix:
 
 ```markdown
 # Debug Session: <Issue Title>

@@ -707,14 +707,15 @@ Include performance findings in review:
 
 ### Context Files to Read Before Review
 
-Before reviewing implementation, **ALWAYS check for context** in `requirements/`:
+Before reviewing implementation, **ALWAYS check for context** in `app/requirements/in-progress/`
+(`guides/` at the repo root is documentation output, not requirement context — don't confuse the two):
 
 ```
 Checking for context:
-1. requirements/*.architecture.md → Architectural design (validate compliance)
-2. requirements/*.spec.md → Technical specifications (validate structure)
-3. requirements/*-plan.md → Execution plan (validate phase objectives)
-4. requirements/*.test-plan.md → Test strategy (validate test coverage)
+1. app/requirements/in-progress/**/*.architecture.md → Architectural design (validate compliance)
+2. app/requirements/in-progress/**/*.spec.md → Technical specifications (validate structure)
+3. app/requirements/in-progress/**/*-plan.md → Execution plan (validate phase objectives)
+4. app/requirements/in-progress/**/*.test-plan.md → Test strategy (validate test coverage)
 5. CLAUDE.md → Project conventions and configuration (project root)
 ```
 
@@ -751,7 +752,7 @@ Checking for context:
 **Integration Pattern:**
 ```markdown
 1. agent `al-conductor` delegates review → You receive phase context + criteria
-2. Read requirements/ context → *.architecture.md, *.spec.md, *.test-plan.md
+2. Read app/requirements/in-progress/ context → *.architecture.md, *.spec.md, *.test-plan.md
 3. Analyze changes → `git diff`, `al compile` output, the passed test results
 4. Verify AL criteria → Event-driven, naming, structure, performance
 5. Classify issues → CRITICAL/MAJOR/MINOR severity

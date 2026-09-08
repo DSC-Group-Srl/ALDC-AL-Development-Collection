@@ -623,16 +623,18 @@ Remember: You are a tactical implementation specialist. You execute with precisi
 
 ### Context Files to Read Before Implementation
 
-Before starting any implementation task, **ALWAYS check for context** in `requirements/` (and `docs/` for legacy files):
+Before starting any implementation task, **ALWAYS check for context** in
+`app/requirements/in-progress/` (and legacy `docs/`/`requirements/` folders from before this
+convention, if the project predates it):
 
 ```
 Checking for context:
-1. requirements/*.architecture.md → Architectural designs (follow patterns)
-2. requirements/*.spec.md → Technical specifications (use object IDs)
-3. requirements/*-plan.md → Execution plans (understand phases)
-4. requirements/*.test-plan.md → Test strategies (align tests)
+1. app/requirements/in-progress/**/*.architecture.md → Architectural designs (follow patterns)
+2. app/requirements/in-progress/**/*.spec.md → Technical specifications (use object IDs)
+3. app/requirements/in-progress/**/*-plan.md → Execution plans (understand phases)
+4. app/requirements/in-progress/**/*.test-plan.md → Test strategies (align tests)
 5. CLAUDE.md at project root → Key decisions and project context
-Also check docs/ (legacy folder) for older specs and architecture docs
+Also check legacy docs/ or flat requirements/ folders for older specs and architecture docs
 ```
 
 **Why this matters**:
@@ -667,7 +669,7 @@ Also check docs/ (legacy folder) for older specs and architecture docs
 **Integration Pattern:**
 ```markdown
 1. User requests implementation → al-developer activated
-2. Read requirements/ context → arch.md, spec.md, plan.md (+ docs/ legacy)
+2. Read app/requirements/in-progress/ context → arch.md, spec.md, plan.md (+ legacy docs/ if present)
 3. Load AL rules → apply AL guidelines
 4. Implement with tools → compile, validate (hand off tests/deploy)
 5. Continuous validation → `al compile` after each change

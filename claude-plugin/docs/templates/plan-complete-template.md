@@ -1,6 +1,9 @@
 # Template — Plan Completion Report
 
-Use this template verbatim when writing `.github/plans/<plan-name>/<plan-name>-complete.md`. Consolidate data from all phase-complete files. Replace placeholders, remove sections that do not apply, do not invent additional structure.
+Use this template verbatim when writing `app/requirements/{req_status}/<plan-name>/<plan-name>-complete.md`
+(`{req_status}` = `in-progress` while active, `archived` once the requirement ships). Consolidate data
+from all phase-complete files. Replace placeholders, remove sections that do not apply, do not
+invent additional structure.
 
 ---
 

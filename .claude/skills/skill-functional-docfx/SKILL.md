@@ -26,7 +26,7 @@ language for non-technical BC users.
 Every app gets **two parallel sites**, built independently:
 
 ```
-docs/functional/
+guides/functional/
 ├── it-IT/          ← Italian site (primary)
 │   ├── docfx.json
 │   ├── toc.yml
@@ -52,7 +52,7 @@ The functional site shares the developer site's CSS template folder:
 template path in docfx.json → "../../developer/en-US/template/ContentTemplate"
 ```
 No separate template folder is needed. (The extra `../` and the `en-US` segment matter: from
-`docs/functional/it-IT/docfx.json` it's two levels up to `docs/`, then down through
+`guides/functional/it-IT/docfx.json` it's two levels up to `guides/`, then down through
 `developer/en-US/template/ContentTemplate` — the developer site's own English-only locale
 folder, created by `skill-aldoc` or `skill-developer-docfx`.)
 
@@ -312,9 +312,10 @@ and any setup dependency that is easy to misconfigure.
 
 Copy the template below for each language variant. Update the four metadata values.
 The template path `../../developer/en-US/template/ContentTemplate` assumes the standard repo
-structure where `docs/functional/` and `docs/developer/` are siblings under `docs/`, and that
+structure where `guides/functional/` and `guides/developer/` are siblings under `guides/` — at the
+repo root, one level back from `app/`, never nested inside it — and that
 the developer site lives in its own `en-US` locale folder (two levels up from
-`docs/functional/{it-IT,en-US}/`, then down into `developer/en-US/`).
+`guides/functional/{it-IT,en-US}/`, then down into `developer/en-US/`).
 
 ```json
 {
@@ -400,7 +401,7 @@ Copy-Item $css "C:\<repo>\docs\functional\it-IT\public\main.css"
 Copy-Item $css "C:\<repo>\docs\functional\en-US\public\main.css"
 ```
 
-The shared developer template folder (`docs/developer/en-US/template/ContentTemplate`) already
+The shared developer template folder (`guides/developer/en-US/template/ContentTemplate`) already
 contains its own `main.css` for the developer site — do not overwrite it.
 The functional sites each carry their own copy in their own `public\` folder.
 

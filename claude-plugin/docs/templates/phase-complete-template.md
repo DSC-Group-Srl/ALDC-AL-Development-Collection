@@ -1,6 +1,10 @@
 # Template — Phase Completion Report
 
-Use this template verbatim when writing `.github/plans/<plan-name>/<plan-name>-phase-<N>-complete.md`. Replace placeholders, remove sections that do not apply (e.g. tests block when no tests were generated), do not invent additional structure.
+Use this template verbatim when writing
+`app/requirements/{req_status}/<plan-name>/<plan-name>-phase-<N>-complete.md` (`{req_status}` =
+`in-progress` while active, `archived` once the requirement ships). Replace placeholders, remove
+sections that do not apply (e.g. tests block when no tests were generated), do not invent
+additional structure.
 
 ---
 
@@ -48,7 +52,7 @@ Use this template verbatim when writing `.github/plans/<plan-name>/<plan-name>-p
 - Skills run: {al-performance-review, al-security-review, al-style-review}
 - Outcome: {completed | no-knowledge | not-applicable | partial | failed}
 - Findings: {N} (blocker/major/minor/info) — citations: {N}
-- Raw report: `.github/plans/<plan>/<plan>-bcquality-phase-<N>.json`
+- Raw report: `app/requirements/{req_status}/<plan>/<plan>-bcquality-phase-<N>.json`
 
 **Review Status:** {APPROVED / APPROVED with minor recommendations / NEEDS_REVISION}
 

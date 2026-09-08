@@ -11,7 +11,7 @@ Two independent checks (Nivel 4 of the evidencing design):
      (multi-root), so there is no in-repo submodule gitlink to check.
 
   2. Citation resolvability — every knowledge-file path cited in a persisted
-     report (`.github/plans/**/*-review-phase-*.json`, the canonical superset,
+     report (`app/requirements/**/*-review-phase-*.json`, the canonical superset,
      and `**/*-bcquality-*.json`, the derived BCQuality view) must resolve to a
      real file inside the external BCQuality clone given by `--bcquality-root`
      (CI clones it at the pinned SHA). collect_citations recurses into
@@ -99,7 +99,7 @@ def collect_citations(report: dict) -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Validate BCQuality evidence.")
-    ap.add_argument("--plans-dir", default=".github/plans")
+    ap.add_argument("--plans-dir", default="app/requirements")
     ap.add_argument("--audits-dir", default=".github/audits")
     ap.add_argument("--bcquality-root", default=None,
                     help="path to the external BCQuality clone "
