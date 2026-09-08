@@ -42,7 +42,8 @@ fi
 # No Node.js at all - try to install Node.js LTS (which bundles npx) via
 # whatever non-interactive package manager is already on this machine.
 # Deliberately skip anything that could hang on a prompt (no sudo without
-# -n, no piping a remote installer script into bash).
+# -n, no piping a remote installer script into bash) - a package manager's
+# own signature/provenance checks are the safety line we don't want to skip.
 install_msg=""
 if command -v winget >/dev/null 2>&1; then
   if winget install --id OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements >/dev/null 2>&1; then
@@ -56,10 +57,26 @@ elif command -v apt-get >/dev/null 2>&1; then
   if sudo -n apt-get update >/dev/null 2>&1 && sudo -n apt-get install -y nodejs npm >/dev/null 2>&1; then
     install_msg="installed via 'apt-get install -y nodejs npm'"
   fi
+elif command -v dnf >/dev/null 2>&1; then
+  if sudo -n dnf install -y nodejs npm >/dev/null 2>&1; then
+    install_msg="installed via 'dnf install -y nodejs npm'"
+  fi
+elif command -v yum >/dev/null 2>&1; then
+  if sudo -n yum install -y nodejs npm >/dev/null 2>&1; then
+    install_msg="installed via 'yum install -y nodejs npm'"
+  fi
+elif command -v pacman >/dev/null 2>&1; then
+  if sudo -n pacman -Sy --noconfirm nodejs npm >/dev/null 2>&1; then
+    install_msg="installed via 'pacman -S nodejs npm'"
+  fi
+elif command -v zypper >/dev/null 2>&1; then
+  if sudo -n zypper install -y nodejs npm >/dev/null 2>&1; then
+    install_msg="installed via 'zypper install -y nodejs npm'"
+  fi
 fi
 
 if [ -n "$install_msg" ]; then
   emit "Node.js/npx was missing entirely and Node.js was just $install_msg. The nab-al-tools MCP server (.mcp.json) needs it - restart this session so the refreshed PATH takes effect."
 else
-  emit "Node.js/npx (npx is bundled with Node.js >= $MIN_NODE_MAJOR) is not installed and could not be auto-installed (no winget/brew found, and apt requires passwordless sudo which is not configured here). The nab-al-tools MCP server (.mcp.json) will not start until Node.js >= $MIN_NODE_MAJOR is installed from https://nodejs.org or your platform's package manager."
+  emit "BLOCKING: Node.js/npx (npx is bundled with Node.js >= $MIN_NODE_MAJOR) is not installed and could not be auto-installed (no winget/brew/dnf/yum/pacman/zypper found, or the package manager needs interactive sudo which is not configured here). The nab-al-tools MCP server (.mcp.json) cannot start without it. Refuse any task that needs nab-al-tools (XLIFF/translation creation, refresh, or review-state work) until the user installs Node.js >= $MIN_NODE_MAJOR from https://nodejs.org or their platform's package manager and restarts the session - do not substitute hand-written or guessed translations for the real tool."
 fi

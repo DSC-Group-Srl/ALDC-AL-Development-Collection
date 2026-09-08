@@ -37,7 +37,12 @@ url="https://github.com/microsoft/BCQuality.git"
 ref="main"
 pin=""
 entry="skills/entry.md"
-default_home="${HOME:-${USERPROFILE:-.}}/.claude/bcquality"
+# NEVER fall back to "." (the current working directory, i.e. the repo the user is
+# working in) if both HOME and USERPROFILE are unset - that would make BCQuality
+# write files straight into the project. Fall back to a neutral OS temp location
+# instead; still user-scope in spirit, just not tied to a resolvable home dir.
+safe_user_root="${HOME:-${USERPROFILE:-${TMPDIR:-${TEMP:-/tmp}}/.claude-bcquality-fallback}}"
+default_home="$safe_user_root/.claude/bcquality"
 
 # Source and version ship with the plugin in bcquality.pin — the single source of
 # truth, rewritten by the weekly bump workflow. Resolved from this script's own
@@ -87,6 +92,19 @@ if [ -f "$ALDC" ]; then
   [ -n "${r:-}" ] && ref="$r"
   [ -n "${p:-}" ] && pin="$p"
 fi
+
+# BCQuality must never write inside the repo the user is working in. A relative
+# aldc.yaml "home:" (or one that resolves under the current directory) would do
+# exactly that, so reject anything that is not an absolute path (POSIX or a
+# Windows drive-letter path) and fall back to the real shared user-scope cache.
+home_override_note=""
+case "$default_home" in
+  /*|[A-Za-z]:\\*|[A-Za-z]:/*) : ;;
+  *)
+    home_override_note=" aldc.yaml requested a relative BCQuality home (${default_home}), which was rejected to avoid writing into the project repo - using the shared user-scope cache instead."
+    default_home="$safe_user_root/.claude/bcquality"
+    ;;
+esac
 
 home="${BCQUALITY_HOME:-$default_home}"
 entrypath="$home/$entry"
@@ -141,8 +159,8 @@ EOF
 if [ -f "$entrypath" ]; then
   apply_custom_overlay "$home"
   custom_n=$(custom_layer_files)
-  custom_note=""
-  [ "${custom_n:-0}" -gt 0 ] && custom_note=" DSC custom layer overlaid (${custom_n} files) - it wins over the microsoft and community layers."
+  custom_note="$home_override_note"
+  [ "${custom_n:-0}" -gt 0 ] && custom_note="${custom_note} DSC custom layer overlaid (${custom_n} files) - it wins over the microsoft and community layers."
   sha=$(git -C "$home" rev-parse --short HEAD 2>/dev/null || echo unknown)
   now=$(date +%s)
   last=$(cat "$stamp" 2>/dev/null || echo 0)
@@ -156,7 +174,7 @@ if [ -f "$entrypath" ]; then
 else
   if command -v git >/dev/null 2>&1 && acquire_lock; then
     spawn_background_sync
-    emit "BCQuality is not installed yet. A one-time background install just started at ${home} - a shared, user-scope cache reused by every project on this machine, not a per-project clone. It will not be ready this session. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. It should be ready on your next session."
+    emit "BCQuality is not installed yet. A one-time background install just started at ${home} - a shared, user-scope cache reused by every project on this machine, not a per-project clone. It will not be ready this session. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. It should be ready on your next session.${home_override_note}"
   else
     emit "BCQuality is ABSENT (no ${entrypath}) and could not be auto-installed right now - git is missing, or an install/refresh from another session is already in flight. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. This is the pre-BCQuality ALDC review, not a stub."
   fi

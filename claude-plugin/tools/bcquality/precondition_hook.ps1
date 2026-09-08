@@ -100,6 +100,15 @@ if (Test-Path $aldc) {
     if ($p) { $pin = $p.Trim() }
 }
 
+# BCQuality must never write inside the repo the user is working in. A relative
+# aldc.yaml "home:" would do exactly that, so reject anything that is not an
+# absolute path and fall back to the real shared user-scope cache instead.
+$homeOverrideNote = ''
+if (-not [System.IO.Path]::IsPathRooted($defaultHome)) {
+    $homeOverrideNote = " aldc.yaml requested a relative BCQuality home ($defaultHome), which was rejected to avoid writing into the project repo - using the shared user-scope cache instead."
+    $defaultHome = Join-Path $HOME '.claude/bcquality'
+}
+
 $bcqHome = if ($env:BCQUALITY_HOME) { $env:BCQUALITY_HOME } else { $defaultHome }
 $entrypath = Join-Path $bcqHome $entry
 $target = if ($pin) { $pin } else { $ref }
@@ -167,8 +176,8 @@ finally {
 if (Test-Path $entrypath) {
     Apply-CustomOverlay -Dest $bcqHome
     $customN = Get-CustomLayerFileCount
-    $customNote = ''
-    if ($customN -gt 0) { $customNote = " DSC custom layer overlaid ($customN files) - it wins over the microsoft and community layers." }
+    $customNote = $homeOverrideNote
+    if ($customN -gt 0) { $customNote = "$customNote DSC custom layer overlaid ($customN files) - it wins over the microsoft and community layers." }
     $sha = (git -C $bcqHome rev-parse --short HEAD 2>$null)
     if (-not $sha) { $sha = 'unknown' }
     $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
@@ -187,7 +196,7 @@ else {
     $gitAvailable = [bool](Get-Command git -ErrorAction SilentlyContinue)
     if ($gitAvailable -and (Acquire-Lock)) {
         Spawn-BackgroundSync
-        Emit "BCQuality is not installed yet. A one-time background install just started at $bcqHome - a shared, user-scope cache reused by every project on this machine, not a per-project clone. It will not be ready this session. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. It should be ready on your next session."
+        Emit "BCQuality is not installed yet. A one-time background install just started at $bcqHome - a shared, user-scope cache reused by every project on this machine, not a per-project clone. It will not be ready this session. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. It should be ready on your next session.$homeOverrideNote"
     }
     else {
         Emit "BCQuality is ABSENT (no $entrypath) and could not be auto-installed right now - git is missing, or an install/refresh from another session is already in flight. Apply the BCQuality precondition: set bcquality.outcome to not-applicable, skip the BCQuality consultation, and review natively via the FULL A-G checklist (reactivate B Naming via al-naming-conventions, D Performance via al-performance plus skill-performance, E Error-handling via al-error-handling, and the commit-in-subscriber part of A via al-events; permissions via skill-permissions). Cap confidence at medium; secrets and security have no native check. NEVER block or fail the review for the missing layer. This is the pre-BCQuality ALDC review, not a stub."

@@ -52,4 +52,20 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
     }
 }
 
-Emit "npx (the 'npx' command, bundled with Node.js >= $MinNodeMajor) is not installed and could not be auto-installed (winget install failed or is unavailable). The nab-al-tools MCP server (.mcp.json) will not start until Node.js >= $MinNodeMajor is installed from https://nodejs.org or winget."
+if (Get-Command choco -ErrorAction SilentlyContinue) {
+    & choco install nodejs-lts -y *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Emit "npx was missing and Node.js was just installed via 'choco install nodejs-lts'. The nab-al-tools MCP server (.mcp.json) needs it - restart this session so the refreshed PATH takes effect."
+        exit 0
+    }
+}
+
+if (Get-Command scoop -ErrorAction SilentlyContinue) {
+    & scoop install nodejs-lts *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Emit "npx was missing and Node.js was just installed via 'scoop install nodejs-lts'. The nab-al-tools MCP server (.mcp.json) needs it - restart this session so the refreshed PATH takes effect."
+        exit 0
+    }
+}
+
+Emit "BLOCKING: npx (the 'npx' command, bundled with Node.js >= $MinNodeMajor) is not installed and could not be auto-installed (winget/choco/scoop all failed or are unavailable). The nab-al-tools MCP server (.mcp.json) cannot start without it. Refuse any task that needs nab-al-tools (XLIFF/translation creation, refresh, or review-state work) until the user installs Node.js >= $MinNodeMajor from https://nodejs.org, winget, choco, or scoop and restarts the session - do not substitute hand-written or guessed translations for the real tool."
