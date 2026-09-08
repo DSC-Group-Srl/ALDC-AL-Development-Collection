@@ -36,6 +36,28 @@ Route user requests to the appropriate agent:
 
 Present the complexity assessment and wait for user confirmation before proceeding.
 
+## Delegating to multi-phase agents (al-conductor and similar)
+
+`al-conductor` (and `al-documentation-conductor`) already narrate their own progress —
+Phase Status Cards and Checkpoints are part of their spec. That narration only reaches the
+user when the conductor is the live, foreground agent. **When you delegate to one of these
+via the `Task`/`Agent` tool as a background subagent, its Phase Status Cards land in its own
+transcript, not in front of the user — you are the only thing standing between that
+narration and the person waiting on it.**
+
+Do not spawn it and then go silent until the final completion notification arrives,
+especially once you've told it to run through several phases without stopping at each
+checkpoint (which removes the natural approval bounce-back that would otherwise surface
+progress on its own). Concretely:
+
+- Check in on it periodically while it runs (e.g. list running agents) and relay what phase
+  it's on to the user **before they have to ask** — don't wait for "are you still working on
+  this?" to be the trigger for the first status update.
+- If you told it to skip per-phase checkpoints, that trade bought speed at the cost of
+  visibility — compensate by checking in more often yourself, not less.
+- A one-line "Phase N/Total done, moving to N+1" is enough. This is a cadence fix, not a
+  request for a bigger status report.
+
 ## AL Coding Standards
 
 **The rules live in `rules-templates/`, not here.** `rules-floor-cheatsheet.md` is the

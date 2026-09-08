@@ -86,6 +86,29 @@ Strictly follow the **Planning → Implementation → Review → Commit** proces
    - Assess complexity: Simple (1-2 phases), Medium (3-5 phases), Complex (6-10 phases)
    - Confirm AL context: Extension type, base objects involved, AL-Go structure
 
+   **Proportionality gate — before doing anything else, check whether this request is actually
+   LOW complexity per this file's own routing table (§ "Recommended Workflow" above):
+   isolated, independent fixes with the root cause and file:line already known for each, no new
+   architectural decision, no cross-cutting design left open.** That table already says LOW
+   complexity is `al-spec-create → agent al-developer (direct implementation)`, not conductor.
+   A user asking for `al-conductor` by name is not, on its own, evidence the work needs full TDD
+   orchestration — they may simply not have known there's a lighter path, or be reusing a habit
+   from a past MEDIUM/HIGH task. If the request matches LOW on inspection, stop before Step 3
+   (do not spend a Task call on al-planning-subagent yet) and show a compact checkpoint:
+
+   ```
+   ⚠️ Questo si qualifica come LOW complexity (N fix indipendenti, causa già nota per ciascuno,
+   nessuna decisione architetturale aperta). Per il routing di questo plugin, LOW va a
+   al-developer in implementazione diretta, non al ciclo TDD completo di al-conductor
+   (Planning + N fasi, ciascuna con implement + review dedicati + ricompilazione).
+   Procedo comunque con il ciclo completo, o preferisci che deleghi ad al-developer?
+   ```
+
+   Proceed with full conductor orchestration only after the user confirms — either explicitly
+   ("sì, usa comunque conductor") or implicitly by declining the al-developer alternative. Never
+   skip this gate silently just because conductor was named explicitly; never block on it either
+   — one checkpoint, then respect whatever the user picks.
+
 2. **Check for Input Documents**: Before delegating research, check if you have:
    - Architectural design from al-architect → Use to guide planning
    - Specification from al-spec-create → Reference object structure
