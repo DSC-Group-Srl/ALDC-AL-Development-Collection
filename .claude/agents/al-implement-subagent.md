@@ -67,12 +67,14 @@ Before writing any test code:
 - Apply AL performance patterns (SetLoadFields, early filtering)
 - Use event-driven architecture (subscribers/publishers)
 
-### Step 5: Verify Build Compiles
-- Check for 0 compilation errors
-- Review warnings and address critical ones
+### Step 5: Verify Build Compiles — All ALCops On, Zero New Warnings
+- **Every** `al_build`/`al_compile` call this phase, not just the first: pass `enableCodeAnalysis=true` and the **complete** analyzer set (`${CodeCop}`, `${PerTenantExtensionCop}`/`${AppSourceCop}`, `${UICop}`, plus the full ALCops suite — ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop, Common) — never rely on "server startup configuration" to have them on, and never treat `onlyErrors=true` as your final check (per `compiler-authority-protocol.md` §0, which names the exact list — don't improvise a subset of it)
+- After compiling, pull **al-mcp** `al_getdiagnostics` scoped to every file you created or edited this phase, with no severity filter — not just the build's pass/fail flag
+- 0 compilation errors, and **0 new warnings** on any line you wrote or modified — a pre-existing warning on code you didn't touch isn't yours to fix, but one on your own change must be resolved, not just noted
 - If a build fails with no clear cause, the project depends on a sibling project (test app on base app), or a symbol refresh doesn't seem to register — Load `skill-al-mcp-workspace` before spending more turns on it
 - If the build/compile *call itself* fails or times out (not a compiler diagnostic) — follow the tool-failure protocol (see `<boundary_rules>`): one alternate attempt, then stop and classify TOOL_BLOCKED vs CODE_ISSUE
-- If a real diagnostic (`ALxxxx` + file:line) fires against code you just wrote — follow the compiler-authority protocol (see `<boundary_rules>`): trust the diagnostic, verify the correct syntax before retrying, never comment out/defer the feature to route around it
+- If a real diagnostic (`ALxxxx`/analyzer code + file:line, error OR warning) fires against code you just wrote — follow the compiler-authority protocol (see `<boundary_rules>`): trust the diagnostic, verify the correct syntax before retrying, never comment out/defer the feature to route around it
+- Report the diagnostics you found and resolved (or, for a pre-existing warning you left alone, name it and say why) in your Phase Summary — don't silently drop this from the report
 
 ### Step 6: Refactor If Needed (REFACTOR State)
 - Improve code quality without changing behavior
@@ -453,7 +455,7 @@ search. Omit the section if no subscribers were added this phase.)*
 
 ### Build Status
 - Errors: {N}
-- Warnings: {N}
+- Warnings: {N new on touched lines} ({N pre-existing left untouched — list file:line + code, or "none"})
 
 ### Issues / Notes
 - **Deviations:** {Any deviations from spec/architecture — or "None"}

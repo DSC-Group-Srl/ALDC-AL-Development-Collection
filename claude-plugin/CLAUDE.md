@@ -24,7 +24,7 @@ Route user requests to the appropriate agent:
 | Diagnose a bug / incident (existing code) | `aldc:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `aldc:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
 | Document an app end-to-end (on demand) | `aldc:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
-| Extract user stories/use cases + generate or customize demo data | `aldc:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then generates a Contoso-style Configure+Generate AL demo dataset; bootstrap and incremental (diff-based) modes |
+| Extract user stories/use cases + generate or customize demo data | `aldc:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then delegates the Contoso Demo Tool integration (harness, then data content) to `al-developer` — read-only on AL code itself; bootstrap and incremental (diff-based) modes |
 
 ## Complexity Routing
 
@@ -115,7 +115,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 
 ### Multi-project workspaces (app + test app, app + performance app, …)
 
-DSC repos routinely put the base app, test app, and performance app in sibling folders under one `.code-workspace` (see `app/`, `app-test/`, `app-performance/`). This is where agents most often get confused about "symbols not updating." **This CLAUDE.md is a plugin-authoring reference and is not reliably visible to a runtime agent working in a customer's project** — the full, agent-facing version of this guidance (verified `al_build scope='all'` vs. `al workspace compile` behavior, the canonical-path gotcha, the `al_downloadsymbols` stickiness bug, and more) lives in **`skill-al-mcp-workspace`**. Agent/skill/command prose that needs this must tell the agent to load that skill, not to "see CLAUDE.md."
+DSC repos routinely put the base app, test app, and performance app in sibling folders under one `.code-workspace` (see `app/`, `app-test/`, `app-performance/`) — and, once `al-demo-architect` has run, a fourth sibling `app-demo/` holding the Contoso Demo Tool integration (`skill-demo-data`), dependent on the base app. This is where agents most often get confused about "symbols not updating." **This CLAUDE.md is a plugin-authoring reference and is not reliably visible to a runtime agent working in a customer's project** — the full, agent-facing version of this guidance (verified `al_build scope='all'` vs. `al workspace compile` behavior, the canonical-path gotcha, the `al_downloadsymbols` stickiness bug, and more) lives in **`skill-al-mcp-workspace`**. Agent/skill/command prose that needs this must tell the agent to load that skill, not to "see CLAUDE.md."
 
 Headline fact (get this into any prose referencing multi-project builds): **`al_build scope='all'` does not rebuild or refresh a sibling dependent project** — it only builds the target project plus its own upstream dependencies, against its own isolated `.alpackages`. The verified way to keep a base app and its test app in sync in one command is `Bash: al workspace compile <workspaceFile>`, which compiles every project in the manifest in dependency order against one shared package cache.
 

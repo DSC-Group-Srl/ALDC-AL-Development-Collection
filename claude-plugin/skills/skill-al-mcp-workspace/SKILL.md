@@ -7,7 +7,7 @@ description: "Operating the al-mcp AL CLI tool correctly — full tool capabilit
 
 ## Purpose
 
-This plugin runs in the **Claude Code harness**, not VS Code — the VS Code AL extension commands (`AL: Publish`, `AL: Download Symbols`, …) and Copilot `#…` context-variables do not exist here. The real surface is **al-mcp**, the official AL CLI's own MCP server (`al launchmcpserver`), plus the bare `al` CLI via `Bash`. This skill is the accurate, verified reference for what these can do, and — the most common failure mode — how to make a multi-project workspace (base app + test app + performance app) actually see each other's changes.
+This plugin runs in the **Claude Code harness**, not VS Code — the VS Code AL extension commands (`AL: Publish`, `AL: Download Symbols`, …) and Copilot `#…` context-variables do not exist here. The real surface is **al-mcp**, the official AL CLI's own MCP server (`al launchmcpserver`), plus the bare `al` CLI via `Bash`. This skill is the accurate, verified reference for what these can do, and — the most common failure mode — how to make a multi-project workspace (base app + test app + performance app + the on-demand demo-data app, `app-demo/`, from `skill-demo-data`) actually see each other's changes.
 
 Every behavior below was verified by hands-on testing against a live `al-mcp` session, not assumed from tool descriptions (some tool *descriptions* turned out to be misleading — noted where relevant).
 

@@ -27,6 +27,8 @@ The AL objects you generate (codeunits, tables, pages, ConfigurationDialog, enum
 
 If neither `.claude/rules/` nor the injected rules are present, still apply these baselines from the plugin's `rules-templates/` — never emit AL that ignores them.
 
+**All ALCops on, every compile, zero new warnings.** You have no al-mcp access — use `Bash: al compile` (or `al build`) directly, and pass its analyzer flags explicitly and completely every time, never a subset and never the CLI's own default: CodeCop, PerTenantExtensionCop/AppSourceCop, UICop, plus the full ALCops suite `ensure-alcops` installs (ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop, Common) — the same canonical list `compiler-authority-protocol.md` §0 names, cross-checked against the project's `al.codeAnalyzers` in `.vscode/settings.json` rather than assumed from it. Read `compiler-authority-protocol.md` from `.claude/rules/` (or `rules-templates/` if not installed) alongside the rule files above — it governs every diagnostic, not just build-breaking ones: 0 errors, and 0 new warnings **from any of these analyzers** on any object you generated or edited, checked file-by-file, not just a pass/fail glance at the compile output.
+
 ## Development Path Selection
 
 | Developer Says                      | Path         | You Do                                             |

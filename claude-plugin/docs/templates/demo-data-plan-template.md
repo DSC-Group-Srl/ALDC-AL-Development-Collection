@@ -10,25 +10,34 @@
 **Related**: `{req_name}.demo-user-stories.md`, `{req_name}.demo-use-cases.md`
 
 > **HARD GATE**: no AL demo-data object is generated until this document's Status
-> is `Approved`, section 1's integration approach is decided, and the Developer
-> Customization Input section below has been filled in or explicitly waved off
-> by the developer.
+> is `Approved` and the Developer Customization Input section below has been
+> filled in or explicitly waved off by the developer. `al-demo-architect` never
+> writes AL itself — Status moving to `Generated` means `al-developer` has
+> delivered and compiled the harness and data content described here.
 
 ---
 
 ## 1. Integration Approach
 
-**Chosen approach**: [Real integration with Contoso Coffee Demo Dataset / Bespoke Demo Tool]
+**Approach**: Real integration with Microsoft's `Contoso Coffee Demo Dataset`
+(app id `5a0b41e9-7a42-4123-d521-2265186cfb31`) — the only path this workflow
+supports. There is no bespoke Demo Tool fallback; if the target environment
+cannot take this dependency, that is a blocker to resolve with the developer
+before this document can reach `Approved`, not a reason to design a bespoke
+alternative.
 
-**Reasoning**: {Why. If bespoke, state specifically why the real integration
-(dependency on `Contoso Coffee Demo Dataset`, app id
-`5a0b41e9-7a42-4123-d521-2265186cfb31`) isn't viable — e.g. on-prem target that
-can't guarantee that app is present. "Simpler to build our own" is not a valid
-reason — see `skill-demo-data`'s Decision section.}
+**Demo dataset project**: `app-demo/` — [does not exist yet, created by
+al-developer at Pass 1 / already exists from a prior run]. Dependencies:
 
-{**If real integration**: new enum value ID (pinned from this app's `idRanges`),
-its `GetDependencies()` choice and why, and which existing enum module (if any)
-it depends on.}
+| Dependency | id | Why |
+|---|---|---|
+| Contoso Coffee Demo Dataset | `5a0b41e9-7a42-4123-d521-2265186cfb31` | The real integration contract |
+| {Base app name} | {base app id} | The app this dataset demonstrates |
+| {each of the base app's own dependencies, copied verbatim} | {id} | {inherited from the base app — Pass 2 content may reference its objects directly} |
+
+**New enum value ID** (pinned from `app-demo`'s own `idRanges`): {value}
+**`GetDependencies()` choice and why**: {which existing enum module, if any,
+this module's data is layered on top of, or "Common Module only"}
 
 ## 2. Proposed Modules
 
@@ -101,15 +110,16 @@ Mirrors Contoso's own Configure fields (e.g. "Location Bin", "Customer No.",
 ## Rules
 
 - Every module must trace to at least one use case in `{req_name}.demo-use-cases.md`.
-- Section 1's approach must default to real integration; bespoke requires a
-  stated, specific reason it isn't viable, checked against `skill-demo-data`'s
-  Decision criteria — not chosen out of habit.
+- Section 1 records the real-integration enum/dependency details; there is no
+  bespoke alternative to choose between.
 - Section 4 must be reviewed by the developer before Status can move to `Approved`
   — a blank section is a valid review outcome (defaults apply) but it must be a
   deliberate blank, not a skipped step.
-- On `Approved`, `al-demo-architect` loads `skill-demo-data` and generates exactly
-  the modules listed in section 2 minus anything excluded in section 4, using the
-  approach recorded in section 1.
+- On `Approved`, `al-demo-architect` delegates to `al-developer` in two passes
+  per module — a harness brief (structure, no data) and, after that compiles,
+  a data-content brief (the resolved roles and concrete records) — per
+  `skill-demo-data`'s Pass 1/Pass 2 split. `al-demo-architect` never writes or
+  compiles AL itself.
 - After generation, update Status to `Generated` and record the result in
   `{req_name}.demo-data-manifest.json` — this document itself is never deleted or
   overwritten by a later incremental run; a new run appends a dated new plan

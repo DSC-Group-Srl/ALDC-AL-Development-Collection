@@ -498,6 +498,13 @@ Emit it **symbolically** — one entry per domain `{ domain, status }` where sta
 Use this checklist during review. In `light` mode (see §Review Depth), still walk every item internally, but only write out the items you actually checked-and-flagged or checked-and-note-worthy in the returned report — collapse a clean category to one line rather than restating every passing checkbox.
 
 ```markdown
+### Compiler & Analyzer Diagnostics — All ALCops, No Exceptions
+- [ ] Re-ran **al-mcp** `al_getdiagnostics` yourself (full severities, scoped to every file the phase touched) rather than trusting the implementer's reported counts
+- [ ] Independently confirmed the **complete** analyzer set actually ran — `${CodeCop}`, `${PerTenantExtensionCop}`/`${AppSourceCop}`, `${UICop}`, plus the full ALCops suite (ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop, Common), the canonical list from `compiler-authority-protocol.md` §0 — not just whatever the implementer happened to pass
+- [ ] 0 compilation errors
+- [ ] 0 new warnings on lines the phase changed, from **any** of these analyzers, not only compiler-core `AL####` codes (a pre-existing warning on untouched code is out of scope; flag it as a note, not a finding)
+- [ ] If the implementer's "Warnings" line and your own re-check disagree, or the phase shows warnings with no explanation in the Phase Summary, flag per `compiler-authority-protocol.md`'s reviewer note (MINOR for one unaccounted warning, MAJOR for a pattern — likely means analyzers weren't actually enabled)
+
 ### Event-Driven Architecture
 - [ ] No direct modifications to base BC objects (Tables, Pages, Codeunits)
 - [ ] TableExtensions used for adding fields
