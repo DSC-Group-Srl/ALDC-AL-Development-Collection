@@ -26,8 +26,8 @@
 # Emits the Copilot hook output contract on stdout:
 #   {"hookSpecificOutput":{"hookEventName":"<Event>","additionalContext":"<text>"}}
 #
-# NOTE: messages below deliberately avoid " and \ so a plain printf yields valid
-# JSON with no dependency on python/jq.
+# NOTE: emit() below JSON-escapes the message, so interpolating Windows paths
+# and quoted text into these strings is safe (it was not, before).
 set -euo pipefail
 
 EVENT="${1:-SessionStart}"
@@ -116,8 +116,26 @@ logfile="${home}.log"
 syncscript="${home}.sync.sh"
 
 emit() {
-  # $1 must be free of " and \ (kept that way below) so this stays valid JSON.
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$1"
+  # JSON-escape the message: backslashes, double quotes, CR/LF/TAB.
+  # Windows paths interpolated into the text (CLAUDE_PLUGIN_ROOT, analyzer
+  # folders) are why this cannot be a bare printf -- a C:\Users\... path
+  # emits an invalid \U escape and the harness rejects the whole payload.
+  # The backslash and quote literals are built with printf octal escapes so
+  # this function contains no raw backslash that an editor or generator can
+  # silently halve -- that halving is exactly how the original bug survived.
+  local esc bs dq
+  bs=$(printf '\134')   # backslash
+  dq=$(printf '\042')   # double quote
+  esc="$1"
+  # NOTE: BOTH pattern and replacement MUST be quoted -- an unquoted $bs is
+  # read as the pattern escape character (matches nothing), and an unquoted
+  # replacement collapses $bs$bs back to a single backslash.
+  esc="${esc//"$bs"/"$bs$bs"}"
+  esc="${esc//"$dq"/"$bs$dq"}"
+  esc="${esc//$'\r'/}"
+  esc="${esc//$'\n'/${bs}n}"
+  esc="${esc//$'\t'/${bs}t}"
+  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$esc"
 }
 
 acquire_lock() { mkdir "$lockdir" 2>/dev/null; }
@@ -167,9 +185,9 @@ if [ -f "$entrypath" ]; then
   age_h=$(( (now - last) / 3600 ))
   if [ "$age_h" -ge "$interval_h" ] && acquire_lock; then
     spawn_background_sync
-    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project). A background refresh just started (last synced ${age_h}h ago); this session still uses SHA ${sha} unaffected. Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report.${custom_note}"
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project). A background refresh just started (last synced ${age_h}h ago); this session still uses SHA ${sha} unaffected. Treat it as the citation source of truth for ALL AL work this session -- writing and changing code, not only review and audit: read ${entry} and follow its entry then read then do dispatch, with a task-context you build per docs/templates/bcquality-task-context.md (OMIT any dimension you cannot derive from app.json; never substitute all or w1; send no disabled-skills). Where BCQuality and the project rules disagree, BCQuality wins. Cite every applied finding by its (microsoft|community|custom)/knowledge/... path, never a paraphrase, and never invent a citation or a SHA. Any response that wrote or changed AL MUST end with the symbolic evidence line in the exact marker shape its agent definition specifies (green-circle BCQuality <sha>, books bcq {applied}/{prescribed} applied, brain skills) followed by a '### Knowledge Deviations' section, mandatory even when empty, explaining every prescribed article you did not apply -- an unexplained gap is treated as a defect, and a reworded marker is silently dropped by the metrics parser. Record the SHA ${sha} in your report.${custom_note}"
   else
-    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project, last synced ${age_h}h ago). Treat it as the citation source of truth for review/audit: read ${entry} and follow its entry then read then do dispatch; record the SHA in your report.${custom_note}"
+    emit "BCQuality is PRESENT at ${home} (SHA ${sha}, one shared user-scope cache reused by every project, last synced ${age_h}h ago). Treat it as the citation source of truth for ALL AL work this session -- writing and changing code, not only review and audit: read ${entry} and follow its entry then read then do dispatch, with a task-context you build per docs/templates/bcquality-task-context.md (OMIT any dimension you cannot derive from app.json; never substitute all or w1; send no disabled-skills). Where BCQuality and the project rules disagree, BCQuality wins. Cite every applied finding by its (microsoft|community|custom)/knowledge/... path, never a paraphrase, and never invent a citation or a SHA. Any response that wrote or changed AL MUST end with the symbolic evidence line in the exact marker shape its agent definition specifies (green-circle BCQuality <sha>, books bcq {applied}/{prescribed} applied, brain skills) followed by a '### Knowledge Deviations' section, mandatory even when empty, explaining every prescribed article you did not apply -- an unexplained gap is treated as a defect, and a reworded marker is silently dropped by the metrics parser. Record the SHA ${sha} in your report.${custom_note}"
   fi
 else
   if command -v git >/dev/null 2>&1 && acquire_lock; then

@@ -112,6 +112,7 @@ You run in the **Claude Code harness**, not VS Code. Use these — the VS Code A
 
 #### Build & compile (al-mcp, or the AL CLI directly via Bash)
 - **All ALCops on, every single call — not a subset, not "the defaults."** Pass `enableCodeAnalysis=true` and the complete analyzer list every time you call `al_compile`/`al_build`: `${CodeCop}`, `${PerTenantExtensionCop}`/`${AppSourceCop}`, `${UICop}`, plus the full ALCops suite `ensure-alcops` installs (ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop, Common) — see `compiler-authority-protocol.md` §0 for the canonical list. Never rely on the tool's "server startup configuration" default; a `.vscode/settings.json` that looks right doesn't guarantee al-mcp actually read it for this call. Don't let `onlyErrors=true` be your last check on a file: it's fine for a fast fail-fast pass mid-edit, but every file you touch needs a follow-up `al_getdiagnostics` call with no severity filter before you call it done — a warning on a line you just wrote, from **any** of these analyzers, is not optional to fix.
+- **Never write an ALCops entry as `${analyzerFolder}ALCops.X.dll` in an al-mcp call.** That token is a `.vscode/settings.json` variable; al-mcp expands only `${CodeCop}`, `${AppSourceCop}`, `${PerTenantExtensionCop}` and `${UICop}`. An `${analyzerFolder}` entry is dropped silently, so the build reports success with the entire ALCops suite never having run. Pass the ALCops DLLs as **absolute native paths** — the `SessionStart` hook `tools/al-cli/ensure-alcops.sh` prints the resolved list in its `additionalContext`; copy it from there. If a whole session produces no ALCops-family diagnostic codes at all, assume the list was dropped and say so rather than reporting clean.
 - **al-mcp `al_compile`**: Fastest option — compiles for diagnostics only, no `.app` output.
 - **al-mcp `al_build`** (`scope='current'`, default): Compiles and packages the current project into a `.app`.
 - **`Bash: al workspace compile <workspaceFile>`**: Compile every project in a workspace manifest in dependency order against one shared package cache — this is the way to keep a base app and its test app in sync in one command. **Not** `al_build scope='all'`, which only builds the target project + its own upstream deps against its own isolated `.alpackages` and never refreshes a sibling dependent. Load `skill-al-mcp-workspace` before working across more than one AL project — it has the full verified detail and troubleshooting steps.
@@ -544,6 +545,62 @@ This agent draws on this plugin's own skills. They are **not** auto-loaded — i
 - **bc-dev:skill-demo-data** — When building or extending a Contoso Demo Tool integration (harness or data content) per an `al-demo-architect` brief
 
 **Load = invoke `Skill(skill: "bc-dev:skill-x")`.** Naming a skill without invoking it is not loading it.
+
+## BCQuality — consult it, and show that you did
+
+BCQuality is the **citable** BC knowledge corpus (Microsoft + community + DSC custom
+layers). Inside the conductor's TDD loop the Conductor prescribes a worklist; **running
+standalone you are your own orchestrator**, so nobody hands you one — which is exactly why
+BCQuality evidence has been missing from ordinary `al-developer` work. Build the worklist
+yourself.
+
+**When.** Before writing or changing AL for any non-trivial task — a new object, an event
+subscriber, an API page, a permission set, a performance fix, anything touching posting,
+security or upgrade code. Skip it for a typo, a rename, or a one-line edit you were handed
+verbatim, and say so.
+
+**How.**
+
+1. **Probe.** The `SessionStart` hook reports whether BCQuality is present and at which SHA.
+   Read `<home>/skills/entry.md` (default home `~/.claude/bcquality`, override
+   `$BCQUALITY_HOME`) and follow its **entry → read → do** dispatch. A successful read *is*
+   the mounted signal.
+2. **Build a task-context** per `docs/templates/bcquality-task-context.md` — `goal`,
+   `inputs-available`, `technologies: [al]`, and `bc-version`/`countries`/`application-area`
+   derived from `app.json` and the objects you are actually touching. **OMIT what you cannot
+   determine; never substitute `[all]`/`[w1]`.** Send no `disabled-skills`.
+3. **Apply** what it returns. Where BCQuality and this repo's rules disagree, **BCQuality
+   wins** — our rules cover what its corpus does not reach.
+4. **Cite by path.** Every finding you act on gets its knowledge-file path
+   (`(microsoft|community|custom)/knowledge/…`), not a paraphrase. A claim you cannot cite is
+   your own judgment, and must be labelled as such.
+
+**Graceful degradation is silent, not invisible.** If the probe fails (not installed, or
+still syncing on first use), carry on with the always-on rules and the domain skills — but
+say `🔎 ⚪ native` so the user knows *why* there are no citations. Never fabricate a citation
+or a SHA.
+
+### Evidence line (MANDATORY on any response that wrote or changed AL)
+
+Emit one symbolic line — the same contract the implement-subagent uses, so
+`/bc-dev:al-metrics` can parse standalone work too:
+
+```
+🟢 BCQuality <sha> · 📚 bcq {applied}/{prescribed} applied · 🧠 {skill·tag, …}
+```
+
+Not mounted → use `⚪ BCQuality not mounted · 📚 bcq none · 🧠 {…}` instead.
+
+**These markers are a parsed contract, not decoration** — `tools/metrics/parse_subagent.py`
+matches them literally. Keep the emoji, keep the trailing word `applied`, and keep the
+exact `⚪ BCQuality not mounted` wording; a reworded line is silently dropped from
+`/bc-dev:al-metrics` rather than flagged.
+
+- `{applied}/{prescribed} applied` — articles you consulted vs. actually applied. Nothing
+  relevant found → `📚 bcq none`. The gap **must** equal the number of entries below.
+- Follow it with a **`### Knowledge Deviations`** section — mandatory even when empty —
+  listing every prescribed article you did not apply, with the reason. An unexplained gap is
+  the one thing the metrics pipeline treats as a defect.
 
 ## Skills Evidencing
 

@@ -35,13 +35,58 @@ PACKAGE="alcops.analyzers"
 DLLS=(ALCops.ApplicationCop.dll ALCops.Common.dll ALCops.DocumentationCop.dll ALCops.FormattingCop.dll ALCops.LinterCop.dll ALCops.PlatformCop.dll ALCops.TestAutomationCop.dll)
 
 emit() {
-  # $1 must be free of " and \ so this stays valid JSON.
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$1"
+  # JSON-escape the message: backslashes, double quotes, CR/LF/TAB.
+  # Windows paths interpolated into the text (CLAUDE_PLUGIN_ROOT, analyzer
+  # folders) are why this cannot be a bare printf -- a C:\Users\... path
+  # emits an invalid \U escape and the harness rejects the whole payload.
+  # The backslash and quote literals are built with printf octal escapes so
+  # this function contains no raw backslash that an editor or generator can
+  # silently halve -- that halving is exactly how the original bug survived.
+  local esc bs dq
+  bs=$(printf '\134')   # backslash
+  dq=$(printf '\042')   # double quote
+  esc="$1"
+  # NOTE: BOTH pattern and replacement MUST be quoted -- an unquoted $bs is
+  # read as the pattern escape character (matches nothing), and an unquoted
+  # replacement collapses $bs$bs back to a single backslash.
+  esc="${esc//"$bs"/"$bs$bs"}"
+  esc="${esc//"$dq"/"$bs$dq"}"
+  esc="${esc//$'\r'/}"
+  esc="${esc//$'\n'/${bs}n}"
+  esc="${esc//$'\t'/${bs}t}"
+  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$esc"
 }
 
 join_dirs() {
   local IFS=', '
   echo "${TARGET_DIRS[*]}"
+}
+
+# The literal, absolute codeAnalyzers list to hand an agent.
+#
+# WHY THIS EXISTS: `${analyzerFolder}ALCops.LinterCop.dll` is a *VS Code
+# settings.json* variable. The al-mcp server only documents the four
+# `${CodeCop}` / `${AppSourceCop}` / `${PerTenantExtensionCop}` / `${UICop}`
+# well-known tokens for its `codeAnalyzers` option -- it does NOT expand
+# `${analyzerFolder}`. An agent that pastes the settings.json spelling into an
+# al_compile/al_build call therefore silently runs ZERO ALCops analyzers and
+# still reports a clean build. Emitting resolved absolute paths here is what
+# makes the ALCops half of the analyzer set actually reachable from al-mcp.
+analyzer_arg_list() {
+  local dir="${TARGET_DIRS[0]}" native d
+  # Native (Windows) path form: al-mcp is a .NET process and does not
+  # understand the MSYS /c/Users/... spelling that this hook runs under.
+  if command -v cygpath >/dev/null 2>&1; then
+    native="$(cygpath -w "$dir" 2>/dev/null || echo "$dir")"
+  else
+    native="$dir"
+  fi
+  local out="" sep
+  sep=$(printf '\134')   # backslash via octal, so no raw backslash lives in this file
+  for d in ALCops.ApplicationCop ALCops.DocumentationCop ALCops.FormattingCop            ALCops.LinterCop ALCops.PlatformCop ALCops.Common; do
+    out="${out}${out:+, }${native}${sep}${d}.dll"
+  done
+  echo "$out"
 }
 
 # --- Part 1: VS Code extension, for the interactive editing experience ---
@@ -78,7 +123,7 @@ for dir in "${TARGET_DIRS[@]}"; do
 done
 
 if [ "$NEEDS_DOWNLOAD" -eq 0 ]; then
-  emit "ALCops.*.dll analyzers are already installed and up to date in: $(join_dirs). Let the user know their AL analyzer setup is ready — no action needed."
+  emit "ALCops.*.dll analyzers are installed and up to date in: $(join_dirs). IMPORTANT for every al-mcp al_compile / al_build call this session: pass enableCodeAnalysis=true and this EXACT codeAnalyzers array -- \${CodeCop}, \${PerTenantExtensionCop} or \${AppSourceCop} (whichever matches app.json), \${UICop}, plus these six ABSOLUTE paths: $(analyzer_arg_list). Do NOT write the ALCops entries as \${analyzerFolder}ALCops.X.dll -- that token is a VS Code settings.json variable and al-mcp does not expand it, so those entries are silently dropped and the ALCops suite never runs while the build still reports success. The \${CodeCop}/\${AppSourceCop}/\${PerTenantExtensionCop}/\${UICop} tokens ARE well-known to al-mcp and stay as-is. Report zero new warnings from all of these on any line you write, per compiler-authority-protocol.md section 0."
   exit 0
 fi
 
