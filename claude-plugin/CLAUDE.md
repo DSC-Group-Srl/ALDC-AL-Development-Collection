@@ -34,7 +34,12 @@ Route user requests to the appropriate agent:
 | MEDIUM | 2-3 areas, internal integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
 | HIGH | 4+ phases, external integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
 
-Present the complexity assessment and wait for user confirmation before proceeding.
+Present the complexity assessment and wait for user confirmation before proceeding. For
+**HIGH** complexity, also ask the user whether they want to switch the session to Opus
+before work begins — HIGH-complexity work (4+ phases, external integrations, architecture
+critical) is exactly where the larger model's judgment pays for itself, and the user may
+be running a faster/cheaper model by default. Never switch models yourself; just surface
+the question alongside the complexity assessment and let the user decide.
 
 ## Delegating to multi-phase agents (al-conductor and similar)
 

@@ -397,6 +397,11 @@ Based on requirements, create comprehensive architectural design following secti
 
 3. **Recommend next steps**:
 
+   **HIGH complexity → offer the Opus switch.** If this design was assessed as HIGH
+   complexity (4+ phases, external integrations, architecture critical), ask the user
+   whether they want to switch the session to Opus before handing off to `al-conductor` —
+   do not switch it yourself, just surface the question alongside the recommendation below.
+
    **Architecture Approved — Create Technical Specification**
 
    If single spec:

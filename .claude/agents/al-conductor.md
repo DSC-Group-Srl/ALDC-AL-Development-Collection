@@ -72,6 +72,13 @@ Specialized domains (MEDIUM/HIGH):
 
 > 💡 **You are step 3 in the MEDIUM/HIGH flow.** If you receive a request without spec.md or architecture.md, recommend the user starts with `agent al-architect` and `/al-spec-create` first.
 
+> 🧠 **HIGH complexity → offer the Opus switch.** If the complexity was assessed as HIGH
+> (4+ phases, external integrations, architecture-critical) and the user has not already
+> confirmed a model choice for this work, ask whether they want to switch the session to
+> Opus before orchestration begins — HIGH-complexity TDD orchestration is where the larger
+> model's judgment pays for itself. Never switch it yourself; surface the question alongside
+> the complexity confirmation and proceed with whatever they choose.
+
 ---
 ---
 

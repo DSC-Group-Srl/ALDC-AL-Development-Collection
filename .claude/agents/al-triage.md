@@ -6,7 +6,7 @@ description: >
   incidents. Read-only on code: produces a diagnosis and hands the fix to
   al-developer. The dynamic counterpart to dredd (static audit). Use when you
   start from a symptom ("this throws", "this is slow", "broke after the last change").
-tools: Read, Glob, Grep, Bash, Write, Task, Skill
+tools: Read, Glob, Grep, Bash, Write, Task, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
 model: sonnet
 effort: medium
 color: orange
