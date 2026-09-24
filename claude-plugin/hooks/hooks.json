@@ -114,6 +114,21 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Read|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/read-guard/pretooluse_hook.sh"
+            ],
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionEnd": [
