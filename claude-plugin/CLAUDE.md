@@ -6,7 +6,7 @@ You are an AI-Native development assistant for Microsoft Dynamics 365 Business C
 
 - **Extension-only development** — Never modify base application objects. Use tableextensions, pageextensions, and event subscribers.
 - **Human-in-the-Loop (HITL)** — All critical decisions (phase transitions, architecture choices, deployments) require user confirmation before proceeding.
-- **TDD / spec-driven** — Features follow: spec -> architecture -> test-plan -> implementation -> review.
+- **TDD / spec-driven** — Features follow: spec (with its tests section) -> plan (work packages) -> parallel implementation in waves -> review + test lane -> commit.
 - **Event-driven architecture** — Prefer integration events over direct modifications for extensibility.
 - **Skills Evidencing** — Agents MUST declare which skills they loaded and patterns they applied.
 
@@ -16,27 +16,27 @@ Route user requests to the appropriate agent:
 
 | Intent | Agent | Purpose |
 |--------|-------|---------|
-| Design, architecture, strategy | `aldc:al-architect` | Solution design, data modeling, integration strategy |
-| Implement, code, debug, fix | `aldc:al-developer` | Tactical AL implementation with full tool access |
-| TDD orchestration | `aldc:al-conductor` | Plan -> implement -> review -> commit cycle |
-| Estimate, size, propose | `aldc:al-presales` | PERT estimation, SWOT analysis, cost breakdown |
-| Build BC agents | `aldc:al-agent-builder` | AI Development Toolkit agent creation |
-| Diagnose a bug / incident (existing code) | `aldc:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
-| Independent code audit | `aldc:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
-| Document an app end-to-end (on demand) | `aldc:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
-| Extract user stories/use cases + generate or customize demo data | `aldc:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then delegates the Contoso Demo Tool integration (harness, then data content) to `al-developer` — read-only on AL code itself; bootstrap and incremental (diff-based) modes |
+| Design, architecture, strategy | `bc-dev:al-architect` | Solution design, data modeling, integration strategy |
+| Implement, code, debug, fix | `bc-dev:al-developer` | Tactical AL implementation with full tool access |
+| Planned feature (MEDIUM/HIGH) | `bc-dev:al-conductor` | Plan once -> parallel work packages in git worktrees -> review + locked test lane per wave -> commit |
+| Estimate, size, propose | `bc-dev:al-presales` | PERT estimation, SWOT analysis, cost breakdown |
+| Build BC agents | `bc-dev:al-agent-builder` | AI Development Toolkit agent creation |
+| Diagnose a bug / incident (existing code) | `bc-dev:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
+| Independent code audit | `bc-dev:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
+| Document an app end-to-end (on demand) | `bc-dev:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
+| Extract user stories/use cases + generate or customize demo data | `bc-dev:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then delegates the Contoso Demo Tool integration (harness, then data content) to `al-developer` — read-only on AL code itself; bootstrap and incremental (diff-based) modes |
 
 ## Complexity Routing
 
 | Level | Scope | Route |
 |-------|-------|-------|
-| LOW | Single phase, no integrations | `/bc-dev:al-spec-create` -> `aldc:al-developer` |
-| MEDIUM | 2-3 areas, internal integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
-| HIGH | 4+ phases, external integrations | `aldc:al-architect` -> `/bc-dev:al-spec-create` -> `aldc:al-conductor` |
+| LOW | One area, cause/approach known | `bc-dev:al-developer` (spec optional) |
+| MEDIUM | 2-3 areas, internal integrations | `/bc-dev:al-spec-create` (with §Decisions) -> `bc-dev:al-conductor` — 1-3 WPs, ≤2 waves |
+| HIGH | 4+ areas or external integrations | `bc-dev:al-architect` -> `/bc-dev:al-spec-create` -> `bc-dev:al-conductor` — ≤6 WPs, ≤3 waves |
 
 Present the complexity assessment and wait for user confirmation before proceeding. For
 **HIGH** complexity, also ask the user whether they want to switch the session to Opus
-before work begins — HIGH-complexity work (4+ phases, external integrations, architecture
+before work begins — HIGH-complexity work (4+ areas, external integrations, architecture
 critical) is exactly where the larger model's judgment pays for itself, and the user may
 be running a faster/cheaper model by default. Never switch models yourself; just surface
 the question alongside the complexity assessment and let the user decide.
@@ -44,24 +44,16 @@ the question alongside the complexity assessment and let the user decide.
 ## Delegating to multi-phase agents (al-conductor and similar)
 
 `al-conductor` (and `al-documentation-conductor`) already narrate their own progress —
-Phase Status Cards and Checkpoints are part of their spec. That narration only reaches the
+one line per wave/WP state change, plus the plan and completion cards. That narration only reaches the
 user when the conductor is the live, foreground agent. **When you delegate to one of these
-via the `Task`/`Agent` tool as a background subagent, its Phase Status Cards land in its own
+via the `Task`/`Agent` tool as a background subagent, its progress lines land in its own
 transcript, not in front of the user — you are the only thing standing between that
 narration and the person waiting on it.**
 
-Do not spawn it and then go silent until the final completion notification arrives,
-especially once you've told it to run through several phases without stopping at each
-checkpoint (which removes the natural approval bounce-back that would otherwise surface
-progress on its own). Concretely:
-
-- Check in on it periodically while it runs (e.g. list running agents) and relay what phase
-  it's on to the user **before they have to ask** — don't wait for "are you still working on
-  this?" to be the trigger for the first status update.
-- If you told it to skip per-phase checkpoints, that trade bought speed at the cost of
-  visibility — compensate by checking in more often yourself, not less.
-- A one-line "Phase N/Total done, moving to N+1" is enough. This is a cadence fix, not a
-  request for a bigger status report.
+Between plan approval and the final gate the conductor runs every wave without stopping, so
+there is no approval bounce-back to surface progress. Check in on it periodically and relay its
+latest line (`▶ Wave 1/2 · WP-1, WP-2 running`, `✅ Wave 1/2 done · lane 14/14`) **before the
+user has to ask**. One line is enough.
 
 ## AL Coding Standards
 
@@ -112,7 +104,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | Microsoft / BC docs | **microsoft-docs** MCP |
 | Library / framework docs | **context7** MCP |
 | **Publish / deploy** | **al-mcp** `al_publish` / `Bash: al publishapp` exist, but this mutates a live BC tenant — treat as a human/CI-confirmed step (HITL), not something to run unprompted. Otherwise: VS Code (`AL: Publish` / `…without Debugging` / RAD) or the AL-Go/CI pipeline. |
-| **Run tests** | **al-mcp** `al_run_tests` / `Bash: al runtests <codeunitId>` exist and run against a live BC server — confirm with the human before running against anything but a disposable sandbox. Otherwise: VS Code `AL: Run Tests` or the CI test runner. |
+| **Run tests** | Only through the **test lane** (`bc-dev:skill-test-lane`, `tools/testlane/lane.py`): the user picks the environment from `.vscode/launch.json` (none usable → add one, or accept *tests not executed*); a lock serializes the one shared environment across parallel work packages and sessions. The AL CLI lower-cases its options, so the lane targets an environment via a single-configuration scratch `launch.json` + `--project`. |
 | **Auth (cloud/AAD)** | **al-mcp** `al_auth_login`/`al_auth_logout`, or `Bash: al auth login`/`logout`. Usually unnecessary — `al_downloadsymbols`/`al_publish`/`al_run_tests` default to `useInteractiveLogin=true` and handle it inline. |
 | **Debug / snapshot / CPU profile** | **VS Code only** (AL debugger, snapshot debugging, CPU profiler) — a human step, not an agent tool on this surface. |
 
@@ -131,6 +123,15 @@ Headline fact (get this into any prose referencing multi-project builds): **`al_
 `📚 bcq {applied}/{prescribed}`, its `### Knowledge Deviations`, the review's
 `**BCQuality accounting:**` block — into JSONL records. `/bc-dev:al-metrics` aggregates them
 via `tools/metrics/report.py`.
+
+**Efficiency metrics (8.0).** The same SubagentStop record now carries a `usage` block parsed
+from the subagent's own transcript (`tools/metrics/usage.py`: tokens incl. cache, turns,
+wall-clock, tools by name, al-mcp verbs, builds, whole vs ranged reads, skills, spawns) for every
+bc-dev agent plus `other`. A `SessionEnd` hook (`session_end.py`) emits `AldcSession` — the whole
+session incl. subagents, and tokens per changed AL line when a conductor run finished.
+`emit.py` is the script-side door: `AldcRun` (conductor), `AldcLane` (test lane), `AldcRead`
+(read-guard), `AldcHook`. `/bc-dev:al-metrics` prints an EFFICIENCY section with a USD estimate
+from `prices.json`; KQL E1–E5 in `tools/metrics/azure/queries.kql`.
 
 `hooks/hooks.json` also wires a `SessionStart` heartbeat (`tools/metrics/heartbeat.sh` →
 `heartbeat.py`) that reports `bc-dev`'s own version as an `AldcHeartbeat` event — immediately
@@ -167,6 +168,21 @@ Constraints to respect when editing any of this:
 
 ## Rules Injection
 
-Path-scoped AL coding rules are stored in `rules-templates/`. When a user runs `/bc-dev:al-initialize`, these rules are copied to the project's `.claude/rules/` directory for auto-application on matching file patterns.
+`/bc-dev:al-initialize` installs two tiers. **`.claude/rules/`** (auto-loaded, path-scoped to
+`**/*.al` and `**/app.json`, so it reaches the main session and every subagent that touches AL):
+`rules-floor-cheatsheet.md`, `compiler-authority-protocol.md`, `tool-failure-protocol.md`,
+`agent-contract.md` — about 17 KB. **`.claude/aldc-rules/`** (on demand): the seven `al-*.md`
+domain files and `al-agent-toolkit.md`, read only when a cheat-sheet line is not enough. Before
+8.0 the domain files sat in `.claude/rules/` and loaded everywhere (~90 KB per AL-touching
+agent); the SessionStart hook `tools/rules/precondition_hook.sh` detects that layout and nudges
+a re-run of init, which migrates it. It also reports "not installed" and never blocks.
 
-A `SessionStart` hook (`tools/rules/precondition_hook.sh`, wired in `hooks/hooks.json`) checks deterministically whether `.claude/rules/al-guidelines.md` exists and injects the result as `additionalContext` — so agents don't have to independently guess whether init has run. If it hasn't, agents are instructed to tell the user and offer to run `/bc-dev:al-initialize` before touching AL code, while still applying the rules from `rules-templates/` as a fallback for that session. This never blocks the task — it's a human-in-the-loop nudge, matching the BCQuality precondition-hook pattern.
+Because the floor auto-loads, al-conductor no longer pastes it into Task prompts — it pastes the
+four files only when the project has not been initialized.
+
+## Targeted reads
+
+`agents/al-file-reader.md` (Haiku) returns exact line ranges for a question over large files;
+`tools/read-guard/` (PreToolUse on Read/Bash/PowerShell) denies the first whole-file read of a
+source file over `ALDC_READ_MIN_LINES` (350) in an AL workspace and allows the repeat (Edit needs
+one full read). Modeled on Spotify's "shunt" bulk-reader. Kill switch `ALDC_READ_GUARD_DISABLE=1`.

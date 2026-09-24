@@ -100,21 +100,12 @@ For incremental mode, restrict all three sources to the objects the manifest dif
 flagged as new or changed.
 
 **Knowledge (optional, cited) — probe BCQuality before finalizing the plan.**
-BCQuality lives in **one shared, user-scope cache** — not a per-project clone —
-auto-installed and kept refreshed by the `SessionStart` hook
-(`tools/bcquality/precondition_hook.sh`/`.ps1`). Resolve the location it already
-probed: default `~/.claude/bcquality` (override `$BCQUALITY_HOME`; a project's
-`aldc.yaml → external.bcquality.home`, if present, can still override further)
-and **attempt to read `<home>/<entryPoint>`** (e.g. `~/.claude/bcquality/skills/entry.md`).
-A successful read **is** the mounted signal: consult it scoped to the domains
-this plan actually touches (event patterns if the module hooks the target app's
-events, permission sets for the Configure page, performance for batch inserts)
-and fold cited findings into the plan doc and into the implementation briefs
-you hand `al-developer`. If the probe **fails** (not installed yet, or
-installing in the background for the first time), skip silently — the
-always-on rules and `skill-demo-data` carry the knowledge (graceful
-degradation, same as `al-triage`). Record which happened with one line in the
-plan doc: `🔎 {🟢 BCQuality <sha> | ⚪ native}`.
+Per `.claude/rules/agent-contract.md` §1 (fallback `${CLAUDE_PLUGIN_ROOT}/rules-templates/agent-contract.md`),
+scoped to the domains this plan actually touches (event patterns if the module hooks the target
+app's events, permission sets for the Configure page, performance for batch inserts); fold cited
+findings into the plan doc and into the implementation briefs you hand `al-developer`. Probe
+fails → skip silently; the rules floor and `skill-demo-data` carry the knowledge. Record which
+happened with one line in the plan doc: `🔎 {🟢 BCQuality <sha> | ⚪ native}`.
 
 **Also confirm the dependency is real, not assumed.** Check the target
 environment (BC Online/SaaS vs. on-prem) — the real integration needs the app
@@ -226,11 +217,11 @@ actually inserts what the plan promised (a blank Configure field with no
 matching record, a check-then-insert bug, a FlowField that only resolves after
 posting — none of these fail at compile time). Close that gap explicitly:
 
-1. **Ask `al-developer` to run the module's smoke tests** via `al_run_tests`
-   against a disposable sandbox/test company. This is the same category of
-   action as any other test run in this plugin — `al-developer` will confirm
-   with the developer first before running against anything but a throwaway
-   environment; you don't run tests yourself.
+1. **Ask `al-developer` to run the module's smoke tests** through the test lane
+   (`bc-dev:skill-test-lane`): the developer picks the environment from
+   `.vscode/launch.json`, and the lane serializes the shared environment. You
+   don't run tests yourself. If the developer accepts that no tests will run,
+   report the module as **tests not executed**, never as verified.
 2. **Report the result per module**: tests passed (data verified to land) vs.
    failed (do not report the module as done — hand the failure back to
    `al-developer` for a grounded fix, same compiler-authority-protocol

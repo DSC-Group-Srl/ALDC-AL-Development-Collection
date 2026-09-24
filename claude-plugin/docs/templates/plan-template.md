@@ -1,57 +1,50 @@
-# Template — Plan Document
+# Template — Plan (work-package graph + wave log)
 
-Use this template verbatim when writing `app/requirements/{req_status}/<plan-name>/<plan-name>-plan.md`
-(`{req_status}` = `in-progress` while active, `archived` once the requirement ships) after the
-Phase 1 (Planning) handoff in the AL Conductor workflow. Replace placeholders, remove sections
-that do not apply, do not invent additional structure.
-
----
+`app/requirements/in-progress/{req}/{req}.plan.md`, written by al-conductor after plan approval
+and appended to after every wave. It is also the resume point: a restarted conductor reads it
+and continues after the last logged wave. Replace placeholders; drop sections that are empty.
 
 ```markdown
-## Plan: {Task Title (2-10 words)}
+# Plan: {req} — {title}
 
-{Brief TL;DR — what, how, why. 1-3 sentences.}
+{1–2 sentences: what gets built, why.}
 
-**AL Context:**
-- Base Objects: {Standard BC objects involved}
-- Extension Pattern: {TableExtension, PageExtension, EventSubscriber, etc.}
-- AL-Go Structure: {App project path, Test project path}
-- Dependencies: {Required extensions or packages}
+**Tier:** {MEDIUM|HIGH} · **Base:** {commit sha the run started from} · **Branch:** aldc/{req}
+**Test environment:** {launch.json configuration name | none — tests not executed (accepted by user)}
+**Approved:** {date}
 
-**Phases ({3-10}):**
+## Work packages
 
-1. **Phase {N}: {Title}**
-   - **Objective:** {What is to be achieved}
-   - **AL Objects to Create/Modify:** {Table/TableExtension/Codeunit/Page with IDs and names}
-   - **Event Architecture:** {Subscribers to create, integration events to publish}
-   - **Files/Functions to Modify/Create:** {Path in app/ or test/}
-   - **Tests to Write:** {Test codeunit names, specific test procedures}
-   - **AL Patterns:** {SetLoadFields, error handling, performance considerations}
-   - **Steps:**
-     1. Create test codeunit in `/test`
-     2. Write failing tests
-     3. Run tests to verify failure
-     4. Create AL objects in `/app`
-     5. Implement minimal code to pass tests
-     6. Run tests to verify pass
-     7. Verify no regressions in full test suite
-     8. Apply linting/formatting
+| WP | Title | Wave | Depends on | Owns (globs) | Objects (IDs) | Test codeunits (IDs) | Domains | Review |
+|----|-------|------|-----------|--------------|---------------|----------------------|---------|--------|
+| WP-1 | Data model | 1 | — | `app/src/Feature/Tables/**` | Table 50100 "…", Enum 50101 "…" | 50200 "… Tests" | tables | light |
+| WP-2 | Posting logic | 2 | WP-1 | `app/src/Feature/Posting/**`, `app-test/src/Feature/Posting/**` | Codeunit 50110 "…" | 50210 "…" | events, performance | full |
 
-**Open Questions ({1-5}, ~5-25 words each):**
+**Shared single-writer files** (applied by the conductor per wave, never by a WP):
+permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vscode/*`.
 
-1. {Clarifying question? Option A / Option B / Option C}
+**Codeunit → WP:** 50200 → WP-1 · 50210 → WP-2
+
+## Open questions
+
+1. {question — options} → {answer, once given}
+
+## Wave log
+
+### Wave 1 — {date}
+- WPs: WP-1 · review: {verdict} ({b}/{M}/{m}) · lane: {passed/total | not executed} · fix rounds: {n}
+- Evidence: 🟢 BCQuality {sha} · 📚 {P}/{C}/{D} · 🧠 {skill·tag, …}
+- Shared files applied: {… | none}
+
+## Deferred
+
+- {what} — surfaced in wave {k} by {WP-n | review} — {later wave | backlog}
 ```
 
----
+## Rules
 
-## Plan writing rules
-
-- Include AL-specific context (base objects, extension patterns, AL-Go structure).
-- Specify AL object types and IDs.
-- Document event architecture (subscribers/publishers).
-- Reference AL performance patterns (do not duplicate them — they live in `al-performance.instructions.md`).
-- Follow AL-Go structure (`app/` vs `test/` separation).
-- **Do NOT include code blocks**; describe changes and link to relevant files.
-- **No manual testing/validation** unless explicitly requested.
-- Each phase is incremental and self-contained with a strict TDD cycle.
-- Avoid red/green processes spanning multiple phases for the same code.
+- WP `owns` globs must not overlap; shared files appear in no WP.
+- IDs are allocated here, from the app's and the test app's `idRanges` — workers never choose.
+- MEDIUM: 1–3 WPs in ≤2 waves. HIGH: ≤6 WPs in ≤3 waves. Split only for disjoint files or a
+  real dependency.
+- No code blocks, no step-by-step TDD recipes (the implementer owns the method).

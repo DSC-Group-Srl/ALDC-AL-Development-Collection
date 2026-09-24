@@ -328,7 +328,7 @@ Read the requirement contracts before creating any tests:
 ```
 app/requirements/in-progress/{req_name}/{req_name}.spec.md          ← acceptance criteria to test
 app/requirements/in-progress/{req_name}/{req_name}.architecture.md   ← components to cover
-app/requirements/in-progress/{req_name}/{req_name}.test-plan.md      ← existing plan (if any)
+app/requirements/in-progress/{req_name}/{req_name}.plan.md           ← WP graph: which test codeunit (ID) belongs to which WP
 CLAUDE.md                                            ← context and conventions
 ```
 
@@ -348,14 +348,12 @@ Coverage targets:
 | Error handling paths | 100% |
 | Overall | 85%+ |
 
-### Step 2: Create Test Plan Document
+### Step 2: The test plan is the spec's tests section
 
-Create `app/requirements/in-progress/{req_name}/{req_name}.test-plan.md` using `docs/templates/test-plan-template.md`:
-- List every scenario as Given/When/Then with a test method name
-- Group by unit / integration / UI / edge case
-- Define library codeunits needed
-- Set coverage targets
-- **PAUSE — wait for user approval before implementing**
+There is no separate test-plan document: the spec's tests section lists every scenario as
+Given/When/Then with its test codeunit and method name (approved with the spec). Standalone
+(no spec): list the scenarios in your reply, grouped unit / integration / UI / edge, with the
+library codeunits needed, and wait for the user's go-ahead before implementing.
 
 ### Step 3: Implement Tests (TDD Integration)
 
@@ -422,10 +420,12 @@ end;
 
 ### Step 5: Validate and Report
 
-1. Run full test suite
+1. Run the tests through the test lane (`bc-dev:skill-test-lane`) — environment chosen by the
+   user from `.vscode/launch.json`; if none is available and the user accepts, report
+   **tests not executed**, never a pass
 2. Verify all tests pass — zero tolerance for flaky tests
-3. Update coverage metrics in `app/requirements/in-progress/{req_name}/{req_name}.test-plan.md`
-4. Update `CLAUDE.md` with test results summary
+3. Record the result in the plan's wave log (conductor) or your reply (standalone) — never in
+   the project `CLAUDE.md`
 
 ## References
 

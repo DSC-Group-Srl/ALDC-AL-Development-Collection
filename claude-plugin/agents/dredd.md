@@ -49,7 +49,7 @@ written against the same corpus you are auditing with. Two numbers from differen
 are not comparable, and without the field someone will compare them anyway.
 
 ### Step 2 — Consult BCQuality (probe, don't assume)
-BCQuality lives in **one shared, user-scope cache** — not a per-project clone — auto-installed and kept refreshed by the `SessionStart` hook (`tools/bcquality/precondition_hook.sh`/`.ps1`). Resolve the location it already probed: default `~/.claude/bcquality` (override `$BCQUALITY_HOME`; a project's `aldc.yaml → external.bcquality.home`, if present, can still override further for advanced/pinned use) and **attempt to read `<home>/<entryPoint>`** (e.g. `~/.claude/bcquality/skills/entry.md`) **before** deciding. A successful read **is** the presence signal; consult it scoped to each batch → cited findings. If the probe **fails**, treat the layer as absent: note it, and **expand Step 3 from A/C/F/G to the full A–G** native checklist. A missing knowledge layer **never** aborts the audit — the hook installs it in the background on first use, so it may simply not be ready yet this session.
+Per `.claude/rules/agent-contract.md` §1 (fallback `${CLAUDE_PLUGIN_ROOT}/rules-templates/agent-contract.md`), with a review goal, one consultation per batch → cited findings. Dredd-specific: if the probe **fails**, note it and **expand Step 3 from A/C/F/G to the full A–G** native checklist. A missing knowledge layer **never** aborts the audit.
 
 ### Step 3 — Native residual (what BCQuality doesn't reach)
 Apply the native A–I checks (event-driven architecture, naming/structure, AL-Go separation, performance, error handling, test coverage, feature organization — including **namespaces mirroring the feature folders with correct `using` directives** on runtime ≥ 13.0 / BC 24+, per al-code-style Rule 5 / al-naming Rule 6 — compiler-authority smells, and live compiler/analyzer diagnostics).
@@ -59,20 +59,22 @@ Apply the native A–I checks (event-driven architecture, naming/structure, AL-G
 > **Check I — Live compiler & analyzer diagnostics, all ALCops, no exceptions.** You're read-only on AL code, not read-only on al-mcp: call **al-mcp** `al_getdiagnostics` scoped to the batch's files/folder with no severity filter (or explicit `['error','warning']`), and separately confirm analyzers actually ran by calling `al_compile`/`al_build` yourself with `enableCodeAnalysis=true` and the **complete** analyzer set named in `compiler-authority-protocol.md` §0 (`${CodeCop}`, `${PerTenantExtensionCop}`/`${AppSourceCop}`, `${UICop}`, plus the full ALCops suite — ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop, Common) rather than assuming the project's default config has them all on. Every warning surfaced this way is a finding (MINOR per instance, MAJOR if the volume suggests analyzers were effectively off / never checked) — this check exists precisely because implementers and reviewers can under-report warnings (`compiler-authority-protocol.md` §0), and Dredd's job is to catch what the prescriptive loop missed.
 - **Never write an ALCops entry as `${analyzerFolder}ALCops.X.dll` in an al-mcp call.** That token is a `.vscode/settings.json` variable; al-mcp expands only `${CodeCop}`, `${AppSourceCop}`, `${PerTenantExtensionCop}` and `${UICop}`. An `${analyzerFolder}` entry is dropped silently, so the build reports success with the entire ALCops suite never having run. Pass the ALCops DLLs as **absolute native paths** — the `SessionStart` hook `tools/al-cli/ensure-alcops.sh` prints the resolved list in its `additionalContext`; copy it from there. If a whole session produces no ALCops-family diagnostic codes at all, assume the list was dropped and say so rather than reporting clean.
 
-> **You run standalone — read the governing rule, don't assume it's ambient.** There is no Conductor to inject the instructions and **no `applyTo` auto-apply in this runtime** (and none in Claude Code at all — no editor-attached files). When a domain falls to the native residual, **`Read` its governing `.claude/rules/al-*.md`** and, where the residual names a domain skill (e.g. `bc-dev:skill-performance`, `bc-dev:skill-permissions`), invoke the **Skill** tool for it and judge against it. A domain already owned by an active BCQuality leaf needs no such load — defer to its finding (no double-load).
+> **You run standalone — load the governing rule for a residual domain.** The rules floor and protocols in `.claude/rules/` load once you read an AL file. When a domain falls to the native residual, `Read` its full domain file from `.claude/aldc-rules/al-*.md` (fallback `${CLAUDE_PLUGIN_ROOT}/rules-templates/`) and, where the residual names a domain skill (e.g. `bc-dev:skill-performance`, `bc-dev:skill-permissions`), invoke the **Skill** tool for it and judge against it. A domain already owned by an active BCQuality leaf needs no such load — defer to its finding (no double-load).
+
+> **Large files.** To find the procedure/trigger/field ranges in a file over ~350 lines, ask `al-file-reader` (Task) for locations and `Read` only those ranges (contract §4). It locates; **you** judge — never take a verdict from it.
 
 > **Token discipline — load knowledge & symbols once, then reuse.** Read each BCQuality knowledge file **once** and reuse it across the batches that need it — never invoke the same skill twice in one run. Resolve a base object's symbols **once** via **al-mcp** and reuse them across batches; don't re-query the same symbol per file. Don't re-read a source `.al` already in context this invocation. Re-walking a batch to apply a different check is a **reasoning** pass, not a reload.
 
 ### Step 4 — Verdict & persist
-Return an **advisory verdict** (PASS / CONCERNS / FAIL) with severity-tagged findings (CRITICAL / MAJOR / MINOR), each with `file:line`, problem, impact, and fix.
+Return an **advisory verdict** — exactly one of `PASS`, `PASS_WITH_FINDINGS`, `CONCERNS`, `FAILED` — with findings tagged `**[CRITICAL]**` / `**[MAJOR]**` / `**[MINOR]**`, each with `file:line`, problem, impact, and fix. These tokens are parsed by the metrics hook (contract §2); keep them verbatim.
 
 Head the report with the scope line, so the numbers are never read out of context:
 
 ```
-🔎 BCQuality <sha> · baseline: {unaligned | aligned} · scope: {module|codebase|changed-vs-main} · {N} objects
+🟢 BCQuality <sha> · baseline: {unaligned | aligned} · scope: {module|codebase|changed-vs-main} · {N} objects
 ```
 
-`baseline: aligned` gets one extra sentence saying the code was written against the same
+(Not mounted → start the line with `⚪ BCQuality not mounted` instead.) `baseline: aligned` gets one extra sentence saying the code was written against the same
 corpus this audit judges by, so a low finding count is expected and is not evidence of
 quality. On `unaligned` say nothing extra — that is the honest measurement. **Persist** the audit report under `.claude/audits/dredd-audit-<YYYY-MM-DD-HHMM>.md` (create the folder if absent) — the durable, checkable artifact; the `bcquality-evidence` CI workflow validates its citations against the BCQuality clone at the pinned SHA. Write **only** there.
 

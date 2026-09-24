@@ -4,26 +4,28 @@
 
 # {req_name} — Technical Specification
 
-**Version:** 1.0
-**Date:** YYYY-MM-DD
-**Complexity:** [LOW / MEDIUM / HIGH]
-**Status:** [Draft / Approved / Implemented]
+**Version:** 1.0 · **Date:** YYYY-MM-DD · **Complexity:** [LOW / MEDIUM / HIGH] · **Status:** [Draft / Approved / Implemented]
 
 ---
 
 ## 1. Overview
 
-### Business Context
+**Business context:** {1-3 sentences — what this feature does and why.}
 
-{1-3 sentences describing what this feature does and why it is needed.}
+**Scope:** {Included. Explicitly excluded.}
 
-### Scope
+**Architecture:** {HIGH: "Implements `{req_name}.architecture.md`". MEDIUM/LOW: "Decisions in §Decisions below."}
 
-{What is included. What is explicitly excluded.}
+---
 
-### Architecture Reference
+## Decisions
 
-{If `{req_name}.architecture.md` exists: "Implements `{req_name}.architecture.md` — {pattern chosen}". If not: "No architecture document — spec defines structure."}
+*(MEDIUM: required — this replaces a separate architecture document. LOW: optional. HIGH:
+reference the architecture document's TD-ids instead of repeating them.)*
+
+| ID | Decision | Alternatives rejected | Rationale / constraint |
+|----|----------|-----------------------|------------------------|
+| D-01 | {Chosen pattern, e.g. subscriber on posting vs table trigger} | {What else was considered} | {Why; any performance/security/upgrade constraint it imposes} |
 
 ---
 
@@ -31,249 +33,103 @@
 
 | Object Type | Object ID | Name | Extends / Source | Purpose |
 |-------------|----------:|------|------------------|---------|
-| TableExtension | {ID from range} | {Prefix} {BaseName} Ext | {Base Table} | {Why this extension} |
-| PageExtension  | {ID} | {Prefix} {BasePage} Ext | {Base Page} | {What fields/actions added} |
+| TableExtension | {ID from range} | {Prefix} {BaseName} Ext | {Base Table} | {Why} |
 | Codeunit       | {ID} | {Prefix} {Name} Mgt | — | {Core business logic} |
-| Codeunit       | {ID} | {Prefix} {Name} Subscriber | — | {Event subscriptions} |
+| Codeunit (Test)| {ID from test range} | {Prefix} {Feature} Tests | — | {Scenarios in §7} |
 
-> Object IDs MUST be within the `app.json` `idRanges`. Verify with a codebase search before assigning.
-
----
-
-## 3. Data Model
-
-### Table Extensions / New Tables
-
-For each table or extension:
-
-```al
-tableextension {ID} "{Prefix} {BaseName} Ext" extends "{BaseName}"
-{
-    fields
-    {
-        field({FieldID}; "{Prefix} {FieldName}"; {DataType}[{Length}])
-        {
-            Caption = '{Caption}', Comment = '{Translation key}';
-            DataClassification = CustomerContent; // or ToBeClassified / SystemMetadata
-            {CalcFormula / TableRelation / BlankZero / etc. if applicable}
-        }
-    }
-}
-```
-
-> Specify a GDPR `DataClassification` for every new field.
-
-### Field Catalogue
-
-| Field No. | Field Name | Type | Length | Required | Relation | Description |
-|-----------|-----------|------|-------:|----------|----------|-------------|
-| {ID} | {Prefix} {Name} | {Type} | {L} | Yes/No | {Table."Field"} | {Purpose} |
+> IDs MUST be real, free values within `app.json` `idRanges` (test objects: the test app's
+> range) — verified by a codebase search. al-conductor builds its work packages from this table.
 
 ---
 
-## 4. Business Logic — Codeunit Procedures
+## 3. Data Model *(only if tables/fields are created or extended)*
 
-For each codeunit, list every public procedure with its full signature:
-
-```al
-codeunit {ID} "{Prefix} {Name} Mgt"
-{
-    // Procedure: {What it does}
-    // Called by: {who calls this}
-    procedure {ProcedureName}({Param}: {Type}): {ReturnType}
-    begin
-        // AL code sketch for complex logic only
-    end;
-
-    // Internal helper
-    local procedure {HelperName}({Param}: {Type})
-    begin
-    end;
-}
-```
+| Table / Ext | Field No. | Field Name | Type[Len] | Relation / CalcFormula | DataClassification | Purpose |
+|-------------|----------:|------------|-----------|------------------------|--------------------|---------|
+| {Object} | {ID} | {Prefix} {Name} | {Type} | {Table."Field"} | {CustomerContent / SystemMetadata / …} | {Purpose} |
 
 ---
 
-## 5. Event Integration
+## 4. Business Logic
 
-### Publishers (new events this feature exposes)
+For each codeunit, every **public** procedure with its full signature (local helpers only when
+they carry a non-obvious algorithm):
 
-```al
-// In: {Codeunit name}
-[IntegrationEvent(false, false)]
-local procedure OnAfter{ActionName}({Param}: {Type})
-begin
-end;
-```
+| Codeunit | Procedure signature | Called by | Behaviour / edge cases |
+|----------|---------------------|-----------|------------------------|
+| {Prefix} {Name} Mgt | `procedure {Name}(var {Param}: Record {Table}): Boolean` | {caller} | {what it does; errors raised} |
 
-### Subscribers (events this feature hooks into)
-
-```al
-[EventSubscriber(ObjectType::Codeunit, Codeunit::{Publisher}, '{EventName}', '', false, false)]
-local procedure {EventName}_Handler({Param}: {Type})
-begin
-    // What this subscriber does
-end;
-```
+An AL sketch is allowed only for a genuinely complex algorithm.
 
 ---
 
-## 6. Pages and UI
+## 5. Event Integration *(only if publishers/subscribers are involved)*
 
-### Page Extensions / New Pages
+**Subscribers — symbol-verified.** Each row was confirmed to exist in the target BC version via
+al-mcp `al_symbolsearch` / the AL LSP. Anything unverified goes to §12, never here.
 
-```al
-pageextension {ID} "{Prefix} {BasePage} Ext" extends "{BasePage}"
-{
-    layout
-    {
-        addafter({ExistingGroup})
-        {
-            group("{Prefix} {GroupName}")
-            {
-                Caption = '{Caption}';
-                field("{Prefix} {FieldName}"; Rec."{Prefix} {FieldName}")
-                {
-                    ApplicationArea = All;
-                    ToolTip = '{Explain what this field does}';
-                }
-            }
-        }
-    }
+| Publisher object | Event | Consumed fields / params | Subscriber (our codeunit) | IsHandled? |
+|------------------|-------|--------------------------|---------------------------|------------|
+| Codeunit "Sales-Post" | `OnBeforePostSalesDoc` | SalesHeader."No.", … | {Prefix} {Name} Subscribers | y/n |
 
-    actions
-    {
-        addafter({ExistingAction})
-        {
-            action("{Prefix} {ActionName}")
-            {
-                Caption = '{Caption}';
-                ApplicationArea = All;
-                Image = {IconName};
-                trigger OnAction()
-                begin
-                    {Codeunit}.{Procedure}(Rec);
-                end;
-            }
-        }
-    }
-}
-```
+**Publishers — new events this feature exposes:** `{OnAfterX}({params})` in {codeunit} — {purpose}.
+
+The exact parameter list is resolved from symbols by the implementer at code time.
 
 ---
 
-## 7. Tests (Given/When/Then)
+## 6. Pages and UI *(only if a page is created or extended)*
 
-For each main scenario:
-
-```al
-codeunit {ID} "{Prefix} {Feature} Tests"
-{
-    Subtype = Test;
-
-    [Test]
-    procedure {ScenarioName}()
-    // Given: {Initial state}
-    // When: {Action performed}
-    // Then: {Expected result}
-    var
-        {Var}: Record {Table};
-    begin
-        // Arrange
-
-        // Act
-
-        // Assert
-        Assert.{AssertMethod}({Expected}, {Actual}, '{Message}');
-    end;
-}
-```
-
-| Test Name | Given | When | Then |
-|-----------|-------|------|------|
-| {Scenario1} | {State} | {Action} | {Result} |
-| {Scenario2} | {State} | {Action} | {Result} |
+| Page / Ext | Placement (addafter/addlast …) | Fields / actions | ToolTip / Caption notes |
+|------------|--------------------------------|------------------|-------------------------|
 
 ---
 
-## 8. Permission Sets
+## 7. Tests — the test plan
 
-```al
-permissionset {ID} "{Prefix} - {Feature}"
-{
-    Assignable = true;
-    Caption = '{Caption}';
+This section **is** the test plan (there is no separate test-plan file). One row per scenario,
+each assigned to the test codeunit it will live in (IDs from §2).
 
-    Permissions =
-        tabledata "{Table}" = RIMD,
-        codeunit "{Codeunit}" = X;
-}
-```
+| ID | Test codeunit | Given | When | Then | Type |
+|----|---------------|-------|------|------|------|
+| T1 | {Prefix} {Feature} Tests | {state} | {action} | {expected} | Unit |
+| T2 | {…} | {…} | {…} | {…} | Integration |
+
+**Data and setup:** {Library-* codeunits to use; shared Initialize() needs}
+**Non-regression:** {existing test codeunits that must stay green}
 
 ---
 
-## 9. API Endpoints (if applicable)
+## 8. Permission Sets *(only if new objects need permissions)*
 
-Only if this feature exposes or consumes APIs:
+| Permission set | Object | Permission |
+|----------------|--------|------------|
+| {Prefix} - {Feature} | tabledata "{Table}" | RIMD |
 
-```al
-page {ID} "{Prefix} {Entity} API"
-{
-    PageType = API;
-    APIPublisher = '{publisher}';
-    APIGroup = '{group}';
-    APIVersion = 'v2.0';
-    EntityName = '{entity}';
-    EntitySetName = '{entities}';
-    SourceTable = {Table};
-    DelayedInsert = true;
+---
 
-    layout
-    {
-        area(Content)
-        {
-            repeater(Group)
-            {
-                field(id; Rec.SystemId) { }
-                field({camelCaseField}; Rec."{Field Name}") { }
-            }
-        }
-    }
-}
-```
+## 9. API Endpoints *(only if the feature exposes or consumes an API)*
 
-Omit this section entirely if the feature does not expose or consume APIs.
+| Page / Query | APIPublisher/Group/Version | EntityName / EntitySetName | Key fields | Bound actions |
+|--------------|----------------------------|----------------------------|------------|---------------|
 
 ---
 
 ## 10. AL-Go / CI Considerations
 
-- [ ] New object IDs registered in `app.json` `idRanges`
-- [ ] AppSourceCop rules: no hardcoded object IDs in code
-- [ ] Build pipeline: no new BC version dependencies introduced
-- [ ] Translations: all new Captions added to XLF
+- [ ] New IDs inside `app.json` `idRanges`
+- [ ] No new BC version dependency introduced (or listed here)
+- [ ] All new Captions/Labels in XLF
 
 ---
 
 ## 11. Acceptance Criteria
 
-### Functional
-
-- [ ] {User action / business outcome 1}
-- [ ] {User action / business outcome 2}
-
-### Technical
-
-- [ ] All AL objects compile without errors
-- [ ] Events are properly published and subscribed
-- [ ] Permission sets cover all new objects
-- [ ] No hardcoded values (use a Setup table or constants)
-
-### Quality
-
-- [ ] Unit tests cover all main scenarios (Given/When/Then defined above)
-- [ ] Code review passed by `@AL Code Review Subagent`
-- [ ] Translation keys defined for all new Captions
+- [ ] {Business outcome 1}
+- [ ] {Business outcome 2}
+- [ ] Compiles with the full analyzer set, zero new warnings
+- [ ] Every §7 scenario implemented and passing on the test lane (or "tests not executed" stated)
+- [ ] Review APPROVED
 
 ---
 
@@ -287,10 +143,11 @@ Omit this section entirely if the feature does not expose or consume APIs.
 
 ## Rules
 
-- **Omit a section entirely if the feature doesn't touch that object type — regardless of complexity tier.** Section 3 (Data Model) only if new/modified tables; §5 (Event Integration) only if publishers/subscribers are involved; §6 (Pages and UI) only if a page is created/extended; §8 (Permission Sets) only if new objects need permissions; §9 (API Endpoints) only if the feature exposes/consumes an API. Don't scaffold a code skeleton for an object type this feature never creates — that's the largest token cost in this template and most features touch 2-4 of the 5 conditional sections, not all of them.
-- Complexity tier controls **depth within the sections that do apply**: MEDIUM/HIGH fills every applicable section in full; LOW may condense §§6-8 to a bullet list instead of full AL skeletons, and may omit §12 if there are no open questions.
-- `Field No.`, `Object ID` and other IDs MUST be real values from the codebase / `app.json`, never `TBD`.
-- Specify `DataClassification` for every new field (`CustomerContent` / `ToBeClassified` / `SystemMetadata`).
-- All `Caption` values must include a `Comment` for translators.
-- Do not include placeholder AL syntax that does not compile — sketches must use realistic types.
-- Code blocks are AL snippets for orientation. Full implementation lives in `/src/`, written by the implement-subagent.
+- **Omit a conditional section entirely** (§3, §5, §6, §8, §9) when the feature does not touch
+  that object type — at every complexity tier. Most features touch 2-4 of the 5.
+- Complexity controls depth **within** applicable sections: LOW may condense §§4-8 to bullets
+  and omit §Decisions and §12.
+- IDs and field numbers are real values, never `TBD`.
+- Every new field has a `DataClassification`; every Caption a translator `Comment`.
+- Tables, not code: AL sketches only for complex algorithms. Implementation lives in the app,
+  written by al-developer or al-conductor's implementers.

@@ -27,14 +27,17 @@ Reasoning and history: [`.github/plans/bcquality-proactive-integration.md`](.git
 ```
 claude-plugin/              # THE PRODUCT — everything below ships to the marketplace
   .claude-plugin/           #   plugin.json (manifest, MCP servers, version)
-  agents/                   #   13 agents: architect, conductor, developer, presales,
-                            #   triage, dredd, agent-builder, 3 TDD subagents, 3 doc agents
-  commands/                 #   10 slash commands (/al-spec-create, /al-build, …)
-  skills/                   #   22 skills, loaded on demand by the agents
-  rules-templates/          #   always-on AL rules, copied to a project's .claude/rules/
-                            #   by /al-initialize. THE rule source — see below
-  hooks/hooks.json          #   SessionStart + PreToolUse wiring
-  tools/                    #   hook scripts: bcquality, al-cli, rules, routing, …
+  agents/                   #   15 agents: architect, conductor, developer, presales,
+                            #   triage, dredd, agent-builder, demo-architect, 3 conductor
+                            #   subagents, 3 doc agents, al-file-reader (Haiku locator)
+  commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
+  skills/                   #   24 skills, loaded on demand by the agents (incl. skill-test-lane)
+  rules-templates/          #   AL rules. /al-initialize copies the floor (cheat sheet, 2
+                            #   protocols, agent-contract) to .claude/rules/ (auto-loaded) and
+                            #   the al-*.md domain files to .claude/aldc-rules/ (on demand)
+  hooks/hooks.json          #   SessionStart, PreToolUse, SubagentStop, SessionEnd wiring
+  tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
+                            #   conductor-guard, metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 
@@ -52,8 +55,8 @@ docs/decisions/             # ADRs
   agents, skills or rules, run `node scripts/sync-claude-workspace.js`
   (`--check` in CI fails on drift).
 - **A rule lives in exactly one place.** `claude-plugin/rules-templates/` is the source;
-  `rules-floor-cheatsheet.md` is its condensed form, injected inline into code-touching
-  subagents. Changing a rule means changing both, in the same commit.
+  `rules-floor-cheatsheet.md` is its condensed form, auto-loaded (with the two protocols and
+  `agent-contract.md`) in every session and subagent that touches AL. Changing a rule means changing both, in the same commit.
 - **Where BCQuality already has a knowledge file, defer to it.** Our rules cover what
   BCQuality does not reach — mostly procedure (how to structure a test, a PromptDialog, a
   permission set) and DSC conventions. Duplicating a Microsoft rule here recreates the
@@ -83,15 +86,16 @@ An external, citable BC knowledge base ([`microsoft/BCQuality`](https://github.c
 |--------|-------|
 | Design, architecture, data modeling | `al-architect` |
 | Implement, code, debug, fix | `al-developer` |
-| Full TDD cycle (plan → implement → review → commit) | `al-conductor` |
+| Planned feature: plan once → parallel work packages → review + test lane per wave | `al-conductor` |
 | Diagnose an existing bug from a symptom | `al-triage` |
 | Independent quality audit | `dredd` |
 | Estimate, size, propose | `al-presales` |
 | Build a BC agent with the Agent SDK | `al-agent-builder` |
 
 ```
-New feature (MEDIUM/HIGH)? → al-architect → /al-spec-create → al-conductor
-New feature (LOW)?         → /al-spec-create → al-developer
+New feature (HIGH)?   → al-architect → /al-spec-create → al-conductor   (≤6 WPs, ≤3 waves)
+New feature (MEDIUM)? → /al-spec-create → al-conductor                  (1-3 WPs, ≤2 waves)
+Change (LOW)?         → al-developer
 Bug fix / debugging?       → al-triage (diagnosis) → al-developer (fix)
 Quality audit?             → dredd
 ```
@@ -115,9 +119,9 @@ Requirement sets live in `.github/plans/`:
   memory.md                          # cross-session decisions
   {req_name}/
     {req_name}.spec.md
-    {req_name}.architecture.md
-    {req_name}.test-plan.md
-    {req_name}-phase-<N>-complete.md
+    {req_name}.architecture.md       # HIGH only: decisions, risks, diagrams
+    {req_name}.plan.md               # work-package graph + wave log
+    {req_name}-complete.md
 ```
 
 ## Build
