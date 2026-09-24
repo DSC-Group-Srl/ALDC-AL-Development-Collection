@@ -83,8 +83,9 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    the real signature with al-mcp before a second attempt, one grounded retry per diagnostic,
    never comment out or defer a feature to get a green build.
 7. **Test.** Through the lane only (`skill-test-lane`): the first time tests would run this
-   session, ask which `.vscode/launch.json` configuration to use; if none is usable, ask the
-   user to add one or to accept that no tests will run. Run the codeunits you created or
+   session, ask which `.vscode/launch.json` configuration to use; if none is usable, offer to
+   create a local container with the repo's AL-Go script (`skill-al-go-devenv`, when the lane
+   reports `devEnv.suggest`), to add a configuration, or to accept that no tests will run. Run the codeunits you created or
    affected. Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
    executed**; never report PASS for a test that did not run.
 8. **Report.** What changed (objects, files), build status (errors, new warnings, pre-existing

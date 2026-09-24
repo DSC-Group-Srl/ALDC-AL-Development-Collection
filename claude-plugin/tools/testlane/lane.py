@@ -101,9 +101,56 @@ def cmd_configs(project: str) -> int:
         # An OnPrem/Internal-targeted test app is rejected by a SaaS sandbox at publish time
         # ("destinazione di compilazione superiore a quella consentita") — flag it up front.
         d["compatible"] = not (target in ("OnPrem", "Internal") and d["envType"] != "OnPrem")
-    return out({"project": os.path.basename(os.path.abspath(project)), "appTarget": target,
-                "configurations": cfgs,
-                "usable": [d["name"] for d in cfgs if d["compatible"]]})
+        if d["compatible"] and d["envType"] == "OnPrem":
+            # A Docker config in launch.json says nothing about whether the container exists.
+            d["reachable"] = reachable(next((c.get("server", "") for c in load_configs(project)
+                                             if c.get("name") == d["name"]), ""))
+    usable = [d["name"] for d in cfgs if d["compatible"] and d.get("reachable", True)]
+    res = {"project": os.path.basename(os.path.abspath(project)), "appTarget": target,
+           "configurations": cfgs, "usable": usable}
+    dev = find_devenv(project)
+    if dev:
+        # AL-Go ships .AL-Go/localDevEnv.ps1 (Docker) and cloudDevEnv.ps1 (SaaS sandbox) in every
+        # template repo. Always report them; `suggest` tells the caller to offer one now.
+        dev["recommended"] = "local" if target in ("OnPrem", "Internal") or not dev.get("cloud") else \
+            ("local" if dev.get("local") else "cloud")
+        dev["suggest"] = not usable
+        res["devEnv"] = dev
+        if dev["suggest"]:
+            emit_metric(["result=devenv-suggested"])
+    return out(res)
+
+
+def reachable(server: str, timeout: float = 4) -> bool:
+    """Any HTTP answer (even 401/404) means a server is listening; only no answer is False."""
+    if not server.startswith(("http://", "https://")) or os.environ.get("ALDC_LANE_NO_PROBE"):
+        return True
+    import urllib.error
+    import urllib.request
+    try:
+        urllib.request.urlopen(server, timeout=timeout)
+        return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
+
+
+def find_devenv(project: str) -> dict | None:
+    """Walk up from the project to the repo root looking for AL-Go's dev-env scripts."""
+    d = os.path.abspath(project)
+    for _ in range(5):
+        algo = os.path.join(d, ".AL-Go")
+        if os.path.isdir(algo):
+            found = {k: os.path.join(algo, f) for k, f in
+                     (("local", "localDevEnv.ps1"), ("cloud", "cloudDevEnv.ps1"))
+                     if os.path.isfile(os.path.join(algo, f))}
+            return found or None
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return None
 
 
 def cmd_prepare(project: str, name: str) -> int:
@@ -318,6 +365,7 @@ def self_test() -> int:
 
     LOCK_ROOT = tempfile.mkdtemp()
     os.environ["ALDC_LANE_NO_METRICS"] = "1"
+    os.environ["ALDC_LANE_NO_PROBE"] = "1"
     proj = tempfile.mkdtemp()
     os.makedirs(os.path.join(proj, ".vscode"))
     with open(os.path.join(proj, ".vscode", "launch.json"), "w", encoding="utf-8") as fh:
@@ -334,6 +382,8 @@ def self_test() -> int:
             main(list(args))
         return json.loads(buf.getvalue())
 
+    os.makedirs(os.path.join(proj, ".AL-Go"))
+    open(os.path.join(proj, ".AL-Go", "localDevEnv.ps1"), "w").close()
     c = run("configs", proj)
     key = c["configurations"][1]["envKey"]
     p = run("prepare", proj, "Sbx")
@@ -351,6 +401,8 @@ def self_test() -> int:
     checks = [
         ("jsonc launch.json parsed", len(c["configurations"]) == 2),
         ("OnPrem target flags sandbox incompatible", c["usable"] == ["Docker"]),
+        ("AL-Go dev-env script reported, local recommended for OnPrem target",
+         c.get("devEnv", {}).get("recommended") == "local" and c["devEnv"]["suggest"] is False),
         ("prepare writes exactly one config", len(only) == 1 and only[0]["name"] == "Sbx"),
         ("first acquire wins", a1["acquired"] is True),
         ("second acquire refused", a2["acquired"] is False),

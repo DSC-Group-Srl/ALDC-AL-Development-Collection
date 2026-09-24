@@ -49,7 +49,10 @@ mkdir -p app/requirements && [ -f app/requirements/memory.md ] || echo "# Decisi
 | on demand | `al-agent-toolkit.md` | Agent SDK patterns (al-agent-builder reads it) |
 
 Tests run on the environment the user picks from `.vscode/launch.json` (see
-`bc-dev:skill-test-lane`); there is nothing to configure here.
+`bc-dev:skill-test-lane`). Run `python "${CLAUDE_PLUGIN_ROOT}/tools/testlane/lane.py" configs <test
+project>`: if it reports `devEnv.suggest`, tell the user they can get a ready test container from
+the repo's own `.AL-Go/localDevEnv.ps1` in one step (`bc-dev:skill-al-go-devenv`) — offer it,
+don't start it unasked.
 
 ### CLAUDE.md Generation
 

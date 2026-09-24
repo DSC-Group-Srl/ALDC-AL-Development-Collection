@@ -21,8 +21,13 @@ python "$L" configs <test-project-dir>      # e.g. app-test
 - Show the user the `configurations` (name · envType · where) and ask which one to run tests
   on. `compatible: false` means the test app's `app.json` `target` (OnPrem/Internal) will be
   rejected by that environment (a SaaS sandbox) — say so instead of offering it as a choice.
-- **No usable configuration** → ask the user to either add one to `.vscode/launch.json` (then
-  re-run `configs`) or explicitly accept that **no tests will be run**. If they accept, the run
+- An OnPrem (Docker) configuration carries `reachable`; an unreachable one is not usable (its
+  container does not exist or is stopped).
+- **No usable configuration** → offer, in this order: (1) **create one with the repo's AL-Go
+  script** when `devEnv.suggest` is true (`bc-dev:skill-al-go-devenv` — one UAC click, ~20–40 min
+  unattended, `devEnv.recommended` says local vs cloud); (2) add a configuration to
+  `.vscode/launch.json` by hand (then re-run `configs`); (3) explicitly accept that **no tests
+  will be run**. If they accept, the run
   records `lane=skipped` and every report says **tests not executed** — never PASS.
 - The chosen name is the authorization for publish + run against that environment for this
   run only. al-conductor writes it into `{req}.plan.md` (`**Test environment:**`) so a resumed
@@ -54,8 +59,9 @@ python "$L" release <envKey>                              # ALWAYS — also afte
 |---|---|---|
 | `published` | ok | continue |
 | `already-current` | this exact package is already there | continue (not an error) |
-| `target-not-allowed` | app target not allowed on this env (OnPrem app on SaaS) | stop; tell the user; pick another config |
+| `target-not-allowed` | app target not allowed on this env (OnPrem app on SaaS) | stop; offer a local container via `bc-dev:skill-al-go-devenv`, or pick another config |
 | `auth-required` | no cached AAD token | ask the user to run `! al auth login` once, then retry |
+| (run) `UserNotAuthenticatedException` | UserPassword server, no credential in the AL CLI's cache | `tools/testlane/save-onprem-credentials.ps1` (see `skill-al-go-devenv` §3) |
 | `tool-blocked` | TLS/proxy/timeout signature | TOOL_BLOCKED per tool-failure-protocol — stop |
 | `failed` | anything else; `reason` has the server's text | treat as a real defect of the build |
 

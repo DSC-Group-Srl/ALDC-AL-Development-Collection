@@ -70,8 +70,11 @@ Opus (never switch yourself).
    one batched Entry run. Keep every worklist entry verbatim.
 3. **Test environment.** `python "${CLAUDE_PLUGIN_ROOT}/tools/testlane/lane.py" configs <test
    project>` and include the choice in the approval question (`bc-dev:skill-test-lane` §1): list
-   compatible configurations; none usable → the user adds one or accepts **no tests** (then the
-   run is `lane=skipped` and every report says *tests not executed*).
+   compatible, reachable configurations; none usable → offer, in order: create one now with the
+   repo's AL-Go script when `devEnv.suggest` is true (`bc-dev:skill-al-go-devenv`: one UAC click,
+   ~20–40 min unattended — start it right after plan approval and run wave 1 while it builds;
+   the lane only needs it after the first merge), add one by hand, or accept **no tests** (then
+   the run is `lane=skipped` and every report says *tests not executed*).
 4. **Ask once** (plan approval): WPs × waves, IDs, open questions, environment. Revise on
    feedback without another planning call unless new gaps appear.
 5. **Write `app/requirements/in-progress/{req}/{req}.plan.md`** from
