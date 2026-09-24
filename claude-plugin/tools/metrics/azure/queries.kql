@@ -177,3 +177,66 @@ customEvents
           from_ = tostring(customDimensions.previousVersion),
           to_ = tostring(customDimensions.pluginVersion)
 | order by timestamp desc;
+
+// ===========================================================================
+// EFFICIENCY (bc-dev >= 8.0) — tokens, time, cost, parallelism, test lane.
+// AldcPhase rows now carry u* measurements (uTokensTotal, uTokensOutput, uWallSeconds,
+// uTurns, uBuilds, uReadsWhole, uReadsRanged, …) and a `model` dimension. New event
+// names: AldcSession (SessionEnd total incl. subagents), AldcRun (conductor run),
+// AldcLane (one test-lane run), AldcRead (read-guard), AldcHook.
+// ===========================================================================
+
+// E1. Tokens and wall-clock per agent, per plugin version.
+customEvents
+| where name == "AldcPhase" and isnotempty(customMeasurements.uTokensTotal)
+| summarize runs = count(),
+            avgTokens = avg(todouble(customMeasurements.uTokensTotal)),
+            avgOutput = avg(todouble(customMeasurements.uTokensOutput)),
+            avgWallS  = avg(todouble(customMeasurements.uWallSeconds)),
+            avgBuilds = avg(todouble(customMeasurements.uBuilds)),
+            wholeReads = sum(todouble(customMeasurements.uReadsWhole)),
+            rangedReads = sum(todouble(customMeasurements.uReadsRanged))
+  by agent = tostring(customDimensions.agent), version = tostring(customDimensions.pluginVersion)
+| extend wholeReadShare = round(wholeReads / (wholeReads + rangedReads), 2)
+| order by version desc, avgTokens desc;
+
+// E2. Session totals by plugin version — the before/after number for every release.
+customEvents
+| where name == "AldcSession"
+| summarize sessions = count(),
+            avgTokens = avg(todouble(customMeasurements.tokensTotal)),
+            p50Tokens = percentile(todouble(customMeasurements.tokensTotal), 50),
+            avgWallMin = avg(todouble(customMeasurements.wallSeconds)) / 60,
+            avgTokensPerAlLine = avg(todouble(customMeasurements.tokensPerAlLine))
+  by version = tostring(customDimensions.pluginVersion)
+| order by version desc;
+
+// E3. Conductor runs: shape of the work (WPs, waves, fix loops, human stops, parallelism).
+customEvents
+| where name == "AldcRun"
+| project timestamp, version = tostring(customDimensions.pluginVersion),
+          tier = tostring(customDimensions.tier), lane = tostring(customDimensions.lane),
+          wps = todouble(customMeasurements.wps), waves = todouble(customMeasurements.waves),
+          fixLoops = todouble(customMeasurements.fixLoops), stops = todouble(customMeasurements.stops),
+          parallelism = todouble(customMeasurements.parallelism),
+          alLines = todouble(customMeasurements.alAdded) + todouble(customMeasurements.alRemoved)
+| order by timestamp desc;
+
+// E4. Test lane: where the serial bottleneck time goes.
+customEvents
+| where name == "AldcLane"
+| summarize runs = count(), avgLockWaitS = avg(todouble(customMeasurements.lockWaitS)),
+            avgPublishS = avg(todouble(customMeasurements.publishS)),
+            avgRunS = avg(todouble(customMeasurements.runS)),
+            failed = sum(todouble(customMeasurements.failed)),
+            staleRecovered = sum(todouble(customMeasurements.staleRecovered))
+  by bin(timestamp, 1d), result = tostring(customDimensions.result)
+| order by timestamp desc;
+
+// E5. Read-guard: whole-file reads blocked and the context they would have cost.
+customEvents
+| where name == "AldcRead"
+| summarize events = count(), chars = sum(todouble(customMeasurements.chars))
+  by action = tostring(customDimensions.action), bin(timestamp, 1d)
+| extend estTokensAvoided = iff(action == "blocked", chars / 4, 0.0)
+| order by timestamp desc;

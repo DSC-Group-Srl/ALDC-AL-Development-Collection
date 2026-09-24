@@ -21,7 +21,10 @@ import re
 import sys
 from datetime import datetime, timezone
 
-SCHEMA = 1
+SCHEMA = 2  # 2: adds the `usage` block (tokens, turns, tools, reads) and every bc-dev agent
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import usage as usage_mod  # noqa: E402
 
 # Only our own agents. agent_type arrives as "plugin_<plugin>:<agent>" for plugin agents, so
 # match on the suffix.
@@ -87,13 +90,35 @@ def short_agent(agent_type: str) -> str | None:
     return tail if tail in TRACKED else None
 
 
+def transcript_path(payload: dict) -> str:
+    """The subagent's own transcript. Newer harnesses pass it; otherwise it sits beside the
+    parent transcript as <parent-stem>/subagents/agent-<agent_id>.jsonl (checked on disk)."""
+    p = str(payload.get("agent_transcript_path") or "")
+    if p:
+        return p
+    parent, aid = str(payload.get("transcript_path") or ""), str(payload.get("agent_id") or "")
+    if parent and aid:
+        return os.path.join(os.path.splitext(parent)[0], "subagents", f"agent-{aid}.jsonl")
+    return ""
+
+
 def build_record(payload: dict) -> dict | None:
-    agent = short_agent(str(payload.get("agent_type", "")))
-    if not agent:
+    raw_agent = str(payload.get("agent_type", ""))
+    agent = short_agent(raw_agent)
+    # Efficiency is measured for every subagent — ours by name, anything else as "other" —
+    # while the semantic (BCQuality/verdict) parse below stays limited to TRACKED agents.
+    usage_agent = usage_mod.allow_agent(raw_agent)
+    if not agent and not usage_agent:
         return None
 
     msg = payload.get("last_assistant_message") or ""
-    if not isinstance(msg, str) or not msg:
+    if not isinstance(msg, str):
+        msg = ""
+    u = None
+    tp = transcript_path(payload)
+    if tp:
+        u = usage_mod.summarize(tp)
+    if not msg and not u:
         return None
 
     rec: dict = {
@@ -103,11 +128,19 @@ def build_record(payload: dict) -> dict | None:
         "session": str(payload.get("session_id", ""))[:8],
         # Basename only — never the full path into someone's filesystem.
         "project": os.path.basename(str(payload.get("cwd", "")).rstrip("/\\")) or "unknown",
-        "agent": agent,
+        "agent": agent or usage_agent,
     }
+    ph = usage_mod.project_hash(str(payload.get("cwd", "")))
+    if ph:
+        rec["projectHash"] = ph
+    if u:
+        rec["usage"] = u
     v = plugin_version()
     if v:
         rec["pluginVersion"] = v
+
+    if not agent:  # not one of the semantically-parsed agents: usage only
+        return rec if u else None
 
     m = RE_PHASE.search(msg)
     if m:
@@ -173,7 +206,7 @@ def build_record(payload: dict) -> dict | None:
             rec["knowledge_truncated"] = len(cited) - MAX_KNOWLEDGE
 
     # A record with no BCQuality signal and no findings measures nothing — don't store noise.
-    if "bcq" not in rec and "findings" not in rec and "verdict" not in rec:
+    if "bcq" not in rec and "findings" not in rec and "verdict" not in rec and "usage" not in rec:
         return None
     return rec
 
@@ -193,11 +226,9 @@ def project_lane(cwd: str) -> str | None:
 
 
 def appinsights_lane(rec: dict, log) -> None:
-    """Azure Application Insights, the enterprise lane. Opt-in by the presence of the
-    standard `APPLICATIONINSIGHTS_CONNECTION_STRING`, so a machine or pipeline that already
-    has it configured needs nothing else. Nothing ships in the plugin."""
-    if not os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING", "").strip():
-        return
+    """Azure Application Insights, the enterprise lane. Always on: appinsights.py resolves
+    the connection string itself (env var, else the shipped appinsights.connection) and the
+    per-machine ALDC_METRICS_APPINSIGHTS_DISABLE switch still wins over both."""
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import appinsights
@@ -329,6 +360,27 @@ def self_test() -> int:
         ("impl deviated derived", r2 and r2["bcq"]["deviated"] == 1),
         ("impl declared", r2 and r2["bcq"]["declared"] == 1),
         ("impl deviation path", r2 and r2["deviations_declared"][0].endswith("use-setloadfields-for-partial-records.md")),
+    ]
+
+    import tempfile
+    tdir = tempfile.mkdtemp()
+    sub = os.path.join(tdir, "sess", "subagents")
+    os.makedirs(sub)
+    with open(os.path.join(sub, "agent-abc.jsonl"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"type": "assistant", "requestId": "r", "timestamp": "2026-01-01T00:00:00Z",
+                             "message": {"model": "claude-haiku-4-5", "usage": {"input_tokens": 3, "output_tokens": 4},
+                                         "content": [{"type": "tool_use", "id": "x", "name": "Grep",
+                                                      "input": {"pattern": "SecretCustomerName"}}]}}) + "\n")
+    r3 = build_record({"agent_type": "plugin_bc-dev:al-file-reader", "agent_id": "abc",
+                       "transcript_path": os.path.join(tdir, "sess.jsonl"), "cwd": tdir,
+                       "last_assistant_message": "- path:1-2 — x"})
+    r4 = build_record({"agent_type": "Explore", "agent_id": "abc",
+                       "transcript_path": os.path.join(tdir, "sess.jsonl"), "last_assistant_message": ""})
+    checks += [
+        ("usage record for untracked bc-dev agent", r3 is not None and r3["agent"] == "al-file-reader"),
+        ("usage tokens", r3 and r3["usage"]["tokens"]["output"] == 4),
+        ("foreign agent recorded as other", r4 is not None and r4["agent"] == "other"),
+        ("NO grep pattern leaked", r3 and "SecretCustomerName" not in json.dumps(r3)),
     ]
 
     checks.append(("untracked agent ignored",

@@ -116,25 +116,18 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'File modified — remember to run tests before completing phase'",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
+    "SessionEnd": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Task complete. Verify Skills Evidencing was declared.'",
-            "timeout": 5
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/session_end.sh"
+            ],
+            "timeout": 15
           }
         ]
       }
