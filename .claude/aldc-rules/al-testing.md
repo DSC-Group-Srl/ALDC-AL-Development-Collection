@@ -51,7 +51,7 @@ Repository/
 ### Intent
 Control when and how test code is generated to maintain focus on main application implementation.
 
-- DO NOT automatically generate test code unless explicitly requested
+- DO NOT generate test code unless requested — an approved spec with a tests section (the al-conductor flow) is that request
 - Focus on main application implementation by default
 - When user asks for implementation create only the main application objects
 - Only generate test files when user specifically requests "Create tests for...", "Generate unit tests...", "Add test coverage...", or "Write tests..."

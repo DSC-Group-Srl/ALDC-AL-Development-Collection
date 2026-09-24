@@ -1,5 +1,8 @@
 ---
-description: "Shared compiler-authority protocol for all ALDC subagents (planning, implement, review) and the conductor. Rides along with rules-floor-cheatsheet.md and tool-failure-protocol.md in the conductor's per-phase inline injection — no new context-injection channel needed. Purpose: stop a model from writing invalid/invented AL syntax, getting a real compiler diagnostic for it, and then rationalizing around the diagnostic (blaming the compiler, deferring the feature, commenting the code out) instead of fixing the syntax — AND stop a model from treating analyzer warnings as optional noise just because a build 'succeeded'. This is distinct from tool-failure-protocol.md, which disambiguates a broken tool call from a real diagnostic — this protocol governs what happens *after* a diagnostic (error OR warning) is already correctly classified as CODE_ISSUE."
+description: "Compiler-authority protocol: all analyzers on every compile, zero new warnings, the compiler is ground truth, no deferring/stubbing to get green. Auto-loaded with the rules floor."
+paths:
+  - "**/*.al"
+  - "**/app.json"
 ---
 
 # Compiler-Authority Protocol

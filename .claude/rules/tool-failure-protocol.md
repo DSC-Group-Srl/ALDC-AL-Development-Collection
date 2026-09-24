@@ -1,5 +1,8 @@
 ---
-description: "Shared tool/MCP-failure protocol for all ALDC subagents (planning, implement, review) and the conductor. Rides along with rules-floor-cheatsheet.md in the conductor's per-phase inline injection — no new context-injection channel needed. Purpose: stop transient tool/MCP failures (e.g. a TLS-intercepting proxy blocking al-mcp's calls to Microsoft symbol servers) from turning into unbounded retry loops, while never misclassifying a real code problem as a tool problem."
+description: "Tool/MCP-failure protocol: try once, one alternate, then classify TOOL_BLOCKED vs CODE_ISSUE and stop. Auto-loaded with the rules floor."
+paths:
+  - "**/*.al"
+  - "**/app.json"
 ---
 
 # Tool-Failure Protocol

@@ -4,11 +4,14 @@ description: >
   summary, testing notes, and checklist. Use when preparing a PR, creating a
   pull request, or documenting changes for review.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
+argument-hint: "<Branch> <Reviewer>"
 ---
 
 # AL Pull Request Preparation
 
-Your goal is to prepare a **pull request draft** for the branch `${input:Branch}` summarizing all modifications, test evidence, and validation steps.
+**Inputs** — parse from `$ARGUMENTS`: `{Branch}` (default: the current branch) and optional `{Reviewer}`. Do not ask for an optional input; never leave a `{placeholder}` unresolved in an output file.
+
+Your goal is to prepare a **pull request draft** for the branch `{Branch}` summarizing all modifications, test evidence, and validation steps.
 
 ## 🔒 Human Gate: Pre-PR Review
 
@@ -27,7 +30,7 @@ Your goal is to prepare a **pull request draft** for the branch `${input:Branch}
 
 Use `codebase` to analyze modifications:
 ```
-codebase: Compare ${input:Branch} with main branch
+codebase: Compare {Branch} with main branch
 ```
 
 Use `githubRepo` to gather context:
@@ -66,7 +69,7 @@ Scan commit messages for:
 - Related to WORK-789
 
 **Identify Reviewers:**
-If `${input:Reviewer}` is specified, include in the draft.
+If `{Reviewer}` is specified, include in the draft.
 
 ### 3. Generate PR Draft
 
@@ -75,7 +78,7 @@ Create `/reports/pr-draft.md` with this structure:
 ```markdown
 # Pull Request: [Feature/Fix Title]
 
-**Branch:** `${input:Branch}`
+**Branch:** `{Branch}`
 **Target:** `main`
 **Author:** [Author Name]
 **Date:** [Current Date]
@@ -258,7 +261,7 @@ Create `/reports/pr-draft.md` with this structure:
 ## Reviewer Notes
 
 **Suggested Reviewers:**
-- ${input:Reviewer} - [Reason]
+- {Reviewer} - [Reason]
 
 **Focus Areas:**
 1. [Area to review carefully]

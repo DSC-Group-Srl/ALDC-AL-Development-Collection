@@ -4,11 +4,14 @@ description: >
   Use when setting up a new project, initializing the workspace, or configuring
   the development environment.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch
+argument-hint: "<ProjectName> <EnvironmentName>"
 ---
 
 # AL Environment Initialization
 
-Your goal is to initialize the AL development environment and workspace for `${input:ProjectName}`.
+**Inputs** — parse from `$ARGUMENTS`: `{ProjectName}`, `{EnvironmentName}`. Ask the user for any that are missing before starting; never leave a `{placeholder}` unresolved in an output file.
+
+Your goal is to initialize the AL development environment and workspace for `{ProjectName}`.
 
 This workflow covers environment setup, AL workspace configuration, and **ALDC rules injection** into your project.
 
@@ -16,52 +19,55 @@ This workflow covers environment setup, AL workspace configuration, and **ALDC r
 
 When ALDC is installed as a Claude Code plugin, path-scoped rules must be copied to the project's `.claude/rules/` directory. This phase handles that automatically.
 
-> A `SessionStart` hook (`tools/rules/precondition_hook.sh`) checks for `.claude/rules/al-guidelines.md` on every session and nudges agents to offer this command when it's missing — so this phase isn't skipped on a fresh project. Running it again is safe (`cp` overwrites the same files).
+> A `SessionStart` hook (`tools/rules/precondition_hook.sh`) checks for `.claude/rules/rules-floor-cheatsheet.md` on every session and nudges agents to offer this command when it's missing (or when the pre-8.0 layout is found). Running it again is safe: it overwrites the same files and migrates the old layout.
 
-### Rules Installation
+### Rules Installation — two tiers
 
-Copy the following rule templates from the plugin's `rules-templates/` directory to your project's `.claude/rules/`:
+Everything under `.claude/rules/` loads into **every** session and subagent that touches AL, so
+only the condensed floor lives there; the full domain files are on-demand reference.
 
 ```bash
-# Create project rules directory
-mkdir -p .claude/rules
-
-# Copy ALDC rule templates to project
-cp "${CLAUDE_PLUGIN_ROOT}/rules-templates/"*.md .claude/rules/
+mkdir -p .claude/rules .claude/aldc-rules
+R="${CLAUDE_PLUGIN_ROOT}/rules-templates"
+# Tier 1 — auto-loaded (path-scoped to **/*.al and **/app.json), ~17 KB total
+cp "$R/rules-floor-cheatsheet.md" "$R/compiler-authority-protocol.md"    "$R/tool-failure-protocol.md" "$R/agent-contract.md" .claude/rules/
+# Tier 2 — on-demand reference, read by an agent only when a cheat-sheet line isn't enough
+cp "$R"/al-*.md .claude/aldc-rules/
+# Migrate a pre-8.0 install: the domain files used to sit in .claude/rules/ and auto-load (~90 KB)
+for f in "$R"/al-*.md; do rm -f ".claude/rules/$(basename "$f")"; done
+# Cross-feature decision log (replaces appending decisions to CLAUDE.md)
+mkdir -p app/requirements && [ -f app/requirements/memory.md ] || echo "# Decisions" > app/requirements/memory.md
 ```
 
-**Rules installed:**
+| Tier | File | Purpose |
+|------|------|---------|
+| auto | `rules-floor-cheatsheet.md` | One line per hard rule across the 7 domain files |
+| auto | `compiler-authority-protocol.md` | All analyzers on every compile, zero new warnings, compiler is ground truth |
+| auto | `tool-failure-protocol.md` | Try once, one alternate, then TOOL_BLOCKED vs CODE_ISSUE |
+| auto | `agent-contract.md` | BCQuality, evidence markers, al-file-reader, test lane |
+| on demand | `al-guidelines.md`, `al-code-style.md`, `al-naming-conventions.md`, `al-performance.md`, `al-error-handling.md`, `al-events.md`, `al-testing.md` | Rationale and worked examples behind each floor line |
+| on demand | `al-agent-toolkit.md` | Agent SDK patterns (al-agent-builder reads it) |
 
-| Rule | Scope | Purpose |
-|------|-------|---------|
-| `al-guidelines.md` | `**/*.al`, `**/*.json` | Core AL development principles |
-| `al-code-style.md` | `**/*.al` | Code formatting and structure |
-| `al-naming-conventions.md` | `**/*.al` | Consistent naming patterns |
-| `al-performance.md` | `**/*.al` | Performance optimization |
-| `al-error-handling.md` | `**/*.al` | Error handling and telemetry |
-| `al-events.md` | `**/*.al` | Event-driven development |
-| `al-testing.md` | `**/test/**/*.al` | Test implementation patterns |
-| `al-agent-toolkit.md` | `**/*.al` | AI Development Toolkit patterns |
-| `rules-floor-cheatsheet.md` | (no auto-apply — inline injection only) | Condensed one-line-per-rule digest of the 7 domain files above, for al-conductor to paste into every code-touching subagent call instead of the full files |
-| `tool-failure-protocol.md` | (no auto-apply — inline injection only) | Shared stop-after-one-retry / TOOL_BLOCKED vs CODE_ISSUE protocol for al-mcp and other tool-call failures |
-| `compiler-authority-protocol.md` | (no auto-apply — inline injection only) | Guards against a model blaming a real compiler diagnostic on "compiler limitations" instead of fixing invented AL syntax — trust the diagnostic, verify before retrying, never silently defer/stub to make a build pass |
+Tests run on the environment the user picks from `.vscode/launch.json` (see
+`bc-dev:skill-test-lane`); there is nothing to configure here.
 
 ### CLAUDE.md Generation
 
 Generate a project-level `CLAUDE.md` that references ALDC:
 
 ```markdown
-# ${input:ProjectName} — Claude Code Instructions
+# {ProjectName} — Claude Code Instructions
 
 ## Framework
 This project uses **ALDC** (AL Development Collection) plugin for Claude Code.
-All agents, skills, and workflows are available via the `aldc:` namespace.
+All agents, skills and commands come from the `bc-dev` plugin.
 
 ## Quick Start
 - `/bc-dev:al-spec-create` — Create specifications
 - `/bc-dev:al-build` — Build extension
-- `agent "aldc:al-architect"` — Architecture design
-- `agent "aldc:al-developer"` — Implementation
+- `al-architect` — architecture (HIGH complexity)
+- `al-developer` — direct implementation
+- `al-conductor` — planned feature, parallel work packages
 
 ## Project-Specific Notes
 [Add your project-specific instructions here]
@@ -71,36 +77,11 @@ All agents, skills, and workflows are available via the `aldc:` namespace.
 
 ## Phase 1: Environment Setup
 
-### Prerequisites Check
+### Prerequisites
 
-Verify the following are available:
-
-**Required Tools:**
-- [ ] Visual Studio Code (latest version)
-- [ ] AL Language Extension (Microsoft's official extension)
-- [ ] GitHub Copilot or compatible AI assistant
-- [ ] Git for version control
-
-**Recommended Tools:**
-- [ ] AL Test Runner for test management
-- [ ] Business Central Docker Container for local development
-- [ ] AL Object Designer for navigation
-- [ ] GitLens for enhanced git integration
-
-### GitHub Copilot Installation
-
-**Step 1: Install VS Code Extensions**
-- Open Visual Studio Code
-- Access Extensions marketplace (`Ctrl+Shift+X` or `Cmd+Shift+X`)
-- Install:
-  - **GitHub Copilot** - Code completion
-  - **GitHub Copilot Chat** - Interactive assistance
-  - **AL Language** - Business Central development
-
-**Step 2: Authentication**
-- Sign in to GitHub when prompted
-- Authorize the extension
-- Verify connection is active
+The SessionStart hooks already check and, where possible, install: the AL CLI (`al`), the
+ALCops analyzers, Node/npx, Python and Git Bash. Nothing to do here unless a hook reported a
+problem. VS Code with the AL extension remains the human's tool for debugging and publishing.
 
 ### VS Code Workspace Configuration
 
@@ -127,28 +108,12 @@ Create or update `.vscode/settings.json` in the workspace root:
   // reads this via the workspaceFilePath passed to `initialize`.
   "NAB.UseTargetStates": true,
   "NAB.ReplaceSelfClosingXlfTags": true,
-  "NAB.DetectInvalidTargets": true,
-
-  // GitHub Copilot settings
-  "github.copilot.enable": {
-    "*": true,
-    "al": true
-  },
-
-  // Editor settings for better AI integration
-  "editor.inlineSuggest.enabled": true,
-  "editor.quickSuggestions": {
-    "other": true,
-    "comments": true,
-    "strings": true
-  }
+  "NAB.DetectInvalidTargets": true
 }
 ```
 
 **Configuration Benefits:**
 - Code analysis with CodeCop, PerTenantExtensionCop, UICop, and the ALCops suite (ApplicationCop, DocumentationCop, FormattingCop, LinterCop, PlatformCop — the successor to BusinessCentral.LinterCop, see https://alcops.dev/docs/lintercop-migration/). The `SessionStart` hook `tools/al-cli/ensure-alcops.sh` downloads the `ALCops.*.dll` files straight into the AL Language extension's analyzer folder (not just the VS Code extension, which only helps the editor) — so these `${analyzerFolder}` entries resolve for al-mcp and the AL LSP server too, not only when VS Code itself is open.
-- AI suggestions optimized for AL files
-- Enhanced inline completion
 
 ## Phase 2: Project Initialization
 
@@ -165,23 +130,14 @@ Work in place — `Read` the existing `app.json` and lay out any missing folders
 Implement feature-based organization:
 
 ```
-${input:ProjectName}/
+{ProjectName}/
 ├── .vscode/
 │   ├── settings.json          # Workspace settings
 │   └── launch.json            # Debug configurations
-├── src/
-│   ├── Tables/                # Table objects
-│   ├── Pages/                 # Page objects
-│   ├── Codeunits/             # Codeunit objects
-│   ├── Reports/               # Report objects
-│   ├── Queries/               # Query objects
-│   ├── XMLports/              # XMLport objects
-│   ├── PageExtensions/        # Page extensions
-│   ├── TableExtensions/       # Table extensions
-│   └── Enums/                 # Enum objects
-├── test/
-│   ├── TestCodeunits/         # Test codeunits
-│   └── TestData/              # Test data and helpers
+├── src/                       # feature-based, never by object type (rules floor)
+│   └── <Feature>/<SubFeature>/<ObjectName>.<ObjectType>.al
+├── test/                      # separate test project; mirrors src/ feature folders
+│   └── <Feature>/<SubFeature>/<ObjectName>.Codeunit.al
 ├── app.json                   # Application manifest
 ├── .gitignore                 # Git ignore rules
 └── README.md                  # Project documentation
@@ -269,7 +225,7 @@ Create `.vscode/launch.json` based on your environment:
             "name": "Attach to agent (Sandbox)",
             "clientType": "Agent",
             "environmentType": "Sandbox",
-            "environmentName": "${input:EnvironmentName}",
+            "environmentName": "{EnvironmentName}",
             "breakOnNext": "WebClient"
         }
     ]
@@ -314,7 +270,7 @@ TestResults/
 Create comprehensive `README.md`:
 
 ```markdown
-# ${input:ProjectName}
+# {ProjectName}
 
 ## Overview
 [Project purpose and business value]
@@ -369,20 +325,14 @@ end;
    - Navigate to any `.al` file in the project
    - Ensure syntax highlighting is active
 
-2. **Test Code Completion**
-   - Start typing a procedure declaration
-   - Verify inline suggestions appear from Copilot
+2. **Rules in place**
+   - `.claude/rules/` holds the 4 floor files; `.claude/aldc-rules/` the domain files
 
-3. **Test Copilot Chat**
-   - Open Copilot Chat (`Ctrl+Shift+I`)
-   - Ask: "Explain this AL code"
-   - Verify you receive a response
-
-4. **Verify Code Analysis**
+3. **Verify Code Analysis**
    - Introduce a small code issue
    - Check that warnings appear
 
-5. **Test Build**
+4. **Test Build**
    - Run VS Code `AL: Download Symbols` (a human step in VS Code)
    - Attempt to compile the project
    - Verify no configuration errors
@@ -404,29 +354,12 @@ If symbols are missing:
 3. Verify app.json dependencies match BC version
 4. In a multi-project workspace, prefer `Bash: al workspace compile <workspaceFile>` over rebuilding projects individually — it keeps every project's symbols in sync in one command. Load `skill-al-mcp-workspace` for the full troubleshooting flow.
 
-### AI Suggestions Not Appearing
-
-Check:
-- AI extension is installed and enabled
-- You're signed in to AI service
-- `editor.inlineSuggest.enabled` is `true`
-- Restart VS Code if needed
-
-### Poor Quality Suggestions
-
-Improvements:
-- Use descriptive file names
-- Add code comments and XML documentation
-- Keep related files open for better context
-- Follow naming conventions consistently
-
 ## Success Criteria
 
 Verify the setup is complete:
 
 - ✅ Visual Studio Code is installed and configured
 - ✅ AL Language extension is active
-- ✅ GitHub Copilot is installed and authenticated
 - ✅ Workspace settings are configured
 - ✅ Project structure is organized
 - ✅ Symbols downloaded successfully

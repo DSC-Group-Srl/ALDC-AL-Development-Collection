@@ -138,6 +138,13 @@ emit() {
   printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$esc"
 }
 
+# Only inject into AL workspaces (same app.json guard as tools/routing/precondition_hook.sh):
+# the install/refresh work below still runs, it just stays silent in Blazor/NAV/other
+# sessions, which would otherwise pay for AL-only context they cannot use.
+if [ ! -f "app.json" ] && ! find . -maxdepth 2 -iname "app.json" -print -quit 2>/dev/null | grep -q .; then
+  emit() { :; }
+fi
+
 acquire_lock() { mkdir "$lockdir" 2>/dev/null; }
 
 # Writes a standalone sync script (paths baked in) and backgrounds it fully

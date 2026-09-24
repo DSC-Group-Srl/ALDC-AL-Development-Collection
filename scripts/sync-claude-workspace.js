@@ -6,7 +6,9 @@
  *
  *   claude-plugin/agents/          → .claude/agents/          (espejo: borra extras)
  *   claude-plugin/skills/          → .claude/skills/          (espejo: borra extras)
- *   claude-plugin/rules-templates/ → .claude/rules/           (espejo: borra extras)
+ *   claude-plugin/rules-templates/ → .claude/rules/           (solo el piso: cheat sheet, 2 protocolos, agent-contract)
+ *   claude-plugin/rules-templates/ → .claude/aldc-rules/      (al-*.md: referencia bajo demanda)
+ *   Mismo layout de dos niveles que instala /bc-dev:al-initialize (bc-dev 8.0).
  *
  * PRESERVA siempre: .claude/settings.json y .claude/settings.local.json.
  *
@@ -22,7 +24,8 @@ const CHECK = process.argv.includes('--check');
 const MAP = [
   ['claude-plugin/agents', '.claude/agents'],
   ['claude-plugin/skills', '.claude/skills'],
-  ['claude-plugin/rules-templates', '.claude/rules'],
+  ['claude-plugin/rules-templates', '.claude/rules', (rel) => !/^al-.*\.md$/.test(rel)],
+  ['claude-plugin/rules-templates', '.claude/aldc-rules', (rel) => /^al-.*\.md$/.test(rel)],
 ];
 
 let synced = 0, removed = 0, identical = 0;
@@ -39,13 +42,14 @@ function walk(dir) {
   return out;
 }
 
-for (const [srcRel, dstRel] of MAP) {
+for (const [srcRel, dstRel, keep = () => true] of MAP) {
   const srcRoot = path.join(ROOT, srcRel);
   const dstRoot = path.join(ROOT, dstRel);
 
   // 1. fuente → destino
   for (const src of walk(srcRoot)) {
     const rel = path.relative(srcRoot, src);
+    if (!keep(rel)) continue;
     const dst = path.join(dstRoot, rel);
     const same = fs.existsSync(dst) && fs.readFileSync(src).equals(fs.readFileSync(dst));
     if (same) { identical++; continue; }
@@ -60,7 +64,7 @@ for (const [srcRel, dstRel] of MAP) {
   // 2. extras en destino sin equivalente en fuente → eliminar (espejo real)
   for (const dst of walk(dstRoot)) {
     const rel = path.relative(dstRoot, dst);
-    if (!fs.existsSync(path.join(srcRoot, rel))) {
+    if (!fs.existsSync(path.join(srcRoot, rel)) || !keep(rel)) {
       drift.push(`${dstRel}/${rel.split(path.sep).join('/')} (huérfano)`);
       if (!CHECK) { fs.unlinkSync(dst); removed++; }
     }
