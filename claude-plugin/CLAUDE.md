@@ -84,7 +84,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | Need | In this harness |
 |------|-----------------|
 | Compile / validate (no `.app`) | **al-mcp** `al_compile`, or `Bash: al compile`. Fastest for syntax/semantic checks. |
-| Build / package `.app` (single project) | **al-mcp** `al_build` (`scope='current'`, the default), or `Bash: al compile`. |
+| Build / package `.app` (single project) | **al-mcp** `al_build` (`scope='current'`, the default), or `Bash: al compile`. `.app` only — not a source of warning counts. |
 | Build a multi-project workspace **with automatic cross-project symbol resolution** | `Bash: al workspace compile <workspaceFile>` (all projects, one shared package cache, dependency order) — **not** `al_build scope='all'`, which only builds the target project + its own upstream deps against its own isolated `.alpackages` and does **not** rebuild or refresh sibling dependents. See `skill-al-mcp-workspace`. |
 | Map a workspace's project dependency graph | `Bash: al workspace map <workspaceFile> <outputFile>` — generates a markdown+mermaid dependency map. |
 | Add a project to the MCP server's live workspace | **al-mcp** `al_addproject` (projectPath = folder containing `app.json`) — always pass the **canonical, long-form absolute path** (see gotchas below). |
@@ -96,7 +96,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | Search / write translations (quick, single-string) | **al-mcp** `al_searchtranslations` / `al_writetranslation` |
 | Full XLF workflow — create language files, batch-translate, review states, BC glossary | **nab-al-tools** MCP server (`initialize` first — always, with `workspaceFilePath` — then `createLanguageXlf`, `refreshXlf`, `getTextsToTranslate`, `saveTranslatedTexts`, `getTranslatedTextsByState`, `getTextsByKeyword`, `getTranslatedTextsMap`, `getGlossaryTerms`) — load `skill-translate` first; set `NAB.UseTargetStates: true` in `.vscode/settings.json` / the `.code-workspace` `settings` block **before any `refreshXlf`** or refresh injects `[NAB: *]` tokens; tools are namespaced `mcp__plugin_bc-dev_nab-al-tools__*` |
 | See what changed | `Bash: git diff` / `git status` |
-| Compiler errors / diagnostics | **al-mcp** `al_getdiagnostics` (scope by `filePath`/`folderPath`/`projectPath`), or read `al_compile`/`al_build` output directly |
+| Compiler errors / diagnostics | Read `al_compile` output (the authority for analyzer warnings). `al_getdiagnostics` after `al_build` drops analyzer diagnostics and mixes in sibling projects — never count warnings from it (`compiler-authority-protocol.md` §0, `skill-al-mcp-workspace` Gotcha 3) |
 | Generate a permission set | write the `permissionset` object as AL code (Write/Edit) |
 | Edit / create files | `Edit` / `Write` |
 | Delegate to a subagent | the `Task` tool |

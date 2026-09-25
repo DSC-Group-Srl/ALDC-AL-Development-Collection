@@ -27,7 +27,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 
 | Need | Use |
 |---|---|
-| Compile / diagnostics | **al-mcp** `al_compile` (no `.app`), `al_build` (`scope='current'`), `al_getdiagnostics` scoped by `filePath`/`folderPath`; or `Bash: al compile` |
+| Compile / diagnostics | **al-mcp** `al_compile` (no `.app`; the authority for warnings), `al_build` (`scope='current'`, `.app` only — its `al_getdiagnostics` drops analyzer warnings, compiler-authority §0); or `Bash: al compile` |
 | Multi-project workspace (app + test app) | `Bash: al workspace compile <workspaceFile>` — **not** `al_build scope='all'`, which never refreshes a sibling dependent. Load `skill-al-mcp-workspace` before working across projects |
 | Symbols | **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth; environment-scoped needs the human), `al_addproject` (canonical long-form absolute path) |
 | Find objects / members / relations | **al-mcp** `al_symbolsearch` (`filters.scope='all'` spans added projects), `al_symbolrelations`, `al_getpackagedependencies`; AL LSP hover / go-to-definition / find-references; `Grep`/`Glob` for text |
@@ -50,8 +50,8 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
   four `${...}` cop tokens; an `${analyzerFolder}` entry is dropped silently and the build
   reports success with no ALCops run. If a whole session shows no ALCops-family codes, assume
   the list was dropped and say so.
-- `onlyErrors=true` is a mid-edit fail-fast only. Before a file is done, run
-  `al_getdiagnostics` on it with no severity filter. **Zero new warnings** on lines you wrote or
+- `onlyErrors=true` is a mid-edit fail-fast only. Before a file is done, read its `al_compile`
+  diagnostics with no severity filter (not `al_build` + `al_getdiagnostics`). **Zero new warnings** on lines you wrote or
   changed, from any analyzer (`compiler-authority-protocol.md` §0).
 
 ## Procedure
@@ -78,7 +78,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    `skill-api`, `skill-events`, `skill-permissions`, `skill-performance`, `skill-pages`,
    `skill-testing`, `skill-copilot`, `skill-translate`, `skill-debug`, `skill-demo-data`
    (invoke `Skill(skill: "bc-dev:skill-x")` — naming it is not loading it).
-6. **Compile and fix.** Analyzers as above; `al_getdiagnostics` per touched file; resolve
+6. **Compile and fix.** Analyzers as above; `al_compile` diagnostics per touched file; resolve
    every error and every new warning. Compiler-authority rules: the diagnostic is right, verify
    the real signature with al-mcp before a second attempt, one grounded retry per diagnostic,
    never comment out or defer a feature to get a green build.

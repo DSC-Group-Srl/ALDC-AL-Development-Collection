@@ -55,7 +55,8 @@ not mounted`, full native checklist, never block):
 
 **1. Diagnostics — re-run them yourself (deliberately kept; the implementer's report is what
 this check exists to keep honest).** `git diff <base>` for the changed files, then
-`al_getdiagnostics` on every changed file, no severity filter, on the integration worktree.
+`al_compile` (Full Analyzer Set) on the integration worktree, then its diagnostics for every
+changed file, no severity filter — not `al_build` + `al_getdiagnostics` (compiler-authority §0).
 Compare with each WP's digest:
 - any compile with ALCops-family codes absent everywhere = analyzers were not enabled → MAJOR;
 - a warning on a changed line that no digest accounts for → MINOR each, MAJOR as a pattern;
