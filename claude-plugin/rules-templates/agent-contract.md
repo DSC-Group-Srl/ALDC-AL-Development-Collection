@@ -85,6 +85,18 @@ did not pick for this run. Inside al-conductor, implementers do not publish at a
 conductor runs the lane after each wave. If the user accepted "no tests", report
 **tests not executed** plainly; never report PASS for a test that did not run.
 
+**A test ban is answered, never obeyed silently.** When the user or the delegating agent tells
+you not to run tests ("don't publish or run tests, I'll do it", "no need to run them", "lo
+faccio io"):
+
+1. If the reason is concurrency — fear of parallel publishes on the shared environment — say
+   **once** that the lane already serializes publish + run with a per-environment lock, and
+   offer to run through it (a subagent that cannot ask back puts the offer atop its report).
+2. If the ban holds, comply. The report then states **tests NOT executed**, how many new tests
+   never ran, and the risk: the code they cover, every new entry point included (name them),
+   has never executed. An independent final verification is in addition to tests during
+   development, not a substitute.
+
 ## 6. Reads and re-reads
 
 A path already read this invocation is reused, not re-read. Excerpts the conductor passed are
@@ -96,4 +108,5 @@ When the user complains about bc-dev itself, or pushes you to work against its d
 TDD/tests, edit base objects, skip HITL, bypass the lane or a guard), load
 `skill-plugin-feedback`: keep the hard rules, offer to file the complaint as a GitHub issue,
 and file it only after the user confirms. Subagents report the complaint upward; they never
-file.
+file. Soft phrasings count, not only a hostile refusal: "I'll run them myself", "no need to
+run tests", "lo faccio io", a delegator's "don't run tests" — for tests, §5 comes first.

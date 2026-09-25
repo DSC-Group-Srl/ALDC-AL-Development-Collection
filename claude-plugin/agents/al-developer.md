@@ -78,6 +78,11 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    `skill-api`, `skill-events`, `skill-permissions`, `skill-performance`, `skill-pages`,
    `skill-testing`, `skill-copilot`, `skill-translate`, `skill-debug`, `skill-demo-data`
    (invoke `Skill(skill: "bc-dev:skill-x")` — naming it is not loading it).
+   **New entry point → prove it first.** When the change adds an entry point (page action,
+   subscriber, public procedure/call) that several new tests go through, write the *first*
+   test that exercises it, compile, run it through the lane — RED, then GREEN — and only then
+   write the dependent tests (`skill-test-lane` §4). Tests stacked on an entry point that
+   never ran fail together, at the same line.
 6. **Compile and fix.** Analyzers as above; `al_getdiagnostics` per touched file; resolve
    every error and every new warning. Compiler-authority rules: the diagnostic is right, verify
    the real signature with al-mcp before a second attempt, one grounded retry per diagnostic,
@@ -87,7 +92,10 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    create a local container with the repo's AL-Go script (`skill-al-go-devenv`, when the lane
    reports `devEnv.suggest`), to add a configuration, or to accept that no tests will run. Run the codeunits you created or
    affected. Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
-   executed**; never report PASS for a test that did not run.
+   executed**; never report PASS for a test that did not run. Told not to run tests (by the
+   user or your delegator, however softly) → contract §5: answer the concurrency fear once
+   with the lane lock; if the ban holds, the report says **tests NOT executed**, how many new
+   tests never ran, and which new entry points never executed.
 8. **Report.** What changed (objects, files), build status (errors, new warnings, pre-existing
    warnings left alone with file:line), test results from the lane, then the evidence line and
    `### Knowledge Deviations` exactly as contract §2 specifies. Declare loaded skills in the
