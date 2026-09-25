@@ -33,7 +33,7 @@ Invoke `Skill(skill: "bc-dev:skill-debug")` first — it owns the method (debugg
 
 ## Reproducing with the compiler and the test lane
 
-- **Analyzers on every compile (repeated here on purpose — agents forget).** Any `al_compile`/`al_build` you run to reproduce: `enableCodeAnalysis=true` plus the full list — `${CodeCop}`, `${PerTenantExtensionCop}` or `${AppSourceCop}`, `${UICop}`, and the ALCops DLLs as **absolute paths** from the SessionStart hook. Never `${analyzerFolder}ALCops.X.dll` in an al-mcp call (silently dropped). Read diagnostics with `al_getdiagnostics`, no severity filter. Details: `compiler-authority-protocol.md` §0.
+- **Analyzers on every compile (repeated here on purpose — agents forget).** Any `al_compile`/`al_build` you run to reproduce: `enableCodeAnalysis=true` plus the full list — `${CodeCop}`, `${PerTenantExtensionCop}` or `${AppSourceCop}`, `${UICop}`, and the ALCops DLLs as **absolute paths** from the SessionStart hook. Never `${analyzerFolder}ALCops.X.dll` in an al-mcp call (silently dropped). Read diagnostics from `al_compile`, no severity filter — not `al_build` + `al_getdiagnostics`. Details: `compiler-authority-protocol.md` §0.
 - **Tests only through the test lane** (`bc-dev:skill-test-lane`, contract §5): the user picks the environment from `.vscode/launch.json`; the lane serializes the shared environment. Nothing to pick and the user accepts no runtime repro → say so and rely on the static trace.
 
 ## Output — the diagnosis
