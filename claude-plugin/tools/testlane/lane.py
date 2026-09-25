@@ -5,7 +5,8 @@ Most DSC jobs have exactly one environment that can run unit tests. Parallel wor
 a second Claude session, or a colleague's agent on the same machine must not publish over
 each other's apps mid-run, so every publish+test sequence goes through this lane:
 
-    lane.py configs  <project-dir>                     list usable launch.json configurations
+    lane.py configs  <project-dir>                     list usable launch.json configurations,
+                                                       each with its env's current lock state
     lane.py prepare  <project-dir> <config-name>       write a single-config scratch project
     lane.py acquire  <env-key> [--wait 900]            take the lock (blocks up to --wait s)
     lane.py release  <env-key>                         give it back (idempotent)
@@ -41,6 +42,7 @@ import tempfile
 import time
 
 LOCK_ROOT = os.path.join(os.path.expanduser("~"), ".claude", "aldc-testlane")
+STALE_S = 1800  # a holder older than this is presumed dead (acquire --stale default)
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -98,6 +100,8 @@ def cmd_configs(project: str) -> int:
     cfgs = [describe(c) for c in load_configs(project)]
     target = app_target(project)
     for d in cfgs:
+        # envKey is env_key(cfg), the same key prepare returns — so the lock is visible at pick time.
+        d["lock"] = _lock_state(d["envKey"])
         # An OnPrem/Internal-targeted test app is rejected by a SaaS sandbox at publish time
         # ("destinazione di compilazione superiore a quella consentita") — flag it up front.
         d["compatible"] = not (target in ("OnPrem", "Internal") and d["envType"] != "OnPrem")
@@ -228,11 +232,17 @@ def cmd_release(key: str) -> int:
     return out({"ok": True, "released": existed})
 
 
-def cmd_status(key: str) -> int:
+def _lock_state(key: str, stale: float = STALE_S) -> dict:
+    """Shared by status and configs: free, or held by whom, for how long, presumed dead?"""
     d = _lock_dir(key)
     if not os.path.isdir(d):
-        return out({"ok": True, "locked": False})
-    return out({"ok": True, "locked": True, "holder": _read_owner(d), "ageS": round(_age(d) or 0)})
+        return {"locked": False}
+    age = round(_age(d) or 0)
+    return {"locked": True, "holder": _read_owner(d), "ageS": age, "stale": age > stale}
+
+
+def cmd_status(key: str) -> int:
+    return out({"ok": True, **_lock_state(key)})
 
 
 def _al(args: list[str], timeout: int) -> tuple[int, str]:
@@ -339,7 +349,7 @@ def main(argv: list[str]) -> int:
     if cmd == "prepare" and len(a) >= 2:
         return cmd_prepare(a[0], " ".join(a[1:]))
     if cmd == "acquire" and a:
-        wait, stale = opt("--wait", 900), opt("--stale", 1800)
+        wait, stale = opt("--wait", 900), opt("--stale", STALE_S)
         return cmd_acquire(a[0], wait, stale)
     if cmd == "release" and a:
         return cmd_release(a[0])
@@ -392,6 +402,7 @@ def self_test() -> int:
     a1 = run("acquire", key, "--wait", "0")
     a2 = run("acquire", key, "--wait", "0")
     st = run("status", key)
+    c2 = run("configs", proj)
     # simulate a dead holder
     with open(os.path.join(LOCK_ROOT, f"{key}.lock", "owner.json"), "w", encoding="utf-8") as fh:
         json.dump({"since": time.time() - 99999}, fh)
@@ -406,7 +417,12 @@ def self_test() -> int:
         ("prepare writes exactly one config", len(only) == 1 and only[0]["name"] == "Sbx"),
         ("first acquire wins", a1["acquired"] is True),
         ("second acquire refused", a2["acquired"] is False),
-        ("status shows holder", st["locked"] is True),
+        ("status shows holder", st["locked"] is True and st["stale"] is False),
+        ("configs shows each env's lock state",
+         c["configurations"][1]["lock"] == {"locked": False}
+         and c2["configurations"][1]["lock"]["locked"] is True
+         and c2["configurations"][1]["lock"]["holder"].get("pid") == os.getpid()
+         and c2["configurations"][0]["lock"] == {"locked": False}),
         ("stale holder recovered", a3["acquired"] is True and a3["staleRecovered"] == 1),
         ("release", r["released"] is True and r2["released"] is False),
         ("dup package id = already-current", _classify_publish(1, "A duplicate package ID is detected") == "already-current"),

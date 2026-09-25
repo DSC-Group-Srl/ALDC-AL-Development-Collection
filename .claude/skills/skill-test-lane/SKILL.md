@@ -23,6 +23,10 @@ python "$L" configs <test-project-dir>      # e.g. app-test
   rejected by that environment (a SaaS sandbox) — say so instead of offering it as a choice.
 - An OnPrem (Docker) configuration carries `reachable`; an unreachable one is not usable (its
   container does not exist or is stopped).
+- Every configuration carries `lock` — same shape as `status`: `{"locked": false}`, or
+  `locked: true` with `holder` (pid/session/host/since), `ageS` and `stale` (older than 30 min,
+  recovered on the next `acquire`). A held lock is not a reason to skip tests: `acquire --wait`
+  queues behind it. Show it next to the name so the user picks knowing.
 - **No usable configuration** → offer, in this order: (1) **create one with the repo's AL-Go
   script** when `devEnv.suggest` is true (`bc-dev:skill-al-go-devenv` — one UAC click, ~20–40 min
   unattended, `devEnv.recommended` says local vs cloud); (2) add a configuration to
@@ -76,6 +80,12 @@ owns it (the plan lists codeunit → WP).
   Do not publish just to watch it fail.
 - Changed behavior (bug fix, altered logic): RED must be a **real** lane run of the new test
   against the unfixed code, before the fix is merged.
+- New entry point with dependent tests downstream (a page action, subscriber or public
+  procedure that several new tests go through): write the **first** test that exercises it,
+  take it RED (per the two cases above) and then GREEN on a **real lane run**, and only then
+  write the tests that depend on it. A clean compile proves nothing about an entry point that
+  never ran — otherwise every dependent test fails at the same line on first run. Standalone
+  work (al-developer) only; inside al-conductor the wave's lane run plays this role.
 - GREEN is a lane run of the wave's codeunits; the final run before completion runs **all**
   test codeunits of the test app.
 
