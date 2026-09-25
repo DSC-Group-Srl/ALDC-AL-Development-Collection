@@ -72,7 +72,8 @@ are authoritative. Domain depth: `.claude/aldc-rules/al-*.md` (fallback
    - If al-mcp cannot serve your worktree (another project is loaded, calls interfere), use
      `Bash: al compile -project:<worktree>/<app> -packagecachepath:<its .alpackages> -outfolder:<temp>`
      with `/analyzer:` for each DLL — one process per worktree, safe in parallel.
-   - Then `al_getdiagnostics` on **every file you touched**, no severity filter. Bar: 0 errors,
+   - Then read the `al_compile` diagnostics for **every file you touched**, no severity filter —
+     never `al_build` + `al_getdiagnostics`, which drops analyzer warnings (compiler-authority §0). Bar: 0 errors,
      **0 new warnings on lines you wrote**. No ALCops-family code anywhere in the session =
      the analyzer list was dropped; say so, don't report clean.
    - A diagnostic is ground truth (compiler-authority protocol): one grounded fix per

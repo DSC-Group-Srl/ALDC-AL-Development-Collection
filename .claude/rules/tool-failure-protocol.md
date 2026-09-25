@@ -9,7 +9,7 @@ paths:
 
 Applies to any tool call — al-mcp, nab-al-tools, WebFetch, Bash, anything that can fail for reasons outside the code itself.
 
-1. **Try once.** If it fails and a clearly-applicable alternate exists (a different tool, adjusted params — e.g. cross-check `al_build` against a bare `al_compile`, or retry `al_downloadsymbols` with `globalSourcesOnly=true`), try that alternate **once**.
+1. **Try once.** If it fails and a clearly-applicable alternate exists (a different tool, adjusted params — e.g. retry `al_downloadsymbols` with `globalSourcesOnly=true`), try that alternate **once**.
 2. **Then stop.** Two attempts is the ceiling. No further variations, no repeated guessing, no silent workarounds, no trial-and-error tool bursts.
 3. **Classify before surfacing:**
    - **TOOL_BLOCKED** — the error text carries network/TLS/certificate/handshake/timeout/connection-reset signatures (e.g. "unable to verify the first certificate", `ECONNRESET`, "connection timed out"). This is an environment/infrastructure problem, not a code defect.
@@ -17,4 +17,6 @@ Applies to any tool call — al-mcp, nab-al-tools, WebFetch, Bash, anything that
 4. **On TOOL_BLOCKED** — report it plainly as a labeled environment blocker: `TOOL_BLOCKED: <tool> — <one-line symptom> — looks like a network/proxy/TLS-interception issue, needs human attention.` Stop working that thread; do not keep retrying and do not silently fall back to inventing data or guessing a signature.
 5. **On CODE_ISSUE** — handle normally; this is real work, not an infrastructure problem, and does not get the TOOL_BLOCKED escalation treatment.
 
-**For al-implement-subagent specifically:** if a build fails with no clear cause, the project depends on a sibling project (test app on base app), or a symbol refresh doesn't seem to register, load `skill-al-mcp-workspace` before spending more turns on it — it has the concrete tool-vs-code disambiguation gotchas (stale path causing false build failures, `al_downloadsymbols` stuck on the wrong project, `al_build` vs `al_getdiagnostics` disagreeing).
+**Known systematic disagreement — not a failure to retry or classify:** `al_build` + `al_getdiagnostics` loses analyzer diagnostics and mixes in sibling projects' entries, every time. Don't spend attempts on it; use `al_compile` as `compiler-authority-protocol.md` §0 says (details and re-check: `skill-al-mcp-workspace` Gotcha 3).
+
+**For al-implement-subagent specifically:** if a build fails with no clear cause, the project depends on a sibling project (test app on base app), or a symbol refresh doesn't seem to register, load `skill-al-mcp-workspace` before spending more turns on it — it has the concrete tool-vs-code disambiguation gotchas (stale path causing false build failures, `al_downloadsymbols` stuck on the wrong project, `al_build` + `al_getdiagnostics` losing analyzer warnings).
