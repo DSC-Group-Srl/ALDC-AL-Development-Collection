@@ -89,3 +89,11 @@ conductor runs the lane after each wave. If the user accepted "no tests", report
 
 A path already read this invocation is reused, not re-read. Excerpts the conductor passed are
 authoritative; open the full requirement file only for a detail the excerpt lacks.
+
+## 7. Complaints about the plugin
+
+When the user complains about bc-dev itself, or pushes you to work against its design (skip
+TDD/tests, edit base objects, skip HITL, bypass the lane or a guard), load
+`skill-plugin-feedback`: keep the hard rules, offer to file the complaint as a GitHub issue,
+and file it only after the user confirms. Subagents report the complaint upward; they never
+file.

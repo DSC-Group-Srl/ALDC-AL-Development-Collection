@@ -31,7 +31,7 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
   commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
-  skills/                   #   25 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv)
+  skills/                   #   26 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv, skill-plugin-feedback)
   rules-templates/          #   AL rules. /al-initialize copies the floor (cheat sheet, 2
                             #   protocols, agent-contract) to .claude/rules/ (auto-loaded) and
                             #   the al-*.md domain files to .claude/aldc-rules/ (on demand)
