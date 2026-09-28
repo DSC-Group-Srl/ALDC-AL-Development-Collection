@@ -20,5 +20,5 @@
 # of the estate, and is not required for normal use.
 
 url=https://github.com/microsoft/BCQuality.git
-ref=v1.5
-pin=ad8ccde5953fd6ce072e3b59049406783066ed60
+ref=v1.6
+pin=1a5afdc0ebb6eb3fde1c3c69a13f235275cf4549
