@@ -130,7 +130,7 @@ Gather issue information:
 
 ### Step 2a: Isolate the Problem (Runtime / Logic)
 
-1. Narrow down scope with `Grep`/`Glob` and al-symbols-mcp `al_find_references`
+1. Narrow down scope with `Grep`/`Glob` and al-mcp and AL LSP
 2. Identify suspect objects (tables, pages, codeunits, event subscribers)
 3. Attach debugger with selected strategy (Pattern 1)
 4. Set strategic breakpoints:
