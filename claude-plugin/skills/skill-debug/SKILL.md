@@ -42,7 +42,7 @@ Scenario: "Value is wrong after posting"
 
 1. Set breakpoint at final location (where value is wrong)
 2. Work backwards to find where value is set
-3. Use al-symbols-mcp `al_find_references` (or `Grep` for text search) to find all assignments
+3. Use al-mcp or the AL LSP to find all assignments
 4. Set breakpoints at each assignment point
 5. Step through to find which execution path is taken
 6. Inspect conditions and variable states at each point
