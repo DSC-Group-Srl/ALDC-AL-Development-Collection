@@ -3,11 +3,14 @@ description: >
   Build, package, and deploy AL extensions to Business Central environments.
   Use when you need to build, compile, package, publish, or deploy an AL extension.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
+argument-hint: "<DeploymentType>"
 ---
 
 # Build and Deploy AL Extension
 
-Your goal is to build (compile + package) the AL extension for the `${input:DeploymentType}` environment and to guide its deployment.
+**Inputs** — parse from `$ARGUMENTS`: `{DeploymentType}`. Ask the user for any that are missing before starting; never leave a `{placeholder}` unresolved in an output file.
+
+Your goal is to build (compile + package) the AL extension for the `{DeploymentType}` environment and to guide its deployment.
 
 > **What runs where.** In the Claude Code harness you compile and package with the **AL command-line tool (ALTool / `al`)** via `Bash`. ALTool has **no publish/test verb** — deployment and test runs are VS Code (`AL: Publish` / `AL: Run Tests`) or AL-Go/CI pipeline steps. So this command builds the `.app` and then hands off the deploy with a clear, approved checklist.
 

@@ -196,6 +196,6 @@ the skill's own SKILL.md instructs, only when bootstrap mode and file count requ
 ## Handoffs
 
 None outward — this is a terminal step for either caller. Only inward: invoked once by
-`al-conductor` at Phase 3 (Plan Completion), after `CLAUDE.md` is updated and before the final
+`al-conductor` at plan completion, after decisions are saved to `app/requirements/memory.md` and before the final
 completion summary is presented to the user; or by `al-documentation-conductor` in its Phase 2
 (Generation), alongside `al-documentation-docx-subagent`, for a full-app documentation run.

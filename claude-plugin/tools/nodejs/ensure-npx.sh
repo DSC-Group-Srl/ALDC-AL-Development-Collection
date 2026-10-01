@@ -13,8 +13,26 @@ EVENT="${1:-SessionStart}"
 MIN_NODE_MAJOR=20
 
 emit() {
-  # $1 must be free of " and \ so this stays valid JSON.
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$1"
+  # JSON-escape the message: backslashes, double quotes, CR/LF/TAB.
+  # Windows paths interpolated into the text (CLAUDE_PLUGIN_ROOT, analyzer
+  # folders) are why this cannot be a bare printf -- a C:\Users\... path
+  # emits an invalid \U escape and the harness rejects the whole payload.
+  # The backslash and quote literals are built with printf octal escapes so
+  # this function contains no raw backslash that an editor or generator can
+  # silently halve -- that halving is exactly how the original bug survived.
+  local esc bs dq
+  bs=$(printf '\134')   # backslash
+  dq=$(printf '\042')   # double quote
+  esc="$1"
+  # NOTE: BOTH pattern and replacement MUST be quoted -- an unquoted $bs is
+  # read as the pattern escape character (matches nothing), and an unquoted
+  # replacement collapses $bs$bs back to a single backslash.
+  esc="${esc//"$bs"/"$bs$bs"}"
+  esc="${esc//"$dq"/"$bs$dq"}"
+  esc="${esc//$'\r'/}"
+  esc="${esc//$'\n'/${bs}n}"
+  esc="${esc//$'\t'/${bs}t}"
+  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$esc"
 }
 
 if command -v npx >/dev/null 2>&1; then

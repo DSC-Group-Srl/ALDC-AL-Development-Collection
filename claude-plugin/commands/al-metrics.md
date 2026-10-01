@@ -1,6 +1,6 @@
 ---
 description: >
-  Report the ALDC quality metrics collected from review, implementation and audit phases —
+  Report the ALDC quality and efficiency metrics (tokens, time, cost, test lane) collected from every phase —
   independence-ratio, deviation rate, undeclared deviations, and prescribed-vs-cited. Use
   when you want to know whether the BCQuality-guided flow is actually working, which
   prescribed rules keep being deviated from, or whether the review has drifted into merely
@@ -54,21 +54,35 @@ Render what the script prints, and add the judgement it cannot make:
    does not fit us.
 5. **Note thin data honestly.** Under about five reviews these ratios are noise. Say so
    rather than reading a trend into four data points.
+6. **Read the EFFICIENCY block as the cost side of the same ledger.** Per agent: average
+   tokens, output tokens, seconds, turns, builds, whole-file-read share and estimated USD
+   (from `tools/metrics/prices.json`). Per session (SessionEnd, subagents included): total
+   tokens, minutes and **tokens per changed AL line** — the headline efficiency KPI. Per
+   conductor run: WPs, waves, fix loops, human stops, parallelism. Test lane: lock wait,
+   publish and run seconds. Call out: a whole-read share above ~40% (the read-guard or
+   `al-file-reader` is not being used), builds per implementer above ~4 (guessing instead of
+   grounding — compiler-authority rule 2), and any version-over-version regression in tokens
+   per AL line. Efficiency only counts if the quality ratios above did not get worse in the
+   same window — say so when they did.
 
 ## Where the data lives
 
 - `$CLAUDE_PLUGIN_DATA/metrics/aldc-metrics.jsonl` — always written, survives plugin updates.
 - `<project>/.github/metrics/aldc-metrics.jsonl` — only when that directory exists. Create it
   to version metrics with the project.
-- **Azure Application Insights** — when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set, each
-  record is also sent as an `AldcPhase` custom event. That is the estate-wide view: this
+- **Azure Application Insights** — always on (the connection string ships in
+  `tools/metrics/appinsights.connection`; `$APPLICATIONINSIGHTS_CONNECTION_STRING` overrides it,
+  `ALDC_METRICS_APPINSIGHTS_DISABLE=1` turns it off per machine). Events: `AldcPhase` (one per
+  subagent, now with `u*` token/time measurements), `AldcSession`, `AldcRun`, `AldcLane`,
+  `AldcRead`, `AldcHook`, `AldcHeartbeat`. That is the estate-wide view: this
   command reports the local machine, KQL reports everyone. If the user is asking about trends
   across projects or over months, point them at `tools/metrics/azure/queries.kql` and the
   workbook rather than trying to answer from one machine's JSONL.
 - `$ALDC_METRICS_ENDPOINT` — a plain webhook, when set. Off by default; no credential ships
   in the plugin.
 
-Records hold counts, verdicts and BCQuality knowledge paths. **No message bodies, no customer
+Records hold counts, verdicts, allowlisted identifiers (agent, skill and tool names, model ids,
+a salted hash of the app id) and BCQuality knowledge paths. **No message bodies, no customer
 AL, no repo paths** — enforced in the parser, not merely intended, because these files travel.
 
 If nothing has been collected, the script says where to look; the usual cause is no python

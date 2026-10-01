@@ -1,90 +1,60 @@
 # Template — Planning Findings
 
-Use this template verbatim when the AL Planning Subagent returns research findings to the Conductor. Replace placeholders, remove sections that do not apply, do not invent additional structure.
+Returned by `al-planning-subagent` to the Conductor, once per run. Replace placeholders,
+drop sections that do not apply (in mode `worklist` usually only the worklist remains), add
+no other structure. No code blocks in findings — describe and link to files.
 
 ---
 
 ```markdown
 ## AL Planning Findings: {Task Name}
 
-### Relevant AL Objects
+**Mode:** {worklist | research+worklist}
 
-- **Base Objects**: {list with type, ID and name}
-- **Existing Extensions**: {list with type, ID, name, base object it extends, file path}
-- **Related AL Objects**: {codeunits, pages, page extensions touched by the feature}
+### Knowledge Worklist
+🟢 BCQuality {sha} · {N} prescriptions across {M} WPs
+*(or `⚪ BCQuality not mounted — no worklist`, or `📚 bcq · none` when Entry returned no-match)*
 
-### Event Architecture
+#### WP-1 — {objective}
+- `microsoft/knowledge/{domain}/{file}.md` — {message, verbatim} — {confidence}
+#### WP-2 — {objective}
+- none
 
-- **Subscribers Available**: {OnBefore/OnAfter events on relevant tables, with event name and target field/object}
-- **Publishers to Call**: {integration events to fire, if any}
-- **Pattern**: {short rationale, e.g. "OnBefore for validation, OnAfter for integration"}
+### Gap Answers
+*(One entry per gap the Conductor listed.)*
+- **{gap}** — {verified answer}; source: {al_symbolsearch result | file:line}
 
-### AL-Go Structure
+### Anchors for Implementers
+- `{exact/path/File.Codeunit.al}:{start}-{end}` — {procedure/trigger} — touched by WP-{n}
 
-- **App Project**: {path and `app.json` dependencies}
-- **Test Project**: {path and `app.json` "test" scope dependency on app}
-- **Follows**: AL-Go for GitHub conventions
+### Relevant Objects & Events
+- Base: {type ID "Name"} · Existing extensions: {type ID "Name" → path}
+- Events confirmed: {publisher object} `{EventName}` — {used by WP-n}
 
-### Key Functions/Classes to Reference
-
-- **{FileName}.al**:
-  - {Procedure name}: {one-line purpose}
-- **Test patterns** in `/test`:
-  - {Existing test files and their relevant pattern}
-
-### Patterns & Conventions
-
-- **Object IDs**: {range reserved for the feature}
-- **Naming**: 26-char limit, PascalCase
-- **Folders**: feature-based
-- **Tests**: separate project with `"test"` scope
-- **Performance**: notable patterns already in use (SetLoadFields, FlowFields, etc.)
+### Project Layout & Conventions
+- App: {path, key deps} · Test: {path, deps; Library Assert present y/n}
+- Prefix {x} · IDs in use {ranges} · folders {feature-based path} · test pattern {…}
 
 ### Performance Considerations
+- {table/area} — {SetLoadFields / filter-early / FlowField note}
 
-- {Per-table specifics: large tables → SetLoadFields, filter early, no DB calls in loops}
+### Implementation Options *(only when a gap leaves a real choice)*
+1. **{Option A}** (Recommended) — pros / cons
+2. **{Option B}** — pros / cons
 
-### Dependencies
+### Open Questions / Uncertainties
+- ❓ {Question? Option A / Option B} — {why it could not be resolved}
 
-- **Required Symbols**: {e.g. "Base Application", "System Application"}
-- **Extension Dependencies**: {other apps required, or "None"}
-- **Packages**: {check `.alpackages/` for available symbols}
-
-### Implementation Options
-
-1. **Option A: {Name}** ({Recommended/Not Recommended})
-   - Pros: {1-2 bullets}
-   - Cons: {1-2 bullets}
-   - Pattern: {short description}
-2. **Option B: ...**
-3. **Option C: ...**
-
-**Recommendation**: {Pick one with a one-line rationale}
-
-### Open Questions
-
-- {Question? Option A / Option B / Option C}
-- {Question?}
-
-### Existing Tests
-
-- Found: {test file names and what they cover}
-- Pattern: {how they assert, what attributes}
-- Coverage: {basic / partial / complete}
-- Need: {edge cases or scenarios still missing}
-
-### Uncertainties (optional)
-
-- ❓ {Anything you could not confirm — flag clearly, do not invent}
+### Blockers
+- {TOOL_BLOCKED: … | missing symbol … | none}
 ```
 
 ---
 
 ## Rules
 
-- Document file paths exactly (no abbreviations).
-- Use real object IDs from the codebase, never placeholders.
-- 2-3 implementation options per "Implementation Options" section, with pros/cons.
-- Open Questions: 1-5 entries, ~5-25 words each, in the form `Question? Option A / Option B / Option C`.
-- Do NOT include code blocks in the findings — describe and link to files instead.
-- Do NOT draft a plan; the Conductor drafts the plan from these findings.
+- Exact file paths and real object IDs, never placeholders.
+- Worklist entries are copied verbatim from the BCQuality skill output — path, message,
+  confidence. Never paraphrase or merge.
+- Open Questions: 0-5 entries, each `Question? Option A / Option B`.
+- Do NOT draft a plan; the Conductor owns the WP graph.

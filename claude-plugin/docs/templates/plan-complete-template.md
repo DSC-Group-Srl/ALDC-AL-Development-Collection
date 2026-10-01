@@ -1,86 +1,36 @@
 # Template — Plan Completion Report
 
-Use this template verbatim when writing `app/requirements/{req_status}/<plan-name>/<plan-name>-complete.md`
-(`{req_status}` = `in-progress` while active, `archived` once the requirement ships). Consolidate data
-from all phase-complete files. Replace placeholders, remove sections that do not apply, do not
-invent additional structure.
-
----
+`app/requirements/in-progress/{req}/{req}-complete.md`, written once by al-conductor at the end
+(the folder is then moved to `archived/`). Short on purpose: the wave log in `{req}.plan.md`
+holds the per-wave detail — reference it, don't copy it.
 
 ```markdown
-## Plan Complete: {Task Title}
+# Complete: {req} — {title}
 
-{2-4 sentence summary describing what was built and the value delivered.}
+{2–3 sentences: what was built and the value delivered.}
 
-**AL Extension Summary:**
-- Extension Type: {TableExtension, Codeunit, Page, etc.}
-- Base Objects Extended: {List standard BC objects}
-- Event Architecture: {Subscribers and publishers added}
-- AL-Go Compliance: ✅ {App and Test projects properly structured}
+**Waves:** {W} · **WPs:** {N} · **Fix rounds:** {n} · **Branch:** aldc/{req} · **Base → head:** {sha}..{sha}
+**Tests:** {passed}/{total} on {environment} ({date}) | **tests not executed** (no environment — accepted by user)
 
-**Phases Completed:** {N} of {N}
-1. ✅ Phase 1: {Title}
-2. ✅ Phase 2: {Title}
-...
+## Objects
+- {Type} {ID} "{Name}" — {created|modified}
 
-**All AL Objects Created/Modified:**
-- Table/TableExtension {ID}: {Name}
-- Codeunit {ID}: {Name}
-- Page/PageExtension {ID}: {Name}
-...
+## Event subscribers / publishers
+- {Proc} → {Base object} `{Event}`
 
-**All Files Created/Modified:**
-- `/app/...`
-- `/test/...`
+## Deviations from spec / architecture
+- {… | none}
 
-**Key Functions/Event Subscribers Added:**
-- {Function/procedure name}
-- {Event subscriber signature}
+## Deferred
+- {… | none}
 
-**Test Coverage:**
-- Total test codeunits: {count}
-- Total test procedures: {count}
-- All tests passing: ✅
-- AL-Go structure: ✅
+## Skills & knowledge
+| Skill | WPs | Patterns |
+|-------|-----|----------|
+| skill-events | WP-2 | IsHandled, EventSub |
 
-(Omit the test coverage block if no tests were generated.)
+🟢 BCQuality {sha} · 📚 {P} prescribed / {C} newly cited / {D} deviated
 
-**AL Performance & Quality:**
-- SetLoadFields used: {Yes/No}
-- Event-driven: ✅ {No base modifications}
-- Naming conventions: ✅ {26-char limit}
-- Error handling: ✅
-
-**Skills Utilization Summary:**
-
-| Skill | Phases Applied | Key Patterns Used |
-|-------|---------------|-------------------|
-| skill-api | Phase 2, 3 | ODataKeyFields, APIPublisher, bound action |
-| skill-testing | Phase 1, 2, 3 | Given/When/Then, Library Assert |
-| skill-permissions | Phase 3 | READ/CALC permission sets |
-| skill-performance | Phase 2 | SetLoadFields, CalcFields grouping |
-
-(Consolidate from every phase-complete file. List only skills actually applied. Omit table if empty.)
-
-**BCQuality Evidence Roll-up:** (omit if BCQuality was not consulted in any phase)
-
-| Phase | Skills run | Outcome | Findings (b/M/m/i) | Citations | Raw report |
-|-------|-----------|---------|--------------------|-----------|------------|
-| 2 | al-performance-review, al-security-review | completed | 0/1/1/0 | 2 | `<plan>-bcquality-phase-2.json` |
-
-- Submodule SHA (all phases): {e.g. f562fba}
-- Citations validated by `bcquality-evidence` CI: ✅ / ❌
-
-**Recommendations for Next Steps:**
-- {Optional suggestion}
+## Next
+- {PR, deployment, follow-ups}
 ```
-
----
-
-## Rules
-
-- File name pattern: kebab-case, `<plan-name>-complete.md` (no phase suffix).
-- One report per plan, written at the end.
-- Reference phase-complete files for detail rather than duplicating their content.
-- Skills summary aggregates phase reports; do not invent skills that did not appear in any phase.
-- Do not add sections beyond the ones above.

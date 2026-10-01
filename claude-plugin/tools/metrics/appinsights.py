@@ -100,10 +100,11 @@ def parse_connection_string(cs: str) -> tuple[str, str] | None:
     return ikey, endpoint
 
 
-def read_shipped_connection_string(path: str = _CONNECTION_FILE) -> str:
+def read_shipped_connection_string(path: str = "") -> str:
     """The plugin-shipped default — see `appinsights.connection`. First non-comment,
     non-blank line, with an optional `connectionString=` prefix stripped. Absent file or any
     read error is silently "no default", never an exception."""
+    path = path or _CONNECTION_FILE
     try:
         with open(path, encoding="utf-8") as fh:
             for raw in fh:
@@ -160,6 +161,11 @@ def _props(rec: dict) -> dict[str, str]:
         out["knowledge"] = "|".join(rec["knowledge"])
     if rec.get("deviations_declared"):
         out["deviationsDeclared"] = "|".join(rec["deviations_declared"])
+    if rec.get("projectHash"):
+        out["projectHash"] = str(rec["projectHash"])
+    u = rec.get("usage") or {}
+    if u.get("model"):
+        out["model"] = str(u["model"])
     return {k: v for k, v in out.items() if v not in ("", "None")}
 
 
@@ -181,7 +187,12 @@ def _measurements(rec: dict) -> dict[str, float]:
         "findingsMajor": f.get("major"),
         "findingsMinor": f.get("minor"),
     }
-    return {k: float(v) for k, v in src.items() if isinstance(v, (int, float))}
+    out = {k: float(v) for k, v in src.items() if isinstance(v, (int, float))}
+    if rec.get("usage"):
+        import usage as usage_mod  # sibling module; flattened as u<Path> (uTokensOutput, …)
+
+        out.update(usage_mod.flatten(rec["usage"], "u"))
+    return out
 
 
 def build_envelope(event_name: str, properties: dict, measurements: dict, ikey: str,
@@ -274,6 +285,11 @@ def self_test() -> int:
     proves the privacy guarantee survives the transformation into an envelope, and exercises
     connection-string resolution including the shipped-file default and the disable switch."""
     ok = True
+    # Isolate every check from the real shipped connection file: before this, a self-test
+    # run on a machine with the live file POSTed a real event to the estate's resource.
+    global _CONNECTION_FILE
+    real_connection_file, _CONNECTION_FILE = _CONNECTION_FILE, os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "__no_such_connection_file__")
     rec = {
         "schema": 1, "ts": "2026-09-05T12:00:00Z", "session": "abcdef12",
         "project": "CustomerProj", "agent": "al-review-subagent", "phase": 3,
@@ -381,6 +397,7 @@ def self_test() -> int:
             else:
                 os.environ[k] = v
 
+    _CONNECTION_FILE = real_connection_file
     for name, passed in checks:
         print(f"  {'PASS' if passed else 'FAIL'}  {name}")
         ok = ok and bool(passed)

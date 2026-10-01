@@ -100,7 +100,7 @@ def collect_citations(report: dict) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Validate BCQuality evidence.")
     ap.add_argument("--plans-dir", default="app/requirements")
-    ap.add_argument("--audits-dir", default=".github/audits")
+    ap.add_argument("--audits-dir", default=".claude/audits")
     ap.add_argument("--bcquality-root", default=None,
                     help="path to the external BCQuality clone "
                          "(default: $BCQUALITY_HOME, an aldc.yaml override, else ~/.claude/bcquality)")

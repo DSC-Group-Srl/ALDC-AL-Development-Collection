@@ -31,5 +31,6 @@
 ## Internal links
 - {req_name}.spec.md
 - {req_name}.architecture.md
-- {req_name}.test-plan.md
-- memory.md (global)
+- {req_name}.plan.md
+- {req_name}-complete.md
+- app/requirements/memory.md

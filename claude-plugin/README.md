@@ -167,7 +167,7 @@ without one it logs the gap to `metrics/capture.log` rather than failing.
 
 - **Extension-only development** — Never modify base application objects
 - **Human-in-the-Loop (HITL)** — Critical decisions require user confirmation
-- **TDD / spec-driven** — Features follow: spec -> architecture -> test-plan -> implementation -> review
+- **TDD / spec-driven** — Features follow: spec (with tests) -> plan (work packages) -> parallel implementation in waves -> review + test lane -> commit
 - **Event-driven architecture** — Use integration events for extensibility
 - **Skills Evidencing** — Agents declare which skills they loaded and patterns applied
 

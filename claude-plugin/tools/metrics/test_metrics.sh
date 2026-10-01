@@ -14,7 +14,7 @@ if [ -z "$PY" ]; then
 fi
 
 status=0
-for mod in parse_subagent appinsights heartbeat; do
+for mod in usage parse_subagent emit session_end appinsights heartbeat; do
   echo "=== $mod ==="
   "$PY" "$mod.py" --self-test || status=1
   echo

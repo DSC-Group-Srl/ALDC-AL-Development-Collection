@@ -307,7 +307,7 @@ At the end of each session, update the top section:
 **Current Focus**: [Update with current work]  
 **Last Session**: [Date of last session]  
 **Next Steps**: 
-1. [Most imMEDIUMte next action]
+1. [Most immediate next action]
 2. [Second priority]
 
 **Active Blockers**: 

@@ -114,27 +114,35 @@
             "timeout": 5
           }
         ]
-      }
-    ],
-    "PostToolUse": [
+      },
       {
-        "matcher": "Write|Edit",
+        "matcher": "Read|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'File modified — remember to run tests before completing phase'",
-            "timeout": 5
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/read-guard/pretooluse_hook.sh"
+            ],
+            "timeout": 10
           }
         ]
       }
     ],
-    "Stop": [
+    "SessionEnd": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Task complete. Verify Skills Evidencing was declared.'",
-            "timeout": 5
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/session_end.sh"
+            ],
+            "timeout": 15
           }
         ]
       }
