@@ -66,7 +66,8 @@ Every `al_compile`/`al_build`: `enableCodeAnalysis=true` plus the full list — 
 `${PerTenantExtensionCop}` or `${AppSourceCop}` (per `app.json` target), `${UICop}`, and the
 ALCops DLLs as **absolute paths** (the SessionStart hook prints them). Never
 `${analyzerFolder}ALCops.X.dll` in an al-mcp call — it is dropped silently. Zero new warnings on
-lines you touched. Details: `compiler-authority-protocol.md` §0.
+lines you touched, counted from `al_compile` — never from `al_build` + `al_getdiagnostics`,
+which drops analyzer diagnostics. Details: `compiler-authority-protocol.md` §0.
 
 ## 4. Targeted reads — `al-file-reader`
 
