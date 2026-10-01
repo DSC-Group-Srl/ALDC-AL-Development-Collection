@@ -41,6 +41,10 @@ critical) is exactly where the larger model's judgment pays for itself, and the 
 be running a faster/cheaper model by default. Never switch models yourself; just surface
 the question alongside the complexity assessment and let the user decide.
 
+When you delegate to any bc-dev agent, **don't forbid it from running tests out of fear of
+concurrent publishes** — the test lane's per-environment lock exists for exactly that. Your own
+final verification comes in addition to tests during development, not instead of them.
+
 ## Delegating to multi-phase agents (al-conductor and similar)
 
 `al-conductor` (and `al-documentation-conductor`) already narrate their own progress —
