@@ -25,6 +25,8 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import appinsights  # noqa: E402
+import ident  # noqa: E402
+import usage  # noqa: E402
 
 EVENT_NAME = "AldcHeartbeat"
 
@@ -32,12 +34,13 @@ EVENT_NAME = "AldcHeartbeat"
 def build_properties(version: str, previous_version: str, cwd: str) -> dict[str, str]:
     props = {
         "pluginVersion": version,
-        "project": os.path.basename(cwd.rstrip("/\\")) or "unknown",
+        "project": usage.project_name(cwd),
         "os": (platform.system() or "unknown").lower(),
         "upgraded": str(bool(previous_version) and previous_version != version).lower(),
     }
     if previous_version:
         props["previousVersion"] = previous_version
+    props.update(ident.props())
     return props
 
 
@@ -65,9 +68,12 @@ def self_test() -> int:
     ok = True
     checks = [
         ("fresh install (no previous version)",
-         build_properties("5.2", "", "/home/x/CustomerProj") ==
+         {k: v for k, v in build_properties("5.2", "", "/home/x/CustomerProj").items()
+          if k in ("pluginVersion", "project", "os", "upgraded", "previousVersion")} ==
          {"pluginVersion": "5.2", "project": "CustomerProj", "os": platform.system().lower(),
           "upgraded": "false"}),
+        ("identity dimensions added",
+         build_properties("5.2", "", "/p/Proj").get("where") in ("local", "cloud")),
         ("same version, no upgrade flagged",
          build_properties("5.2", "5.2", "/p/Proj")["upgraded"] == "false"),
         ("version changed -> upgraded true",

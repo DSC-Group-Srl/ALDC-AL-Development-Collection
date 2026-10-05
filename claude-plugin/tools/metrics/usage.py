@@ -229,12 +229,12 @@ def flatten(u: dict, prefix: str = "") -> dict[str, float]:
     return out
 
 
-def project_hash(cwd: str) -> str:
-    """Salted hash of the AL app id found at/under cwd — groups records by project without
-    revealing which customer it is. Empty when no app.json is found."""
-    import hashlib
+def _app_json_field(cwd: str, field: str) -> str:
+    """`field` of the first app.json at/under cwd (cwd, cwd/app, then each child dir)."""
     import os
 
+    if not cwd:
+        return ""
     cands = [os.path.join(cwd, "app.json"), os.path.join(cwd, "app", "app.json")]
     try:
         cands += [os.path.join(cwd, d, "app.json") for d in sorted(os.listdir(cwd))]
@@ -243,12 +243,78 @@ def project_hash(cwd: str) -> str:
     for c in cands:
         try:
             with open(c, encoding="utf-8-sig") as fh:
-                app_id = str(json.load(fh).get("id", ""))
+                v = str(json.load(fh).get(field, "") or "")
         except (OSError, ValueError, AttributeError):
             continue
-        if app_id:
-            return hashlib.sha256(("aldc-metrics-v1:" + app_id.lower()).encode()).hexdigest()[:12]
+        if v:
+            return v
     return ""
+
+
+def project_hash(cwd: str) -> str:
+    """Salted hash of the AL app id found at/under cwd — groups records by project without
+    revealing which customer it is. Empty when no app.json is found."""
+    import hashlib
+
+    app_id = _app_json_field(cwd, "id")
+    if app_id:
+        return hashlib.sha256(("aldc-metrics-v1:" + app_id.lower()).encode()).hexdigest()[:12]
+    return ""
+
+
+# Folder names that say nothing about the project: an AL-Go repo opened at its `app` folder
+# reported every project as "app".
+GENERIC_DIRS = {"app", "apps", "src", "source", "test", "tests", "app-test", "test-app",
+                "apptest", "client", "server", "web", "main", "base"}
+
+
+def _git_repo_name(cwd: str) -> str:
+    """Folder name of the repository containing cwd — the main checkout's, also from inside a
+    linked worktree (where `.git` is a file pointing back at <main>/.git/worktrees/<name>)."""
+    import os
+
+    d = os.path.abspath(cwd)
+    for _ in range(8):
+        g = os.path.join(d, ".git")
+        if os.path.isdir(g):
+            return os.path.basename(d)
+        if os.path.isfile(g):
+            try:
+                with open(g, encoding="utf-8") as fh:
+                    target = fh.read().strip()
+            except OSError:
+                return os.path.basename(d)
+            m = re.match(r"gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/]", target)
+            return os.path.basename(m.group(1).rstrip("/\\")) if m else os.path.basename(d)
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return ""
+
+
+def clean_name(s: str) -> str:
+    s = re.sub(r"[\x00-\x1f\x7f]+", " ", s or "")
+    return re.sub(r"\s+", " ", s).strip()[:80]
+
+
+def project_name(cwd: str) -> str:
+    """Name for the `project` dimension: app.json `name`, else the repository's folder name,
+    else cwd's folder name — its parent's when cwd is a generic folder like `app`. Never a
+    path."""
+    import os
+
+    n = clean_name(_app_json_field(cwd, "name"))
+    if n:
+        return n
+    n = clean_name(_git_repo_name(cwd)) if cwd else ""
+    if n:
+        return n
+    p = os.path.abspath(cwd or ".").rstrip("/\\")
+    base = os.path.basename(p)
+    if base.lower() in GENERIC_DIRS:
+        base = os.path.basename(os.path.dirname(p)) or base
+    return clean_name(base) or "unknown"
 
 
 def self_test() -> int:
@@ -309,6 +375,31 @@ def self_test() -> int:
         ("NO command leaked", "-project:app" not in blob),
         ("flatten", flatten({"tokens": {"output": 3}})["tokensOutput"] == 3.0),
     ]
+
+    # project_name: app.json name > repo folder (also from a worktree) > parent of `app`.
+    root = tempfile.mkdtemp()
+    repo = os.path.join(root, "dyna-repo")
+    os.makedirs(os.path.join(repo, ".git"))
+    os.makedirs(os.path.join(repo, "app"))
+    with open(os.path.join(repo, "app", "app.json"), "w", encoding="utf-8") as fh:
+        json.dump({"id": "ABC", "name": "Dyna  Expense\nNotes"}, fh)
+    plain = os.path.join(root, "Customer", "app")
+    os.makedirs(plain)
+    wt = os.path.join(root, ".aldc-wt", "dyna-repo-req-wp1", "src")
+    os.makedirs(wt)
+    with open(os.path.join(os.path.dirname(wt), ".git"), "w", encoding="utf-8") as fh:
+        fh.write(f"gitdir: {repo}/.git/worktrees/dyna-repo-req-wp1\n")
+    checks += [
+        ("project_name from app.json (cleaned)", project_name(repo) == "Dyna Expense Notes"),
+        ("project_name from app.json in cwd", project_name(os.path.join(repo, "app")) == "Dyna Expense Notes"),
+        ("project_name: worktree -> main repo", project_name(wt) == "dyna-repo"),
+        ("project_name: generic dir -> parent", project_name(plain) == "Customer"),
+        ("project_name never a path", "/" not in project_name(plain) and "\\" not in project_name(plain)),
+        ("project_hash unchanged", project_hash(repo) != ""),
+    ]
+    import shutil
+
+    shutil.rmtree(root, ignore_errors=True)
     ok = True
     for name, passed in checks:
         print(f"  {'PASS' if passed else 'FAIL'}  {name}")

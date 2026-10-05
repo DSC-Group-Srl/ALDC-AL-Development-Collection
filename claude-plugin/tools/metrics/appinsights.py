@@ -163,6 +163,9 @@ def _props(rec: dict) -> dict[str, str]:
         out["deviationsDeclared"] = "|".join(rec["deviations_declared"])
     if rec.get("projectHash"):
         out["projectHash"] = str(rec["projectHash"])
+    for k, v in (rec.get("ident") or {}).items():
+        if k != "session":  # AldcPhase keeps its own 8-char session above
+            out[k] = str(v)
     u = rec.get("usage") or {}
     if u.get("model"):
         out["model"] = str(u["model"])

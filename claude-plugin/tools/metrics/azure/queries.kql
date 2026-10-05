@@ -240,3 +240,19 @@ customEvents
   by action = tostring(customDimensions.action), bin(timestamp, 1d)
 | extend estTokensAvoided = iff(action == "blocked", chars / 4, 0.0)
 | order by timestamp desc;
+
+// L1. Live: sessions seen in the last 10 minutes and where their conductor run is.
+customEvents
+| where timestamp > ago(10m) and name in ("AldcAlive", "AldcRunStart", "AldcWave", "AldcWp", "AldcLane")
+| summarize lastSeen = max(timestamp), agent = take_anyif(tostring(customDimensions.agent), name == "AldcAlive"),
+            req = take_any(tostring(customDimensions.req)),
+            wave = max(todouble(customMeasurements.wave)), waves = max(todouble(customMeasurements.waves))
+  by user = tostring(customDimensions.user), session = tostring(customDimensions.session),
+     project = tostring(customDimensions.project), where = tostring(customDimensions.where)
+| order by lastSeen desc;
+
+// L2. Median wave and WP duration per tier — what the panel's ETA is built from.
+customEvents
+| where timestamp > ago(90d) and name in ("AldcWave", "AldcWp") and customDimensions.stage == "end"
+| extend tier = tostring(customDimensions.tier), d = todouble(customMeasurements.durationS)
+| summarize n = count(), p50 = percentile(d, 50), p80 = percentile(d, 80) by name, project = tostring(customDimensions.project);

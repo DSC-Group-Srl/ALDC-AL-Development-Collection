@@ -81,10 +81,22 @@ Opus (never switch yourself).
    `docs/templates/plan-template.md`: the graph, the codeunit → WP map, `**Test environment:**`,
    `**Base:**` (the commit you start from) and an empty wave log. A resumed run reads this file
    and continues after the last logged wave — it does not re-plan or re-ask.
+   Then announce the run to the control panel (also on a resumed run — same `req`, same run):
+   `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRunStart req=<req> tier=<tier>
+   wpsPlanned=<n> waves=<n> lane=<ran|skipped>`
 
 ## 2. Each wave
 
 Record `date +%s` at wave start and at each WP return (for the parallelism metric).
+
+**Progress events** (`$EMIT` = `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py"`; counts
+and tokens only, never fails, no output to read). They feed the live control panel — skip none,
+chain several in one Bash call (`$EMIT … ; $EMIT …`):
+- wave start: `$EMIT AldcWave stage=start wave=<k> waves=<N> wps=<n>`
+- each WP launched (also a fix-loop re-run, with `fixRound=<r>`): `$EMIT AldcWp stage=start wave=<k> wp=<n>`
+- each WP returned: `$EMIT AldcWp stage=end wave=<k> wp=<n> result=<done|blocked|failed>`
+- wave closed (§2.8): `$EMIT AldcWave stage=end wave=<k> waves=<N> verdict=<verdict>
+  lane=<ran|skipped> passed=<n> failed=<n> fixLoops=<n>`
 
 1. **Worktrees.** Work on a feature branch `aldc/{req}` (create it from the current branch if
    absent). For each WP of the wave:
@@ -140,7 +152,7 @@ Record `date +%s` at wave start and at each WP return (for the parallelism metri
    append to the project CLAUDE.md** — it loads into every session and subagent.
 4. `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit.
 5. Emit the run metric (counts only):
-   `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRun tier=<LOW|MEDIUM|HIGH>
+   `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRun req=<req> tier=<LOW|MEDIUM|HIGH>
    wpsPlanned=<n> wps=<n> waves=<n> fixLoops=<n> stops=<human stops incl. the 2 gates>
    lane=<ran|skipped> testsPassed=<n> testsFailed=<n> reviewFirstPass=<0-1> reviews=<n>
    parallelism=<Σ WP seconds ÷ Σ wave seconds> wallMinutes=<n> outcome=<done|stopped>

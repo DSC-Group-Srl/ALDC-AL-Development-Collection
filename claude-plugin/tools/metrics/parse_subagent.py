@@ -126,10 +126,13 @@ def build_record(payload: dict) -> dict | None:
         "ts": utcnow(),
         # Truncated: enough to correlate records from one run, not enough to identify it.
         "session": str(payload.get("session_id", ""))[:8],
-        # Basename only — never the full path into someone's filesystem.
-        "project": os.path.basename(str(payload.get("cwd", "")).rstrip("/\\")) or "unknown",
+        # A name (app.json name, repo folder) — never a path into someone's filesystem.
+        "project": usage_mod.project_name(str(payload.get("cwd", ""))),
         "agent": agent or usage_agent,
     }
+    import ident
+
+    rec["ident"] = ident.props(str(payload.get("session_id", "")))
     ph = usage_mod.project_hash(str(payload.get("cwd", "")))
     if ph:
         rec["projectHash"] = ph
@@ -302,7 +305,8 @@ def main() -> int:
     lane = project_lane(str(payload.get("cwd", "")))
     if lane:
         try:
-            append_jsonl(lane, rec)
+            # The project lane lives in the customer repo and can be committed: no identity.
+            append_jsonl(lane, {k: v for k, v in rec.items() if k != "ident"})
         except OSError as exc:
             log(f"project lane failed: {type(exc).__name__}")
 

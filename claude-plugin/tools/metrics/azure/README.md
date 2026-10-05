@@ -120,9 +120,22 @@ per-project health table. Import it from the Application Insights resource →
 
 Counts, an enum verdict, and BCQuality knowledge paths — public Microsoft content. **Never a
 message body, never customer AL, never a path inside a customer repo, never a full cwd.**
-`project` is a directory basename and `session` is eight characters. That is enforced in
-`parse_subagent.py` and covered by assertions in its self-test, because this data leaves the
-developer's machine.
+`project` is the app.json `name` (else the repository's folder name, else the folder name —
+its parent's for a generic folder like `app`) and `session` is eight characters. That is
+enforced in `parse_subagent.py` and covered by assertions in its self-test, because this data
+leaves the developer's machine.
+
+**Identity (since 8.4), for the GITCloner control panel's "mine" and team views** — added by
+`ident.py` to every event: `userHash` (salted sha256 of the e-mail, 16 hex), `user` (the
+e-mail's local part — `ALDC_METRICS_ANONYMOUS=1` drops it and keeps only the hash),
+`machineHash`, `where` (`local` | `cloud`) and, when present, `bridgeSession` (the claude.ai
+session id, so the panel can open it). The full e-mail never leaves the machine, and identity
+is never written to the in-repo `.github/metrics/` lane.
+
+**Live events (since 8.4)**: `AldcRunStart`, `AldcWave` and `AldcWp` (`stage=start|end`) from
+al-conductor, and `AldcAlive` — a heartbeat at most every 2 minutes per session from a
+PreToolUse hook, carrying the active agent type and tool name. Same allowlist discipline as
+every other event (`emit.py`).
 
 If a project name is itself sensitive — a client name in a folder — the honest fix is to set
 `ALDC_METRICS_CLOUD_ROLE` per estate and stop sending the project dimension, not to rely on

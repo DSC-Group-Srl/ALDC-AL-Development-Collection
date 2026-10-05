@@ -129,6 +129,20 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/alive.sh"
+            ],
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionEnd": [

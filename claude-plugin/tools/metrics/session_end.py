@@ -100,8 +100,11 @@ def main() -> int:
         agg = aggregate(str(payload.get("transcript_path", "")))
         if not agg:
             return 0
-        props = {"projectHash": ph, "project": os.path.basename(cwd.rstrip("/\\")) or "unknown",
+        props = {"projectHash": ph, "project": usage.project_name(cwd),
                  "session": str(payload.get("session_id", ""))[:8], "model": agg.pop("model")}
+        import ident
+
+        props.update(ident.props(str(payload.get("session_id", ""))))
         reason = str(payload.get("reason", ""))
         if reason.isidentifier() and len(reason) <= 30:
             props["reason"] = reason

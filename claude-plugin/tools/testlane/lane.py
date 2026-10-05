@@ -176,7 +176,7 @@ def _lock_dir(key: str) -> str:
 
 
 def _owner() -> dict:
-    return {"pid": os.getpid(), "session": os.environ.get("CLAUDE_SESSION_ID", "")[:8],
+    return {"pid": os.getpid(), "session": (os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID", ""))[:8],
             "host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME", ""),
             "since": time.time()}
 
