@@ -161,6 +161,21 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)
    / follow-ups. Do not push without the user's yes.
+8. **Once the PR is open, point to what comes next.** Read the flavour from
+   `.github/AL-Go-Settings.json` `type`. If the file is missing, the repo isn't on AL-Go and
+   this step doesn't apply. Give the user at most four lines, then stop: these are human steps,
+   and you dispatch none of them. The inputs and commands are in `bc-dev:skill-al-go-workflows`
+   §2, so load it if the user asks for any of them.
+   - **Both:** the PR's *Pull Request Build* is informative, so report it if it's red. Tonight's
+     *Rebuild Test Branch* merges the PR into `test` (a conflict means rebase onto `main`). The
+     consultant does functional test/UAT, a KO comes back to this same branch through
+     `bc-dev:al-triage`, and an OK means the developer merges into `main`.
+   - **`PTE`:** CI/CD on `test` deploys to the customer's test environment. After the merge,
+     **Create release** (`<tag> - <one sentence>`, `+0.1`, direct commit with GhTokenWorkflow),
+     then **Publish To Environment** with that tag to the customer's production environment.
+   - **`AppSource App`:** there's no customer test environment, so validation happens on DSC's
+     environments. After the merge, **Create release**, then **Publish To AppSource** with that
+     tag and `GoLive=true`. Customers install it from the marketplace into their own tenant.
 
 ## 4. Unplanned findings and recovery
 

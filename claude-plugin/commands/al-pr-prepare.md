@@ -69,6 +69,12 @@ If `{Reviewer}` is specified, include in the draft.
 
 ### 3. Generate PR Draft
 
+In a DSC AL-Go repo the PR always targets `main`, never `test`. `test` is rebuilt every night from `main` plus every open PR,
+and that rebuild is how the change reaches the test environment for functional test/UAT. When it comes back KO, the fix goes on
+this same branch and PR. The whole flow (PR build, nightly rebuild, CI/CD on `test`, release, production) is in
+`bc-dev:skill-al-go-workflows`. Load it if the user asks what happens after the PR, or a check fails.
+
+
 Create `/reports/pr-draft.md` with this structure:
 
 ```markdown
