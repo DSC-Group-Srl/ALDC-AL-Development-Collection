@@ -43,6 +43,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 
 .claude/                    # this repo dogfooding its own plugin — GENERATED, never edit
+.claude/commands/           #   except this: repo-maintenance commands (/ship-plugin), hand-written,
+                            #   not mirrored by the sync script
 scripts/sync-claude-workspace.js   # regenerates .claude/ from claude-plugin/
 docs/framework/             # ALDC framework spec and design docs (background)
 docs/decisions/             # ADRs
@@ -63,7 +65,8 @@ docs/decisions/             # ADRs
   permission set) and DSC conventions. Duplicating a Microsoft rule here recreates the
   contradiction this repo just spent a cleanup removing.
 - **Bump the version in two places** when shipping: `claude-plugin/.claude-plugin/plugin.json`
-  and the marketplace entry. The sync does not do it for you.
+  and the marketplace entry. The sync does not do it for you. `/ship-plugin` does the whole
+  thing: bump, push, marketplace sync, marketplace bump on the sync branch, issue comment.
 
 ## BCQuality
 
