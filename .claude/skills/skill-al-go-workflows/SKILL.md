@@ -132,15 +132,28 @@ gh release view $v.0                                   # the release exists, wit
 If `tag` already exists, the version on `main` wasn't bumped after the last release. Stop and
 tell the user. Never re-tag.
 
+**Step 2 uses `appVersion=current`, never the tag.** `current` is the latest published release.
+An explicit `x.y.z` in `appVersion` is **not** looked up as a release tag. AL-Go matches it
+against the **build artifact version**, which is `repoVersion` plus the build number
+(`<repo>-main-Apps-1.0.11.0.zip`). It is not the tag (`28.0.0`) and not the `app.json` version
+(`28.0.11.0`). In a repo whose `repoVersion` doesn't track `app.json`, the tag never matches,
+and Deliver/Deploy fails with `Could not find any Apps artifacts for projects *, version 28.0.0`.
+Confirm that `current` points at the release step 1 just created before you dispatch:
+
+```bash
+gh release view --json tagName,isDraft,isPrerelease   # no tag = the latest release; expect tagName == $v.0
+```
+
+If it is not `$v.0` (step 1 hasn't finished, or someone released in between), stop and tell
+the user.
+
 **Step 2a — PTE: Publish To Environment** to the customer's production environment.
 
 ```bash
 gh workflow run PublishToEnvironment.yaml --ref main \
-  -f appVersion=$v.0 -f environmentName='<Customer>-Production' -f createEnvIfNotExists=false
+  -f appVersion=current -f environmentName='<Customer>-Production' -f createEnvIfNotExists=false
 ```
 
-- `appVersion` is the tag from step 1 (`current` = the latest release, same thing right after
-  step 1, but the explicit tag can't pick the wrong one).
 - `environmentName` is the GitHub environment name. It must already exist with its
   `AUTHCONTEXT` and a `DeployTo<env>` whose `Branches` includes `main` and
   `continuousDeployment: false`, so production is never deployed by a push. If it doesn't exist,
@@ -151,7 +164,7 @@ gh workflow run PublishToEnvironment.yaml --ref main \
 **Step 2b — AppSource: Publish To AppSource.**
 
 ```bash
-gh workflow run PublishToAppSource.yaml --ref main -f appVersion=$v.0 -f projects='*' -f GoLive=true
+gh workflow run PublishToAppSource.yaml --ref main -f appVersion=current -f projects='*' -f GoLive=true
 ```
 
 - **`GoLive=true` ("go live after validation") is the DSC default.** The submission goes live
@@ -188,9 +201,9 @@ permissions. Exceptions to the repository standard go to the BU Manager.
 | **CI/CD** (`CICD.yaml`) | push to `main` (PTE template also `release/*`, `feature/*`), dispatch | Build + test all projects, deploy to environments with continuous deployment on that branch, deliver (AppSource), ALDoc. AppSource adds `CustomJobSignLocal` (§6) before Deploy/Deliver | dispatch on `test`: low-risk, still confirm |
 | **Pull Request Build** (`PullRequestHandler.yaml`) | PR into `main`, merge queue | Build + test the PR. This is the PR's required check | automatic |
 | **Rebuild Test Branch** (`RebuildTestBranch.yaml`) | cron `0 1 * * *`, dispatch | §1. DSC-custom | dispatch: confirm (it force-replaces `test`) |
-| **Publish To Environment** (`PublishToEnvironment.yaml`) | dispatch | `appVersion` (`current`·`prerelease`·`draft`·`latest`·`x.y.z`·`PR_<id>`) to `environmentName` (mask, `PROD*`, `*`); `createEnvIfNotExists` | **always**: it mutates a live tenant |
+| **Publish To Environment** (`PublishToEnvironment.yaml`) | dispatch | `appVersion` (`current`·`prerelease`·`draft`·`latest`·`x.y.z`·`PR_<id>`; `x.y.z` is the build artifact version, not the release tag, see §2) to `environmentName` (mask, `PROD*`, `*`); `createEnvIfNotExists` | **always**: it mutates a live tenant |
 | **Create release** (`CreateRelease.yaml`) | dispatch | `buildVersion`, `name`, `tag` (semver), `releaseType`, release branch, `updateVersionNumber`, `directCommit`, `useGhTokenWorkflow`. DSC values: §2 *Releasing to production* | **always** |
-| **Publish To AppSource** (`PublishToAppSource.yaml`) — AppSource only | dispatch | Delivers `appVersion` to Partner Center (`deliverToAppSource.productId`). DSC always sets `GoLive=true` (goes live after technical validation) | **always** |
+| **Publish To AppSource** (`PublishToAppSource.yaml`) — AppSource only | dispatch | Delivers `appVersion` (`current` after a release, §2) to Partner Center (`deliverToAppSource.productId`). DSC always sets `GoLive=true` (goes live after technical validation) | **always** |
 | **Increment Version Number** | dispatch | `versionNumber` (`+0.1` / `Major.Minor`) for `projects` (`*`), PR or direct commit | confirm |
 | **Test Current / Next Minor / Next Major** (`Current.yaml`, `NextMinor.yaml`, `NextMajor.yaml`) | dispatch | Build + test against `////latest`, next minor, next major (`.github/Test *.settings.json`, `versioningStrategy: 15`). Use before a BC upgrade or when a customer moves version | safe to suggest |
 | **Create Online Dev. Environment** | dispatch | Creates/reuses a SaaS sandbox and publishes the apps | confirm |
