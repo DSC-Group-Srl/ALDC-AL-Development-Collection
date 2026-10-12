@@ -112,6 +112,16 @@
               "${CLAUDE_PLUGIN_ROOT}/tools/conductor-guard/pretooluse_hook.sh"
             ],
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "cmd",
+            "args": [
+              "/c",
+              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/main-thread-guard/pretooluse_hook.sh"
+            ],
+            "timeout": 5
           }
         ]
       },
