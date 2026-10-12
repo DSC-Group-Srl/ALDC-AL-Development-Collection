@@ -29,13 +29,13 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 |---|---|
 | Compile / diagnostics | **al-mcp** `al_compile` (no `.app`; the authority for warnings), `al_build` (`scope='current'`, `.app` only — its `al_getdiagnostics` drops analyzer warnings, compiler-authority §0); or `Bash: al compile` |
 | Multi-project workspace (app + test app) | `Bash: al workspace compile <workspaceFile>` — **not** `al_build scope='all'`, which never refreshes a sibling dependent. Load `skill-al-mcp-workspace` before working across projects |
-| Symbols | **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth; environment-scoped needs the human), `al_addproject` (canonical long-form absolute path) |
+| Symbols | Whole workspace / several projects / switching IT↔CH: `GITCloner al-symbols … --json` (`skill-gitcloner`; `GITCloner al-projects … --json` first shows what is missing). One project: **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth; environment-scoped needs the human). `al_addproject` (canonical long-form absolute path) |
 | Find objects / members / relations | **al-mcp** `al_symbolsearch` (`filters.scope='all'` spans added projects), `al_symbolrelations`, `al_getpackagedependencies`; AL LSP hover / go-to-definition / find-references; `Grep`/`Glob` for text |
 | Large files (>~350 lines) | `al-file-reader` via Task to locate, then ranged `Read` (contract §4) |
 | Translations | `skill-translate` (nab-al-tools MCP) |
 | Docs | **microsoft-docs**, **context7**, `WebSearch`/`WebFetch` |
 | Run tests | **only** the test lane — `Skill(bc-dev:skill-test-lane)` (contract §5) |
-| Publish / deploy | **HITL** — `al_publish` / `al publishapp` exist but deploy to a live tenant; only when the human explicitly asks, otherwise VS Code or CI |
+| Publish / deploy | **HITL** — `al_publish` / `al publishapp` / `GITCloner al-publish` (whole workspace, dependency order; `skill-gitcloner`) exist but deploy to a live tenant; only when the human explicitly asks, otherwise VS Code or CI |
 | Debug / snapshot / CPU profile | VS Code only — ask the human, then interpret with `skill-debug` |
 
 ### Analyzers — every compile, every time (repeated here on purpose)
