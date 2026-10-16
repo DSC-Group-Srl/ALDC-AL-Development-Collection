@@ -59,18 +59,56 @@ def aggregate(transcript: str) -> dict | None:
     }
 
 
+SCHEMA = 3  # 3: req/runId/attempt of the session's conductor run, `schema` dimension
+
+
+def _last_run_paths() -> list[str]:
+    """emit.py writes last-run.json under CLAUDE_PLUGIN_DATA when it has it and under the
+    fixed ~/.claude/aldc-plugin-data otherwise — and the conductor's Bash calls do not get the
+    variable this hook does. Look in both."""
+    fixed = os.path.join(os.path.expanduser("~"), ".claude", "aldc-plugin-data")
+    dirs = [os.environ.get("CLAUDE_PLUGIN_DATA") or fixed, fixed]
+    return list(dict.fromkeys(os.path.join(d, "metrics", "last-run.json") for d in dirs))
+
+
+def _join_run_key(payload: dict, props: dict, meas: dict) -> None:
+    """req/runId/attempt of the conductor run this session worked on: the live snapshot first
+    (finished or not), else the run that last-run.json reports. Tokens join to the task."""
+    try:
+        import emit
+        import ident
+
+        sid = str(payload.get("session_id", ""))
+        snap = emit.load_live(sid) if ident.RE_SESSION.match(sid) else {}
+        if snap.get("runId"):
+            for k in ("req", "runId"):
+                if snap.get(k) and emit.RE_TOKEN.match(str(snap[k])):
+                    props[k] = str(snap[k])
+            if isinstance(snap.get("attempt"), int):
+                meas["attempt"] = float(snap["attempt"])
+    except Exception:
+        pass
+
+
 def _join_last_run(payload: dict, props: dict, meas: dict) -> None:
     """If a conductor run finished during this session (emit.py AldcRun wrote last-run.json),
     attach its changed-line totals and the headline KPI: tokens per changed AL line."""
-    data = os.environ.get("CLAUDE_PLUGIN_DATA") or os.path.join(
-        os.path.expanduser("~"), ".claude", "aldc-plugin-data")
-    p = os.path.join(data, "metrics", "last-run.json")
+    for p in _last_run_paths():
+        if os.path.isfile(p):
+            break
     try:
         with open(p, encoding="utf-8") as fh:
             run = json.load(fh)
         start = usage.first_timestamp(str(payload.get("transcript_path", "")))
         if not start or str(run.get("ts", "")) < start[:19]:
             return
+        rp = run.get("props", {})
+        if "runId" not in props and rp.get("runId"):
+            props["runId"] = str(rp["runId"])
+            if rp.get("req"):
+                props["req"] = str(rp["req"])
+            if "attempt" in run.get("measurements", {}):
+                meas["attempt"] = float(run["measurements"]["attempt"])
         m = run.get("measurements", {})
         al = float(m.get("alAdded", 0)) + float(m.get("alRemoved", 0))
         for k in ("alAdded", "alRemoved", "wps", "waves", "fixLoops", "stops"):
@@ -115,8 +153,10 @@ def main() -> int:
         except (OSError, ValueError):
             pass
         meas = usage.flatten(agg)
+        _join_run_key(payload, props, meas)
         _join_last_run(payload, props, meas)
-        rec = {"schema": 2, "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        props["schema"] = str(SCHEMA)
+        rec = {"schema": SCHEMA, "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                "event": "AldcSession", "props": props, "measurements": meas}
         data = os.environ.get("CLAUDE_PLUGIN_DATA") or os.path.join(
             os.path.expanduser("~"), ".claude", "aldc-plugin-data")
@@ -150,7 +190,26 @@ def self_test() -> int:
     with open(sub + ".meta.json", "w", encoding="utf-8") as fh:
         json.dump({"agentType": "bc-dev:al-implement-subagent"}, fh)
     a = aggregate(main_t)
+    live_backup = os.environ.get("ALDC_LIVE_DIR")
+    os.environ["ALDC_LIVE_DIR"] = os.path.join(d, "live")
+    try:
+        import emit
+
+        sid = "20a903ef-52d2-48d7-b681-990ce2056020"
+        emit.save_live(sid, {"req": "U-04", "runId": "0123456789", "attempt": 2, "outcome": "done"})
+        kp, km = {}, {}
+        _join_run_key({"session_id": sid}, kp, km)
+        np_, nm = {}, {}
+        _join_run_key({"session_id": "ffffffff-0000-0000-0000-000000000000"}, np_, nm)
+    finally:
+        if live_backup is None:
+            os.environ.pop("ALDC_LIVE_DIR", None)
+        else:
+            os.environ["ALDC_LIVE_DIR"] = live_backup
     checks = [
+        ("session keyed to its run (even once finished)",
+         kp == {"req": "U-04", "runId": "0123456789"} and km == {"attempt": 2.0}),
+        ("no snapshot -> no run key", np_ == {} and nm == {}),
         ("aggregated", a is not None),
         ("total includes subagents", a and a["tokens"]["total"] == 33),
         ("main tokens separate", a and a["mainTokens"]["total"] == 3),

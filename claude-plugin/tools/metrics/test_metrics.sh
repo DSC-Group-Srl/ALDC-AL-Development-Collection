@@ -5,6 +5,8 @@
 # assertions (no customer path, no message body ever reaches an emitted record or envelope).
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
+# Anything a self-test does send is marked as a test, so the estimation queries skip it.
+export ALDC_METRICS_EXCLUDE=1
 
 PY=""
 for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done

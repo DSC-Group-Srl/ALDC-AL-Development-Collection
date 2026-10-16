@@ -21,7 +21,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
-SCHEMA = 2  # 2: adds the `usage` block (tokens, turns, tools, reads) and every bc-dev agent
+SCHEMA = 3  # 2: adds the `usage` block (tokens, turns, tools, reads) and every bc-dev agent
+#             3: adds req/runId/attempt of the conductor run live in the session
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import usage as usage_mod  # noqa: E402
@@ -102,6 +103,28 @@ def transcript_path(payload: dict) -> str:
     return ""
 
 
+def live_run(session_id: str) -> dict:
+    """req/runId/attempt of the conductor run live in this session, from emit.py's snapshot —
+    keyed by the FULL session id (the record itself keeps only 8 chars). Tokens of a phase can
+    then be summed per task. Empty when no run is live; never raises."""
+    try:
+        import emit
+        import ident
+
+        # The payload's own id only — no fallback to the environment's session.
+        sid = session_id if ident.RE_SESSION.match(session_id or "") else ""
+        snap = emit.load_live(sid) if sid else {}
+    except Exception:
+        return {}
+    if not snap.get("runId") or snap.get("outcome"):
+        return {}
+    out = {k: str(snap[k]) for k in ("req", "runId")
+           if snap.get(k) and emit.RE_TOKEN.match(str(snap[k]))}
+    if "runId" in out and isinstance(snap.get("attempt"), int):
+        out["attempt"] = snap["attempt"]
+    return out
+
+
 def build_record(payload: dict) -> dict | None:
     raw_agent = str(payload.get("agent_type", ""))
     agent = short_agent(raw_agent)
@@ -141,6 +164,7 @@ def build_record(payload: dict) -> dict | None:
     v = plugin_version()
     if v:
         rec["pluginVersion"] = v
+    rec.update(live_run(str(payload.get("session_id", ""))))
 
     if not agent:  # not one of the semantically-parsed agents: usage only
         return rec if u else None
@@ -385,6 +409,36 @@ def self_test() -> int:
         ("usage tokens", r3 and r3["usage"]["tokens"]["output"] == 4),
         ("foreign agent recorded as other", r4 is not None and r4["agent"] == "other"),
         ("NO grep pattern leaked", r3 and "SecretCustomerName" not in json.dumps(r3)),
+    ]
+
+    # A phase inside a live conductor run carries the run's key, read from the snapshot under
+    # the FULL session id even though the record keeps only 8 chars.
+    live_backup = os.environ.get("ALDC_LIVE_DIR")
+    os.environ["ALDC_LIVE_DIR"] = os.path.join(tdir, "live")
+    try:
+        import emit
+
+        full = "20a903ef-52d2-48d7-b681-990ce2056020"
+        emit.save_live(full, {"req": "U-04", "runId": "0123456789", "attempt": 2})
+        r5 = build_record({"agent_type": "al-implement-subagent", "session_id": full,
+                           "cwd": "/p/Proj", "last_assistant_message": impl})
+        emit.save_live(full, {"req": "U-04", "runId": "0123456789", "attempt": 2, "outcome": "done"})
+        r6 = build_record({"agent_type": "al-implement-subagent", "session_id": full,
+                           "cwd": "/p/Proj", "last_assistant_message": impl})
+        emit.save_live(full, {"req": "C:/Customer/x.al", "runId": "0123456789", "attempt": 1})
+        r7 = build_record({"agent_type": "al-implement-subagent", "session_id": full,
+                           "cwd": "/p/Proj", "last_assistant_message": impl})
+    finally:
+        if live_backup is None:
+            os.environ.pop("ALDC_LIVE_DIR", None)
+        else:
+            os.environ["ALDC_LIVE_DIR"] = live_backup
+    checks += [
+        ("phase keyed to the live run", r5 and (r5.get("req"), r5.get("runId"), r5.get("attempt"))
+         == ("U-04", "0123456789", 2) and r5["session"] == full[:8]),
+        ("no run key once the run is closed", r6 and "runId" not in r6),
+        ("NO path-shaped req leaked from the snapshot", r7 and "Customer" not in json.dumps(r7)),
+        ("no live run -> no run key", "runId" not in r2),
     ]
 
     checks.append(("untracked agent ignored",

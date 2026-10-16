@@ -163,6 +163,9 @@ def _props(rec: dict) -> dict[str, str]:
         out["deviationsDeclared"] = "|".join(rec["deviations_declared"])
     if rec.get("projectHash"):
         out["projectHash"] = str(rec["projectHash"])
+    for k in ("req", "runId"):  # the conductor run the phase belongs to (schema 3)
+        if rec.get(k):
+            out[k] = str(rec[k])
     for k, v in (rec.get("ident") or {}).items():
         if k != "session":  # AldcPhase keeps its own 8-char session above
             out[k] = str(v)
@@ -189,6 +192,7 @@ def _measurements(rec: dict) -> dict[str, float]:
         "findingsCritical": f.get("critical"),
         "findingsMajor": f.get("major"),
         "findingsMinor": f.get("minor"),
+        "attempt": rec.get("attempt"),
     }
     out = {k: float(v) for k, v in src.items() if isinstance(v, (int, float))}
     if rec.get("usage"):
@@ -204,6 +208,8 @@ def build_envelope(event_name: str, properties: dict, measurements: dict, ikey: 
     stringified and length-capped here, once, so every caller gets the same discipline."""
     ts = ts or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     props = {str(k): str(v)[:MAX_PROP_LEN] for k, v in properties.items() if v not in ("", None)}
+    if os.environ.get("ALDC_METRICS_EXCLUDE", "").strip().lower() in ("1", "true", "yes", "on"):
+        props["exclude"] = "true"  # belt and braces: every caller, whatever it built
     return {
         "ver": 1,
         "name": ENVELOPE_NAME,

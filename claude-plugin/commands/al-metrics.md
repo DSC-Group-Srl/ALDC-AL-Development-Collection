@@ -74,7 +74,13 @@ Render what the script prints, and add the judgement it cannot make:
   `tools/metrics/appinsights.connection`; `$APPLICATIONINSIGHTS_CONNECTION_STRING` overrides it,
   `ALDC_METRICS_APPINSIGHTS_DISABLE=1` turns it off per machine). Events: `AldcPhase` (one per
   subagent, now with `u*` token/time measurements), `AldcSession`, `AldcRun`, `AldcLane`,
-  `AldcRead`, `AldcHook`, `AldcHeartbeat`. That is the estate-wide view: this
+  `AldcRead`, `AldcHook`, `AldcHeartbeat`, and for conductor runs `AldcRunStart`,
+  `AldcWave`, `AldcWp`, `AldcAlive`, `AldcGate` and `AldcEstimate` (the planned scope, parsed
+  from the plan). Since record schema 3, `AldcRun.wallMinutes` is measured, not reported (the
+  conductor's own figure is `reportedMinutes`), and `activeSeconds` / `activeSecondsTotal` are
+  the run's working time with idle gaps capped and human waits left out — quote those for "how
+  long did it take", never a pre-schema-3 `wallMinutes`. Every run event and `AldcPhase` /
+  `AldcSession` carry `runId` + `attempt`, so time and tokens join per task. That is the estate-wide view: this
   command reports the local machine, KQL reports everyone. If the user is asking about trends
   across projects or over months, point them at `tools/metrics/azure/queries.kql` and the
   workbook rather than trying to answer from one machine's JSONL.

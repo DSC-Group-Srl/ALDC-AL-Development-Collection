@@ -25,6 +25,15 @@ permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vs
 
 **Codeunit → WP:** 50200 → WP-1 · 50210 → WP-2
 
+## Planned objects
+
+| Object type | New/Ext | Count | Est. complexity (S/M/L) |
+|-------------|---------|------:|-------------------------|
+| table | New | 1 | M |
+| enum | New | 1 | S |
+| codeunit | New | 1 | L |
+| test codeunit | New | 2 | M |
+
 ## Open questions
 
 1. {question — options} → {answer, once given}
@@ -45,6 +54,15 @@ permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vs
 
 - WP `owns` globs must not overlap; shared files appear in no WP.
 - IDs are allocated here, from the app's and the test app's `idRanges` — workers never choose.
+- **Planned objects** is read by a script (`emit.py AldcEstimate --plan`), not by a person:
+  one row per object type × New/Ext, filled from the WP table and the codeunit → WP map. It is
+  the ex-ante size the duration estimate learns from, so it must be complete before wave 1.
+  - *Object type*: `table`, `tableextension`, `page`, `pageextension`, `codeunit`, `report`,
+    `reportextension`, `query`, `xmlport`, `enum`, `enumextension`, `interface`,
+    `permissionset`, `api page`, `test codeunit` (anything else is counted as *other*).
+  - *New/Ext*: `New` = a new object file; `Ext` = an existing object of this app that changes.
+    (A new tableextension of a base table is `tableextension | New`.)
+  - *Count*: a plain integer. *Est. complexity*: `S`, `M` or `L` for the row as a whole.
 - MEDIUM: 1–3 WPs in ≤2 waves. HIGH: ≤6 WPs in ≤3 waves. Split only for disjoint files or a
   real dependency.
 - No code blocks, no step-by-step TDD recipes (the implementer owns the method).

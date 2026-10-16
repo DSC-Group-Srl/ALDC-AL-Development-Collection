@@ -256,3 +256,129 @@ customEvents
 | where timestamp > ago(90d) and name in ("AldcWave", "AldcWp") and customDimensions.stage == "end"
 | extend tier = tostring(customDimensions.tier), d = todouble(customMeasurements.durationS)
 | summarize n = count(), p50 = percentile(d, 50), p80 = percentile(d, 80) by name, project = tostring(customDimensions.project);
+
+// ===========================================================================
+// ESTIMATION (record schema 3) — duration ~ planned scope.
+// One task = one runId (project:req:user). AldcEstimate is the ex-ante scope parsed from the
+// plan before wave 1; AldcRun (last attempt with outcome done) is the ex-post size and the
+// MEASURED time: activeSecondsTotal sums every attempt's event gaps, each capped at 10 min,
+// with the human waits after an AldcGate left out. wallMinutes before schema 3 was reported
+// by the model and is not used here. Runs before 6 Oct 2026 have no runId and drop out.
+// Set includeExcluded = true to see dry runs and self-tests (ALDC_METRICS_EXCLUDE=1).
+// ===========================================================================
+
+// X1. estimation_dataset — one row per task: planned features, delivered size, time, tokens.
+let includeExcluded = false;
+let minSchema = 3;
+let ev = (n: string) { customEvents
+    | where name == n and toint(customDimensions.schema) >= minSchema
+    | where includeExcluded or tostring(customDimensions.exclude) != "true"
+    | extend runId = tostring(customDimensions.runId)
+    | where isnotempty(runId) };
+let est = ev("AldcEstimate")
+    | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId
+    | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (
+        where k startswith "obj_" | summarize objPlanned = make_bag(bag_pack(k, customMeasurements[k])))
+    | project runId, estimatedAt = timestamp, req = tostring(customDimensions.req),
+              tier = tostring(customDimensions.tier), model = tostring(customDimensions.model),
+              estSource = tostring(customDimensions.estSource), issueNo = tostring(customDimensions.issueNo),
+              parseOk = todouble(customMeasurements.parseOk),
+              objTotal = todouble(customMeasurements.objTotal), objWeighted = todouble(customMeasurements.objWeighted),
+              testCodeunitsPlanned = todouble(customMeasurements.testCodeunitsPlanned),
+              wpsPlanned = todouble(customMeasurements.wpsPlanned), wavesPlanned = todouble(customMeasurements.wavesPlanned),
+              openQuestions = todouble(customMeasurements.openQuestions),
+              hasIntegration = todouble(customMeasurements.hasIntegration), hasEvents = todouble(customMeasurements.hasEvents),
+              hasApi = todouble(customMeasurements.hasApi), appObjectCount = todouble(customMeasurements.appObjectCount),
+              estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min),
+              objPlanned;
+let run = ev("AldcRun")
+    | where tostring(customDimensions.outcome) == "done"
+    | extend attempt = todouble(customMeasurements.attempt)
+    | summarize arg_max(attempt, timestamp, customDimensions, customMeasurements) by runId
+    | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (
+        where k startswith "objDone_" | summarize objDone = make_bag(bag_pack(k, customMeasurements[k])))
+    | project runId, finishedAt = timestamp, project_ = tostring(customDimensions.['project']),
+              user = tostring(customDimensions.user), pluginVersion = tostring(customDimensions.pluginVersion),
+              attempts = todouble(customMeasurements.attempts),
+              activeSecondsTotal = todouble(customMeasurements.activeSecondsTotal),
+              humanWaitSeconds = todouble(customMeasurements.humanWaitSeconds),
+              wallMinutesTotal = todouble(customMeasurements.wallMinutesTotal),
+              reportedMinutes = todouble(customMeasurements.reportedMinutes),
+              fixLoops = todouble(customMeasurements.fixLoops), stops = todouble(customMeasurements.stops),
+              wps = todouble(customMeasurements.wps), waves = todouble(customMeasurements.waves),
+              testsPassed = todouble(customMeasurements.testsPassed), testsFailed = todouble(customMeasurements.testsFailed),
+              alAdded = todouble(customMeasurements.alAdded), alRemoved = todouble(customMeasurements.alRemoved),
+              alAddedProd = todouble(customMeasurements.alAddedProd), alAddedTest = todouble(customMeasurements.alAddedTest),
+              objDone;
+let phaseTokens = customEvents
+    | where name == "AldcPhase" and (includeExcluded or tostring(customDimensions.exclude) != "true")
+    | extend runId = tostring(customDimensions.runId)
+    | where isnotempty(runId)
+    | summarize phases = count(), phaseTokens = sum(todouble(customMeasurements.uTokensTotal)),
+                phaseOutputTokens = sum(todouble(customMeasurements.uTokensOutput)) by runId;
+let sessionTokens = customEvents
+    | where name == "AldcSession" and (includeExcluded or tostring(customDimensions.exclude) != "true")
+    | extend runId = tostring(customDimensions.runId)
+    | where isnotempty(runId)
+    | summarize sessions = count(), sessionTokens = sum(todouble(customMeasurements.tokensTotal)) by runId;
+est
+| join kind=inner run on runId
+| join kind=leftouter phaseTokens on runId
+| join kind=leftouter sessionTokens on runId
+| project-away runId1, runId2, runId3
+| extend activeMin = round(activeSecondsTotal / 60, 1)
+| order by finishedAt desc;
+
+// X2. estimation_calibration — is the P80 an 80% bound? Target shareWithinP80 ≈ 0.8, and a
+// median actual/P50 near 1. Only tasks that came with an estimate (estP80Min).
+let includeExcluded = false;
+let minSchema = 3;
+let ev = (n: string) { customEvents
+    | where name == n and toint(customDimensions.schema) >= minSchema
+    | where includeExcluded or tostring(customDimensions.exclude) != "true"
+    | extend runId = tostring(customDimensions.runId)
+    | where isnotempty(runId) };
+ev("AldcEstimate")
+| summarize arg_max(timestamp, customDimensions, customMeasurements) by runId
+| project runId, tier = tostring(customDimensions.tier),
+          estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min)
+| where estP80Min > 0
+| join kind=inner (ev("AldcRun")
+    | where tostring(customDimensions.outcome) == "done"
+    | extend attempt = todouble(customMeasurements.attempt)
+    | summarize arg_max(attempt, timestamp, customMeasurements) by runId
+    | project runId, finishedAt = timestamp, activeMin = todouble(customMeasurements.activeSecondsTotal) / 60) on runId
+| extend withinP80 = toint(activeMin <= estP80Min), ratioP50 = iff(estP50Min > 0, activeMin / estP50Min, real(null))
+| summarize runs = count(), shareWithinP80 = round(avg(withinP80), 2),
+            medianActualOverP50 = round(percentile(ratioP50, 50), 2)
+  by week = startofweek(finishedAt), tier
+| order by week desc, tier asc;
+
+// X3. scope_drift — planned (AldcEstimate obj_*) vs delivered (AldcRun objDone_*) objects per
+// kind and New/Ext, over finished tasks. A kind that is always under-planned is where the
+// estimate's input is wrong, not its model.
+let includeExcluded = false;
+let minSchema = 3;
+let ev = (n: string) { customEvents
+    | where name == n and toint(customDimensions.schema) >= minSchema
+    | where includeExcluded or tostring(customDimensions.exclude) != "true"
+    | extend runId = tostring(customDimensions.runId)
+    | where isnotempty(runId) };
+ev("AldcEstimate")
+| summarize arg_max(timestamp, customMeasurements) by runId
+| project runId, pm = customMeasurements
+| join kind=inner (ev("AldcRun")
+    | where tostring(customDimensions.outcome) == "done"
+    | extend attempt = todouble(customMeasurements.attempt)
+    | summarize arg_max(attempt, customMeasurements) by runId
+    | project runId, dm = customMeasurements) on runId
+| mv-expand k = bag_keys(pm) to typeof(string)
+| where k startswith "obj_"
+| extend key = substring(k, 4)
+| extend objKind = tostring(split(key, "_")[0]), change = tostring(split(key, "_")[1]),
+         planned = todouble(pm[k]), done = coalesce(todouble(dm[strcat("objDone_", key)]), 0.0)
+| summarize tasks = dcount(runId), planned = sum(planned), done = sum(done) by objKind, change
+| where planned > 0 or done > 0
+| extend drift = done - planned,
+         driftPct = iff(planned > 0, round(100.0 * (done - planned) / planned, 0), real(null))
+| order by abs(drift) desc;

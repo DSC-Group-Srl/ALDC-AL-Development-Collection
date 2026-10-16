@@ -78,12 +78,20 @@ Opus (never switch yourself).
 4. **Ask once** (plan approval): WPs × waves, IDs, open questions, environment. Revise on
    feedback without another planning call unless new gaps appear.
 5. **Write `app/requirements/in-progress/{req}/{req}.plan.md`** from
-   `docs/templates/plan-template.md`: the graph, the codeunit → WP map, `**Test environment:**`,
-   `**Base:**` (the commit you start from) and an empty wave log. A resumed run reads this file
-   and continues after the last logged wave — it does not re-plan or re-ask.
-   Then announce the run to the control panel (also on a resumed run — same `req`, same run):
+   `docs/templates/plan-template.md`: the graph, the codeunit → WP map, the **Planned objects**
+   table (one row per object type × New/Ext, filled from the WP table and the codeunit → WP map),
+   `**Test environment:**`, `**Base:**` (the commit you start from) and an empty wave log. A
+   resumed run reads this file and continues after the last logged wave — it does not re-plan or
+   re-ask.
+   Then announce the run to the control panel (also on a resumed run — same `req`, same run),
+   and, only when the plan is new, snapshot its scope (the script counts the plan; you count
+   nothing). Pass `issueNo`/`estP50Min`/`estP80Min` only when the spec or brief carries a BC
+   Issue or a `stima-sviluppo` estimate in minutes:
    `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRunStart req=<req> tier=<tier>
    wpsPlanned=<n> waves=<n> lane=<ran|skipped>`
+   `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcEstimate req=<req> tier=<tier>
+   model=<your model id> --plan app/requirements/in-progress/<req>/<req>.plan.md
+   [issueNo=<n> estP50Min=<n> estP80Min=<n> estSource=<stima-sviluppo|manual>]`
 
 ## 2. Each wave
 
@@ -155,8 +163,9 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRun req=<req> tier=<LOW|MEDIUM|HIGH>
    wpsPlanned=<n> wps=<n> waves=<n> fixLoops=<n> stops=<human stops incl. the 2 gates>
    lane=<ran|skipped> testsPassed=<n> testsFailed=<n> reviewFirstPass=<0-1> reviews=<n>
-   parallelism=<Σ WP seconds ÷ Σ wave seconds> wallMinutes=<n> outcome=<done|stopped>
+   parallelism=<Σ WP seconds ÷ Σ wave seconds> outcome=<done|stopped>
    --numstat-base <Base commit>`
+   Do not report a duration: the script measures it.
 6. `Task(al-documentation-subagent)` with `app.json`, the consolidated object/file lists and
    `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)
@@ -178,6 +187,9 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
      tag and `GoLive=true`. Customers install it from the marketplace into their own tenant.
 
 ## 4. Unplanned findings and recovery
+
+Every **stop and ask** below (and in §2) starts with one marker, so the time spent waiting for
+the human is not counted as work: `$EMIT AldcGate gate=<fixloop|conflict|stall|blocked|contradiction|other>`.
 
 - **Unplanned finding** (from implementer or reviewer): blocks this WP's acceptance criteria →
   one scoped fix in the fix loop. Doesn't → one line under *Deferred* in the plan, continue.

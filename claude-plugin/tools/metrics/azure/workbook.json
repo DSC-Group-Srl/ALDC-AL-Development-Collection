@@ -4,7 +4,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## ALDC quality metrics\n\nOne row per TDD phase, emitted by the `bc-dev` plugin's `SubagentStop` hook.\n\n**Read the independence-ratio first.** Implementer and reviewer draw on the same BCQuality corpus, so the review can quietly stop being a measurement and become a consistency check — this is the only number that shows it happening. Below 0.15 the anti-correlation valve is weakening; at zero the review has stopped measuring.\n\n_BCQuality is a remedial corpus, not a completeness standard: green means no known rule was violated, not that the code is correct._"
+        "json": "## ALDC quality metrics\n\nOne row per TDD phase, emitted by the `bc-dev` plugin's `SubagentStop` hook.\n\n**Read the independence-ratio first.** Implementer and reviewer draw on the same BCQuality corpus, so the review can quietly stop being a measurement and become a consistency check \u2014 this is the only number that shows it happening. Below 0.15 the anti-correlation valve is weakening; at zero the review has stopped measuring.\n\n_BCQuality is a remedial corpus, not a completeness standard: green means no known rule was violated, not that the code is correct._"
       },
       "name": "header"
     },
@@ -59,6 +59,14 @@
             ],
             "queryType": 0,
             "resourceType": "microsoft.insights/components"
+          },
+          {
+            "id": "tab",
+            "version": "KqlParameterItem/1.0",
+            "name": "Tab",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "quality"
           }
         ],
         "style": "pills",
@@ -68,109 +76,223 @@
       "name": "parameters"
     },
     {
-      "type": 3,
+      "type": 11,
+      "name": "tabs",
       "content": {
-        "version": "KqlItem/1.0",
-        "query": "let src = customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project});\nlet rev = src | where tostring(customDimensions.agent) == 'al-review-subagent';\nlet agg = rev\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings)),\n            prescribed = sum(todouble(customMeasurements.prescribed)),\n            deviated = sum(todouble(customMeasurements.deviated)),\n            undeclared = sum(todouble(customMeasurements.undeclared)),\n            cited = sum(todouble(customMeasurements.cited)),\n            phases = count();\nagg\n| project\n    ['independence-ratio'] = iff(totalF > 0, round(agentF / totalF, 3), todouble(null)),\n    ['deviation rate']     = iff(prescribed > 0, round(deviated / prescribed, 3), todouble(null)),\n    ['undeclared deviations'] = undeclared,\n    ['cited vs prescribed'] = iff(prescribed > 0, round(cited / prescribed, 3), todouble(null)),\n    ['reviews'] = todouble(phases)",
-        "size": 3,
-        "timeContext": {
-          "durationMs": 0
-        },
-        "timeContextFromParameter": "TimeRange",
-        "queryType": 0,
-        "resourceType": "microsoft.insights/components",
-        "visualization": "tiles",
-        "tileSettings": {
-          "showBorder": true,
-          "titleContent": {
-            "columnMatch": "Column",
-            "formatter": 1
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "tab-quality",
+            "cellValue": "Tab",
+            "linkTarget": "parameter",
+            "linkLabel": "Quality",
+            "subTarget": "quality",
+            "style": "link"
           },
-          "leftContent": {
-            "columnMatch": "Value",
-            "formatter": 12,
-            "formatOptions": {
-              "palette": "auto"
-            },
-            "numberFormat": {
-              "unit": 0,
-              "options": {
-                "style": "decimal",
-                "maximumFractionDigits": 3
+          {
+            "id": "tab-estimation",
+            "cellValue": "Tab",
+            "linkTarget": "parameter",
+            "linkLabel": "Estimation",
+            "subTarget": "estimation",
+            "style": "link"
+          }
+        ]
+      }
+    },
+    {
+      "type": 12,
+      "name": "quality-group",
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let src = customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project});\nlet rev = src | where tostring(customDimensions.agent) == 'al-review-subagent';\nlet agg = rev\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings)),\n            prescribed = sum(todouble(customMeasurements.prescribed)),\n            deviated = sum(todouble(customMeasurements.deviated)),\n            undeclared = sum(todouble(customMeasurements.undeclared)),\n            cited = sum(todouble(customMeasurements.cited)),\n            phases = count();\nagg\n| project\n    ['independence-ratio'] = iff(totalF > 0, round(agentF / totalF, 3), todouble(null)),\n    ['deviation rate']     = iff(prescribed > 0, round(deviated / prescribed, 3), todouble(null)),\n    ['undeclared deviations'] = undeclared,\n    ['cited vs prescribed'] = iff(prescribed > 0, round(cited / prescribed, 3), todouble(null)),\n    ['reviews'] = todouble(phases)",
+              "size": 3,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "tiles",
+              "tileSettings": {
+                "showBorder": true,
+                "titleContent": {
+                  "columnMatch": "Column",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "auto"
+                  },
+                  "numberFormat": {
+                    "unit": 0,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 3
+                    }
+                  }
+                }
               }
+            },
+            "name": "headline-tiles"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "customEvents\n| where name == 'AldcPhase' and tostring(customDimensions.agent) == 'al-review-subagent'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings))\n          by bin(timestamp, 7d)\n| extend ['independence-ratio'] = iff(totalF > 0, agentF / totalF, todouble(null))\n| extend ['floor (0.15)'] = 0.15\n| project timestamp, ['independence-ratio'], ['floor (0.15)']\n| order by timestamp asc",
+              "size": 0,
+              "title": "Independence-ratio, weekly \u2014 the anti-correlation signal",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "linechart"
+            },
+            "name": "independence-trend"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| where isnotempty(tostring(customDimensions.deviationsDeclared))\n| extend paths = split(tostring(customDimensions.deviationsDeclared), '|')\n| mv-expand path = paths to typeof(string)\n| summarize deviations = count(), projects = dcount(tostring(customDimensions.['project'])) by path\n| order by deviations desc\n| take 10",
+              "size": 0,
+              "title": "Most-deviated knowledge \u2014 candidates for a /custom/ override",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
+            },
+            "name": "deviation-offenders"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize phases = count(),\n            notMounted = countif(tostring(customDimensions.bcqMounted) == 'false'),\n            undeclared = sum(todouble(customMeasurements.undeclared))\n          by ['project'] = tostring(customDimensions.['project'])\n| extend ['BCQuality missing %'] = round(100.0 * notMounted / phases, 1)\n| order by undeclared desc, ['BCQuality missing %'] desc",
+              "size": 0,
+              "title": "Per project \u2014 undeclared deviations and runs with BCQuality missing",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
+            },
+            "name": "per-project-health"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "customEvents\n| where name == 'AldcHeartbeat'\n| summarize machines = dcount(tostring(customDimensions.['project'])), lastSeen = max(timestamp)\n          by pluginVersion = tostring(customDimensions.pluginVersion)\n| order by lastSeen desc",
+              "size": 0,
+              "title": "bc-dev version adoption \u2014 from AldcHeartbeat, not from a review",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
+            },
+            "name": "version-adoption"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "quality"
+      }
+    },
+    {
+      "type": 12,
+      "name": "estimation-group",
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "name": "estimation-header",
+            "content": {
+              "json": "### Estimation \u2014 duration ~ planned scope\n\nOne row per conductor task (`runId`). **Planned** comes from `AldcEstimate` (the plan's *Planned objects* table, parsed before wave 1); **actual** is the measured `activeSecondsTotal` of the last finished attempt \u2014 idle gaps capped at 10 min, human waits after a gate left out. Record schema \u2265 3 only; dry runs and self-tests (`exclude=true`) are left out. Set the time range to 90 days for training data."
+            }
+          },
+          {
+            "type": 3,
+            "name": "estimation-calibration",
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let includeExcluded = false;\nlet minSchema = 3;\nlet ev = (n: string) { customEvents\n    | where name == n and toint(customDimensions.schema) >= minSchema\n    | where includeExcluded or tostring(customDimensions.exclude) != \"true\"\n    | extend runId = tostring(customDimensions.runId)\n    | where isnotempty(runId) };\nev(\"AldcEstimate\")\n| summarize arg_max(timestamp, customDimensions, customMeasurements) by runId\n| project runId, tier = tostring(customDimensions.tier),\n          estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min)\n| where estP80Min > 0\n| join kind=inner (ev(\"AldcRun\")\n    | where tostring(customDimensions.outcome) == \"done\"\n    | extend attempt = todouble(customMeasurements.attempt)\n    | summarize arg_max(attempt, timestamp, customMeasurements) by runId\n    | project runId, finishedAt = timestamp, activeMin = todouble(customMeasurements.activeSecondsTotal) / 60) on runId\n| extend withinP80 = toint(activeMin <= estP80Min), ratioP50 = iff(estP50Min > 0, activeMin / estP50Min, real(null))\n| summarize runs = count(), shareWithinP80 = round(avg(withinP80), 2),\n            medianActualOverP50 = round(percentile(ratioP50, 50), 2)\n  by week = startofweek(finishedAt), tier\n| order by week desc, tier asc",
+              "size": 0,
+              "title": "Calibration \u2014 share of tasks within their P80 (target \u2248 0.8)",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
+            }
+          },
+          {
+            "type": 3,
+            "name": "estimation-dataset",
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let includeExcluded = false;\nlet minSchema = 3;\nlet ev = (n: string) { customEvents\n    | where name == n and toint(customDimensions.schema) >= minSchema\n    | where includeExcluded or tostring(customDimensions.exclude) != \"true\"\n    | extend runId = tostring(customDimensions.runId)\n    | where isnotempty(runId) };\nlet est = ev(\"AldcEstimate\")\n    | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId\n    | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (\n        where k startswith \"obj_\" | summarize objPlanned = make_bag(bag_pack(k, customMeasurements[k])))\n    | project runId, estimatedAt = timestamp, req = tostring(customDimensions.req),\n              tier = tostring(customDimensions.tier), model = tostring(customDimensions.model),\n              estSource = tostring(customDimensions.estSource), issueNo = tostring(customDimensions.issueNo),\n              parseOk = todouble(customMeasurements.parseOk),\n              objTotal = todouble(customMeasurements.objTotal), objWeighted = todouble(customMeasurements.objWeighted),\n              testCodeunitsPlanned = todouble(customMeasurements.testCodeunitsPlanned),\n              wpsPlanned = todouble(customMeasurements.wpsPlanned), wavesPlanned = todouble(customMeasurements.wavesPlanned),\n              openQuestions = todouble(customMeasurements.openQuestions),\n              hasIntegration = todouble(customMeasurements.hasIntegration), hasEvents = todouble(customMeasurements.hasEvents),\n              hasApi = todouble(customMeasurements.hasApi), appObjectCount = todouble(customMeasurements.appObjectCount),\n              estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min),\n              objPlanned;\nlet run = ev(\"AldcRun\")\n    | where tostring(customDimensions.outcome) == \"done\"\n    | extend attempt = todouble(customMeasurements.attempt)\n    | summarize arg_max(attempt, timestamp, customDimensions, customMeasurements) by runId\n    | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (\n        where k startswith \"objDone_\" | summarize objDone = make_bag(bag_pack(k, customMeasurements[k])))\n    | project runId, finishedAt = timestamp, project_ = tostring(customDimensions.['project']),\n              user = tostring(customDimensions.user), pluginVersion = tostring(customDimensions.pluginVersion),\n              attempts = todouble(customMeasurements.attempts),\n              activeSecondsTotal = todouble(customMeasurements.activeSecondsTotal),\n              humanWaitSeconds = todouble(customMeasurements.humanWaitSeconds),\n              wallMinutesTotal = todouble(customMeasurements.wallMinutesTotal),\n              reportedMinutes = todouble(customMeasurements.reportedMinutes),\n              fixLoops = todouble(customMeasurements.fixLoops), stops = todouble(customMeasurements.stops),\n              wps = todouble(customMeasurements.wps), waves = todouble(customMeasurements.waves),\n              testsPassed = todouble(customMeasurements.testsPassed), testsFailed = todouble(customMeasurements.testsFailed),\n              alAdded = todouble(customMeasurements.alAdded), alRemoved = todouble(customMeasurements.alRemoved),\n              alAddedProd = todouble(customMeasurements.alAddedProd), alAddedTest = todouble(customMeasurements.alAddedTest),\n              objDone;\nlet phaseTokens = customEvents\n    | where name == \"AldcPhase\" and (includeExcluded or tostring(customDimensions.exclude) != \"true\")\n    | extend runId = tostring(customDimensions.runId)\n    | where isnotempty(runId)\n    | summarize phases = count(), phaseTokens = sum(todouble(customMeasurements.uTokensTotal)),\n                phaseOutputTokens = sum(todouble(customMeasurements.uTokensOutput)) by runId;\nlet sessionTokens = customEvents\n    | where name == \"AldcSession\" and (includeExcluded or tostring(customDimensions.exclude) != \"true\")\n    | extend runId = tostring(customDimensions.runId)\n    | where isnotempty(runId)\n    | summarize sessions = count(), sessionTokens = sum(todouble(customMeasurements.tokensTotal)) by runId;\nest\n| join kind=inner run on runId\n| join kind=leftouter phaseTokens on runId\n| join kind=leftouter sessionTokens on runId\n| project-away runId1, runId2, runId3\n| extend activeMin = round(activeSecondsTotal / 60, 1)\n| order by finishedAt desc",
+              "size": 0,
+              "title": "Estimation dataset \u2014 one row per task",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
+            }
+          },
+          {
+            "type": 3,
+            "name": "scope-drift",
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let includeExcluded = false;\nlet minSchema = 3;\nlet ev = (n: string) { customEvents\n    | where name == n and toint(customDimensions.schema) >= minSchema\n    | where includeExcluded or tostring(customDimensions.exclude) != \"true\"\n    | extend runId = tostring(customDimensions.runId)\n    | where isnotempty(runId) };\nev(\"AldcEstimate\")\n| summarize arg_max(timestamp, customMeasurements) by runId\n| project runId, pm = customMeasurements\n| join kind=inner (ev(\"AldcRun\")\n    | where tostring(customDimensions.outcome) == \"done\"\n    | extend attempt = todouble(customMeasurements.attempt)\n    | summarize arg_max(attempt, customMeasurements) by runId\n    | project runId, dm = customMeasurements) on runId\n| mv-expand k = bag_keys(pm) to typeof(string)\n| where k startswith \"obj_\"\n| extend key = substring(k, 4)\n| extend objKind = tostring(split(key, \"_\")[0]), change = tostring(split(key, \"_\")[1]),\n         planned = todouble(pm[k]), done = coalesce(todouble(dm[strcat(\"objDone_\", key)]), 0.0)\n| summarize tasks = dcount(runId), planned = sum(planned), done = sum(done) by objKind, change\n| where planned > 0 or done > 0\n| extend drift = done - planned,\n         driftPct = iff(planned > 0, round(100.0 * (done - planned) / planned, 0), real(null))\n| order by abs(drift) desc",
+              "size": 0,
+              "title": "Scope drift \u2014 planned vs delivered objects per kind",
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "visualization": "table"
             }
           }
-        }
+        ]
       },
-      "name": "headline-tiles"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase' and tostring(customDimensions.agent) == 'al-review-subagent'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize agentF = sum(todouble(customMeasurements.agentFindings)),\n            totalF = sum(todouble(customMeasurements.totalFindings))\n          by bin(timestamp, 7d)\n| extend ['independence-ratio'] = iff(totalF > 0, agentF / totalF, todouble(null))\n| extend ['floor (0.15)'] = 0.15\n| project timestamp, ['independence-ratio'], ['floor (0.15)']\n| order by timestamp asc",
-        "size": 0,
-        "title": "Independence-ratio, weekly — the anti-correlation signal",
-        "timeContext": {
-          "durationMs": 0
-        },
-        "timeContextFromParameter": "TimeRange",
-        "queryType": 0,
-        "resourceType": "microsoft.insights/components",
-        "visualization": "linechart"
-      },
-      "name": "independence-trend"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| where isnotempty(tostring(customDimensions.deviationsDeclared))\n| extend paths = split(tostring(customDimensions.deviationsDeclared), '|')\n| mv-expand path = paths to typeof(string)\n| summarize deviations = count(), projects = dcount(tostring(customDimensions.['project'])) by path\n| order by deviations desc\n| take 10",
-        "size": 0,
-        "title": "Most-deviated knowledge — candidates for a /custom/ override",
-        "timeContext": {
-          "durationMs": 0
-        },
-        "timeContextFromParameter": "TimeRange",
-        "queryType": 0,
-        "resourceType": "microsoft.insights/components",
-        "visualization": "table"
-      },
-      "name": "deviation-offenders"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcPhase'\n| where '*' in ({Project}) or tostring(customDimensions.['project']) in ({Project})\n| summarize phases = count(),\n            notMounted = countif(tostring(customDimensions.bcqMounted) == 'false'),\n            undeclared = sum(todouble(customMeasurements.undeclared))\n          by ['project'] = tostring(customDimensions.['project'])\n| extend ['BCQuality missing %'] = round(100.0 * notMounted / phases, 1)\n| order by undeclared desc, ['BCQuality missing %'] desc",
-        "size": 0,
-        "title": "Per project — undeclared deviations and runs with BCQuality missing",
-        "timeContext": {
-          "durationMs": 0
-        },
-        "timeContextFromParameter": "TimeRange",
-        "queryType": 0,
-        "resourceType": "microsoft.insights/components",
-        "visualization": "table"
-      },
-      "name": "per-project-health"
-    },
-    {
-      "type": 3,
-      "content": {
-        "version": "KqlItem/1.0",
-        "query": "customEvents\n| where name == 'AldcHeartbeat'\n| summarize machines = dcount(tostring(customDimensions.['project'])), lastSeen = max(timestamp)\n          by pluginVersion = tostring(customDimensions.pluginVersion)\n| order by lastSeen desc",
-        "size": 0,
-        "title": "bc-dev version adoption — from AldcHeartbeat, not from a review",
-        "timeContext": {
-          "durationMs": 0
-        },
-        "timeContextFromParameter": "TimeRange",
-        "queryType": 0,
-        "resourceType": "microsoft.insights/components",
-        "visualization": "table"
-      },
-      "name": "version-adoption"
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "estimation"
+      }
     }
   ],
   "isLocked": false,

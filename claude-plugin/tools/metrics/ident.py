@@ -99,12 +99,20 @@ def props(session: str = "") -> dict[str, str]:
     b = os.environ.get("CLAUDE_CODE_BRIDGE_SESSION_ID", "")
     if re.match(r"^session_[A-Za-z0-9]{8,64}$", b):
         out["bridgeSession"] = b  # claude.ai/code/<id> — lets the panel open the session
+    if excluded():
+        out["exclude"] = "true"
     return out
+
+
+def excluded() -> bool:
+    """ALDC_METRICS_EXCLUDE=1: a dry run, demo or self-test — still recorded, but every
+    event says `exclude=true` so the estimation and team queries leave it out."""
+    return _truthy(os.environ.get("ALDC_METRICS_EXCLUDE", ""))
 
 
 def self_test() -> int:
     env_keys = ("ALDC_USER_EMAIL", "ALDC_METRICS_ANONYMOUS", "CLAUDE_CODE_REMOTE",
-                "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_BRIDGE_SESSION_ID")
+                "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_BRIDGE_SESSION_ID", "ALDC_METRICS_EXCLUDE")
     backup = {k: os.environ.get(k) for k in env_keys}
     try:
         for k in env_keys:
@@ -117,7 +125,11 @@ def self_test() -> int:
         os.environ["CLAUDE_CODE_REMOTE"] = "true"
         os.environ["CLAUDE_CODE_BRIDGE_SESSION_ID"] = "session_014FJYLCSBFaxWgN2eaq4eCB"
         anon = props()
+        os.environ["ALDC_METRICS_EXCLUDE"] = "1"
+        excl = props()
         checks = [
+            ("not excluded by default", "exclude" not in p),
+            ("ALDC_METRICS_EXCLUDE marks the event", excl.get("exclude") == "true"),
             ("hash is case-insensitive", p.get("userHash") == user_hash("mario.rossi@example.com")),
             ("hash length", len(p.get("userHash", "")) == 16),
             ("local part only", p.get("user") == "mario.rossi"),

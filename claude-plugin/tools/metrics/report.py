@@ -134,6 +134,12 @@ def efficiency(recs: list[dict]) -> dict:
         by_version.setdefault(v, []).append(s.get("measurements", {}).get("tokensTotal", 0))
     runs, lanes, reads = events("AldcRun"), events("AldcLane"), events("AldcRead")
     m = lambda rs, k: _avg([r.get("measurements", {}).get(k) for r in rs])  # noqa: E731
+    # Schema 3 runs carry measured time; before it, wallMinutes was whatever the conductor said.
+    measured = [r for r in runs if int(r.get("schema") or 0) >= 3
+                and r.get("measurements", {}).get("activeSeconds") is not None]
+    active_min = _avg([(r["measurements"].get("activeSecondsTotal") or r["measurements"]["activeSeconds"]) / 60
+                       for r in measured])
+    estimates = events("AldcEstimate")
     return {
         "agents": agents,
         "sessions": {
@@ -146,7 +152,11 @@ def efficiency(recs: list[dict]) -> dict:
         "runs": {"count": len(runs), "avgWps": m(runs, "wps"), "avgWaves": m(runs, "waves"),
                  "avgFixLoops": m(runs, "fixLoops"), "avgStops": m(runs, "stops"),
                  "avgParallelism": m(runs, "parallelism"),
-                 "laneSkipped": sum(1 for r in runs if r.get("props", {}).get("lane") == "skipped")},
+                 "laneSkipped": sum(1 for r in runs if r.get("props", {}).get("lane") == "skipped"),
+                 "measured": len(measured), "avgActiveMin": active_min,
+                 "avgAttempts": m(measured, "attempts"), "estimates": len(estimates),
+                 "estimatesParsed": sum(1 for r in estimates
+                                        if r.get("measurements", {}).get("parseOk") == 1)},
         "lane": {"count": len(lanes), "avgLockWaitS": m(lanes, "lockWaitS"),
                  "avgPublishS": m(lanes, "publishS"), "avgRunS": m(lanes, "runS"),
                  "failed": sum(int(r.get("measurements", {}).get("failed", 0)) for r in lanes)},
@@ -186,6 +196,11 @@ def print_efficiency(e: dict) -> None:
               f"{_fmt(r['avgWaves'], '', 1)} · fix loops {_fmt(r['avgFixLoops'], '', 1)} · "
               f"human stops {_fmt(r['avgStops'], '', 1)} · parallelism "
               f"{_fmt(r['avgParallelism'], 'x', 1)} · lane skipped {r['laneSkipped']}")
+        if r["measured"]:
+            print(f"measured runs {r['measured']} · avg active {_fmt(r['avgActiveMin'], ' min', 1)} "
+                  f"(idle gaps capped, human waits excluded) · avg attempts "
+                  f"{_fmt(r['avgAttempts'], '', 1)} · scope snapshots {r['estimates']} "
+                  f"({r['estimatesParsed']} parsed)")
     ln = e["lane"]
     if ln["count"]:
         print(f"test lane {ln['count']} runs · lock wait {_fmt(ln['avgLockWaitS'], 's', 1)} · "
