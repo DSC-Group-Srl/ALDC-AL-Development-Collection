@@ -28,14 +28,16 @@ kept in a per-session LIVE SNAPSHOT, `~/.claude/aldc-plugin-data/live/<session>.
 this script updates on each live event. The snapshot also supplies durations (`durationS` on a
 `stage=end` that does not pass one) and the run's MEASURED duration: `wallMinutes` is always
 computed from the snapshot (a value the conductor passes is kept as `reportedMinutes`), and
-`activeSeconds` sums the gaps between the run's events, each capped at IDLE_CAP_S, so a
-session left open overnight does not count as work. An `AldcGate` marks a human ask: the gap
-after it goes to `humanWaitSeconds` instead.
+`activeSeconds` sums the gaps between the run's events: inside an open wave or WP in full (up
+to OPEN_CAP_S — a compile or a lane run sends no event), between steps capped at IDLE_CAP_S,
+so a session left open overnight does not count as work. An `AldcGate` marks a human ask: the
+gap after it goes to `humanWaitSeconds` instead.
 
 Resumes: `runId` is stable per project:req:user, so a run resumed in a new session keeps it.
 The ATTEMPT REGISTRY (`runs.json`, beside the live directory) counts the sessions a run took
 (`attempt` on every run event), sums active time across them (`activeSecondsTotal` on
-AldcRun) and drops a second AldcRun for an attempt that already has an outcome.
+AldcRun) and drops a second AldcRun for an attempt that already has an outcome. A req started
+again after its run finished `done` is a REWORK: its own runId and `rework=<n>`.
 The snapshot never leaves the machine; it is what a local panel reads with no latency, while
 Application Insights carries the same events to the team view.
 
@@ -72,7 +74,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 SCHEMA = 3  # 3: measured wallMinutes + reportedMinutes, activeSeconds, attempt, AldcEstimate,
 #             objDone_* per kind, alAddedTest/alAddedProd, `schema` and `exclude` dimensions
-IDLE_CAP_S = 600.0
+IDLE_CAP_S = 600.0    # a gap between steps longer than this is idle, not work
+OPEN_CAP_S = 7200.0   # a gap inside an open wave/WP counts in full, up to this
 
 RUN_KEYS = {"req", "runId"}
 EVENTS: dict[str, set[str]] = {
@@ -476,9 +479,26 @@ def idle_cap() -> float:
     return v if v > 0 else IDLE_CAP_S
 
 
+def open_cap() -> float:
+    try:
+        v = float(os.environ.get("ALDC_METRICS_OPEN_CAP_S", "") or OPEN_CAP_S)
+    except ValueError:
+        return OPEN_CAP_S
+    return v if v > 0 else OPEN_CAP_S
+
+
+def _step_open(snap: dict) -> bool:
+    """A wave or a WP is in flight: the conductor is waiting on work (a compile, the test lane,
+    a subagent's long tool call), not idle, even when no event arrives for a while."""
+    return snap.get("waveStage") == "running" or any(
+        isinstance(w, dict) and w.get("state") == "running" for w in (snap.get("wps") or {}).values())
+
+
 def _tick(snap: dict, event: str, now: float) -> None:
-    """Advance the run's clocks: the gap since the previous run event is active time (capped,
-    so an idle session does not count), unless an AldcGate opened it — then it is human wait."""
+    """Advance the run's clocks: the gap since the previous run event is active time, unless an
+    AldcGate opened it — then it is human wait. Between steps the gap is capped at
+    IDLE_CAP_S, so an idle session does not count; inside an open wave or WP it counts in full
+    up to OPEN_CAP_S (a sanity bound for a session abandoned mid-wave)."""
     last = snap.get("lastEventAt")
     if last is not None:
         gap = max(0.0, now - float(last))
@@ -486,7 +506,8 @@ def _tick(snap: dict, event: str, now: float) -> None:
             snap["humanWaitS"] = round(float(snap.get("humanWaitS") or 0) + gap, 1)
             snap.pop("gateAt", None)
         else:
-            snap["activeS"] = round(float(snap.get("activeS") or 0) + min(gap, idle_cap()), 1)
+            cap = open_cap() if _step_open(snap) else idle_cap()
+            snap["activeS"] = round(float(snap.get("activeS") or 0) + min(gap, cap), 1)
     snap["lastEventAt"] = now
     if event == "AldcGate":
         snap["gateAt"] = now
@@ -574,6 +595,9 @@ def apply_live(event: str, props: dict, meas: dict, snap: dict, cwd: str, sessio
             meas["wallMinutes"] = round((now - float(snap["startedAt"])) / 60, 1)
         meas["activeSeconds"] = float(round(float(snap.get("activeS") or 0)))
         meas["humanWaitSeconds"] = float(round(float(snap.get("humanWaitS") or 0)))
+        # Σ wave durations of this attempt: activeSeconds below it means the clock missed work.
+        meas["waveSeconds"] = float(round(sum(float(w.get("durationS") or 0)
+                                              for w in snap.get("waveLog") or [])))
         snap.update({"outcome": props.get("outcome") or "done", "endedAt": now})
 
     snap.update({"schema": 1, "session": session, "cwd": cwd, "project": props.get("project"),
@@ -616,6 +640,33 @@ def save_runs(reg: dict, now: float | None = None) -> None:
     os.replace(tmp, p)
 
 
+def resolve_rework(event: str, props: dict, snap: dict, reg: dict, now: float | None = None) -> None:
+    """A req whose run already finished `done` and is started again (a follow-up fix weeks
+    later) is a REWORK, not another attempt: it gets its own runId (hash of `<req>#r<n>`) and
+    `rework=<n>`, so its time never inflates the original task against the original estimate.
+    A rework that is still open is resumed like any run. Sets props["runId"]; no-op otherwise."""
+    now = _now() if now is None else now
+    req = props.get("req")
+    if event not in ("AldcRunStart", "AldcRun", "AldcEstimate") or not req or props.get("runId"):
+        return
+    if snap.get("req") == req and snap.get("runId") and (event != "AldcRunStart" or not snap.get("outcome")):
+        return  # this session's own run (or a report for it): the snapshot already keys it
+    base = run_id(props, req)
+    e = reg.get(base) or {}
+    if e.get("lastOutcome") != "done":
+        return  # open or stopped: a resume, i.e. the next attempt of the same run
+    cur = e.get("reworkRunId")
+    if cur and (reg.get(cur) or {}).get("lastOutcome") != "done":
+        props["runId"] = cur
+    elif event == "AldcRunStart":
+        n = int(e.get("reworks") or 0) + 1
+        cur = run_id(props, f"{req}#r{n}")
+        e.update({"reworks": n, "reworkRunId": cur, "updatedAt": now})
+        reg[cur] = {"attempts": 0, "att": {}, "rework": n, "reworkOf": base, "updatedAt": now}
+        props["runId"] = cur
+    # else: a late AldcRun/AldcEstimate for the finished run itself — the dedupe decides
+
+
 def apply_attempts(event: str, props: dict, meas: dict, snap: dict, reg: dict,
                    now: float | None = None) -> bool:
     """Fold one run event into the attempt registry: number the attempt, carry `attempt` on the
@@ -638,6 +689,8 @@ def apply_attempts(event: str, props: dict, meas: dict, snap: dict, reg: dict,
         snap["attempt"] = int(e["attempts"])
     a = str(snap["attempt"])
     meas["attempt"] = float(snap["attempt"])
+    if e.get("rework"):
+        meas["rework"] = float(e["rework"])
     cur = e["att"].setdefault(a, {})
     cur["activeS"] = float(snap.get("activeS") or 0)
     cur["waitS"] = float(snap.get("humanWaitS") or 0)
@@ -744,8 +797,9 @@ def main(argv: list[str]) -> int:
                 # Alive and a gate only matter inside a live run; a lane run outside a
                 # conductor run (al-developer) has no run to join.
                 if (event not in ("AldcAlive", "AldcGate") or live) and (event != "AldcLane" or snap.get("runId")):
-                    snap = apply_live(event, props, meas, snap, cwd, full_session)
                     reg = load_runs()
+                    resolve_rework(event, props, snap, reg)
+                    snap = apply_live(event, props, meas, snap, cwd, full_session)
                     keep = apply_attempts(event, props, meas, snap, reg)
                     if keep:
                         save_runs(reg)
@@ -845,6 +899,7 @@ def _run(events: list[tuple[str, list[str], float]], cwd: str, session: str, sna
     out = []
     for event, pairs, t in events:
         p, m = build(event, pairs, cwd, session)
+        resolve_rework(event, p, snap, reg, now=t)
         snap = apply_live(event, p, m, snap, cwd, session, now=t)
         out.append((p, m, apply_attempts(event, p, m, snap, reg, now=t)))
     return snap, out
@@ -854,18 +909,29 @@ def _self_test_duration(cwd: str) -> list[tuple[str, bool]]:
     s = "sess-0002-self-test"
     snap, ev = _run([("AldcRunStart", ["req=D-01"], 0), ("AldcWave", ["stage=start", "wave=1"], 100),
                      ("AldcAlive", ["agent=al-implement-subagent"], 220),
-                     # an evening away: 4880 s of nothing, counted as IDLE_CAP_S at most
-                     ("AldcWp", ["stage=end", "wave=1", "wp=1"], 5100),
-                     ("AldcGate", ["gate=fixloop"], 5160),
+                     # a 30-min compile / lane run inside the open wave: all of it is work
+                     ("AldcWp", ["stage=end", "wave=1", "wp=1"], 2020),
+                     ("AldcWave", ["stage=end", "wave=1"], 2100),
+                     # an evening away between waves: 4900 s of nothing, IDLE_CAP_S at most
+                     ("AldcWave", ["stage=start", "wave=2"], 7000),
+                     ("AldcGate", ["gate=fixloop"], 7060),
                      # the human answers 3000 s later: wait, not work
-                     ("AldcWp", ["stage=start", "wave=1", "wp=1", "fixRound=1"], 8160),
-                     ("AldcRun", ["wallMinutes=240", "outcome=done"], 8400)], cwd, s, {}, {})
+                     ("AldcWp", ["stage=start", "wave=2", "wp=2", "fixRound=1"], 10060),
+                     ("AldcWp", ["stage=end", "wave=2", "wp=2"], 10300),
+                     ("AldcWave", ["stage=end", "wave=2"], 10340),
+                     ("AldcRun", ["wallMinutes=240", "outcome=done"], 10400)], cwd, s, {}, {})
     rm = ev[-1][1]
+    # A session abandoned mid-wave: the open-step gap is still bounded by OPEN_CAP_S.
+    _, ab = _run([("AldcRunStart", ["req=D-03"], 0), ("AldcWave", ["stage=start", "wave=1"], 10),
+                  ("AldcRun", ["outcome=stopped"], 10 + 86400)], cwd, s, {}, {})
     return [
-        ("duration measured although the conductor sent one", rm.get("wallMinutes") == 140.0),
+        ("duration measured although the conductor sent one", rm.get("wallMinutes") == round(10400 / 60, 1)),
         ("the conductor's value is kept as reportedMinutes", rm.get("reportedMinutes") == 240.0),
-        ("activeSeconds caps an idle gap at IDLE_CAP_S", rm.get("activeSeconds") == 100 + 120 + 600 + 60 + 240),
+        ("a gap inside an open wave counts in full", ev[3][1].get("attempt") == 1.0 and rm.get("activeSeconds")
+         == 100 + 120 + 1800 + 80 + 600 + 60 + 240 + 40 + 60),
         ("the gap after a gate is human wait", rm.get("humanWaitSeconds") == 3000.0),
+        ("waveSeconds sums the wave durations", rm.get("waveSeconds") == 2000 + 3340),
+        ("an abandoned open wave is capped at OPEN_CAP_S", ab[-1][1].get("activeSeconds") == 10 + OPEN_CAP_S),
         ("alive advances the clock", ev[2][2] and ev[2][1].get("attempt") == 1.0),
         ("no wallMinutes without a start", "wallMinutes" not in _run(
             [("AldcRun", ["req=D-02", "wallMinutes=60"], 10)], cwd, s, {}, {})[1][0][1]),
@@ -898,6 +964,32 @@ def _self_test_attempts(cwd: str) -> list[tuple[str, bool]]:
         ("registry records the outcome", reg[rid]["lastOutcome"] == "done" and reg[rid]["attempts"] == 2),
         ("duplicate AldcRun dropped", dup[0][2] is False),
         ("resume in the same session keeps the attempt", [m.get("attempt") for _, m, _ in same] == [1.0, 1.0]),
+    ] + _self_test_rework(cwd, reg, rid)
+
+
+def _self_test_rework(cwd: str, reg: dict, base: str) -> list[tuple[str, bool]]:
+    """R-01 finished `done` above. Weeks later the same req is started again: a rework."""
+    c, d, f = "sess-0006-rework-c", "sess-0007-rework-d", "sess-0008-rework-f"
+    sc, evc = _run([("AldcRunStart", ["req=R-01"], 2_000_000), ("AldcEstimate", [], 2_000_010),
+                    ("AldcWave", ["stage=start", "wave=1"], 2_000_100)], cwd, c, {}, reg)
+    rw = sc.get("runId")
+    # resumed in another session, then finished
+    sd, evd = _run([("AldcRunStart", ["req=R-01"], 2_100_000),
+                    ("AldcRun", ["req=R-01", "outcome=done"], 2_100_300)], cwd, d, {}, reg)
+    # and started once more after that: a second rework
+    sf, _ = _run([("AldcRunStart", ["req=R-01"], 3_000_000)], cwd, f, {}, reg)
+    run_m = evd[-1][1]
+    return [
+        ("a finished req started again gets its own runId", rw and rw != base and evc[0][0].get("runId") == rw),
+        ("rework flagged on its events", all(m.get("rework") == 1.0 for _, m, _ in evc)),
+        ("rework has its own estimate", evc[1][2] is True),
+        ("rework starts at attempt 1", evc[0][1].get("attempt") == 1.0),
+        ("an open rework resumes as its next attempt", sd.get("runId") == rw and run_m.get("attempt") == 2.0),
+        ("rework time never touches the original task",
+         reg[base]["activeSecondsTotal"] == 1300.0 and run_m.get("activeSecondsTotal") == 100.0 + 300.0),
+        ("a rework after a finished rework is the next one",
+         sf.get("runId") not in (base, rw) and reg[sf["runId"]].get("rework") == 2),
+        ("the original run keeps no rework flag", "rework" not in reg[base]),
     ]
 
 

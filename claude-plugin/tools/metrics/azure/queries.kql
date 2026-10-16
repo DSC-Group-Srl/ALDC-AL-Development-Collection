@@ -260,21 +260,42 @@ customEvents
 // ===========================================================================
 // ESTIMATION (record schema 3) — duration ~ planned scope.
 // One task = one runId (project:req:user). AldcEstimate is the ex-ante scope parsed from the
-// plan before wave 1; AldcRun (last attempt with outcome done) is the ex-post size and the
-// MEASURED time: activeSecondsTotal sums every attempt's event gaps, each capped at 10 min,
-// with the human waits after an AldcGate left out. wallMinutes before schema 3 was reported
-// by the model and is not used here. Runs before 6 Oct 2026 have no runId and drop out.
-// Set includeExcluded = true to see dry runs and self-tests (ALDC_METRICS_EXCLUDE=1).
+// plan before wave 1 (only parsed plans, parseOk = 1: plans started before 8.8 have no
+// Planned objects table); AldcRun is the ex-post size and the MEASURED time. Runs before
+// 6 Oct 2026 have no runId and drop out; pre-schema-3 wallMinutes was the model's guess.
+//
+// Time is robust to the attempt registry being per machine (a cloud session with an ephemeral
+// home, a resume on another PC restarts `attempt` at 1 and skips the local dedupe): AldcRun
+// rows are de-duplicated on runId + attempt + activeSeconds, their activeSeconds summed, and
+// the larger of that sum and the registry's own activeSecondsTotal is kept.
+//
+// Switches at the top of each block: includeExcluded (dry runs, self-tests —
+// ALDC_METRICS_EXCLUDE=1) and includeRework (a req started again after it finished `done`
+// gets its own runId and rework >= 1; excluded by default, its plan is usually the old one).
 // ===========================================================================
 
 // X1. estimation_dataset — one row per task: planned features, delivered size, time, tokens.
 let includeExcluded = false;
+let includeRework = false;
 let minSchema = 3;
 let ev = (n: string) { customEvents
     | where name == n and toint(customDimensions.schema) >= minSchema
     | where includeExcluded or tostring(customDimensions.exclude) != "true"
     | extend runId = tostring(customDimensions.runId)
     | where isnotempty(runId) };
+let runTime = ev("AldcRun")
+    | extend attempt = todouble(customMeasurements.attempt), activeS = todouble(customMeasurements.activeSeconds)
+    | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId, attempt, activeS
+    | summarize activeSum = sum(activeS), registryTotal = max(todouble(customMeasurements.activeSecondsTotal)),
+                humanWaitSeconds = sum(todouble(customMeasurements.humanWaitSeconds)),
+                waveSeconds = sum(todouble(customMeasurements.waveSeconds)),
+                runRows = count(), maxAttempts = max(todouble(customMeasurements.attempts)),
+                doneRows = countif(tostring(customDimensions.outcome) == "done"),
+                rework = max(coalesce(todouble(customMeasurements.rework), 0.0)) by runId
+    | where doneRows > 0 and (includeRework or rework == 0)
+    | extend activeSecondsTotal = max_of(activeSum, coalesce(registryTotal, 0.0)),
+             attempts = max_of(coalesce(maxAttempts, 0.0), todouble(runRows))
+    | project runId, activeSecondsTotal, humanWaitSeconds, waveSeconds, attempts, rework;
 let est = ev("AldcEstimate")
     | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId
     | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (
@@ -290,18 +311,15 @@ let est = ev("AldcEstimate")
               hasIntegration = todouble(customMeasurements.hasIntegration), hasEvents = todouble(customMeasurements.hasEvents),
               hasApi = todouble(customMeasurements.hasApi), appObjectCount = todouble(customMeasurements.appObjectCount),
               estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min),
-              objPlanned;
+              objPlanned
+    | where parseOk == 1;
 let run = ev("AldcRun")
     | where tostring(customDimensions.outcome) == "done"
-    | extend attempt = todouble(customMeasurements.attempt)
-    | summarize arg_max(attempt, timestamp, customDimensions, customMeasurements) by runId
+    | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId
     | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (
         where k startswith "objDone_" | summarize objDone = make_bag(bag_pack(k, customMeasurements[k])))
     | project runId, finishedAt = timestamp, project_ = tostring(customDimensions.['project']),
               user = tostring(customDimensions.user), pluginVersion = tostring(customDimensions.pluginVersion),
-              attempts = todouble(customMeasurements.attempts),
-              activeSecondsTotal = todouble(customMeasurements.activeSecondsTotal),
-              humanWaitSeconds = todouble(customMeasurements.humanWaitSeconds),
               wallMinutesTotal = todouble(customMeasurements.wallMinutesTotal),
               reportedMinutes = todouble(customMeasurements.reportedMinutes),
               fixLoops = todouble(customMeasurements.fixLoops), stops = todouble(customMeasurements.stops),
@@ -322,32 +340,40 @@ let sessionTokens = customEvents
     | where isnotempty(runId)
     | summarize sessions = count(), sessionTokens = sum(todouble(customMeasurements.tokensTotal)) by runId;
 est
+| join kind=inner runTime on runId
 | join kind=inner run on runId
 | join kind=leftouter phaseTokens on runId
 | join kind=leftouter sessionTokens on runId
-| project-away runId1, runId2, runId3
+| project-away runId1, runId2, runId3, runId4
 | extend activeMin = round(activeSecondsTotal / 60, 1)
 | order by finishedAt desc;
 
 // X2. estimation_calibration — is the P80 an 80% bound? Target shareWithinP80 ≈ 0.8, and a
 // median actual/P50 near 1. Only tasks that came with an estimate (estP80Min).
 let includeExcluded = false;
+let includeRework = false;
 let minSchema = 3;
 let ev = (n: string) { customEvents
     | where name == n and toint(customDimensions.schema) >= minSchema
     | where includeExcluded or tostring(customDimensions.exclude) != "true"
     | extend runId = tostring(customDimensions.runId)
     | where isnotempty(runId) };
+let runTime = ev("AldcRun")
+    | extend attempt = todouble(customMeasurements.attempt), activeS = todouble(customMeasurements.activeSeconds)
+    | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId, attempt, activeS
+    | summarize activeSum = sum(activeS), registryTotal = max(todouble(customMeasurements.activeSecondsTotal)),
+                finishedAt = maxif(timestamp, tostring(customDimensions.outcome) == "done"),
+                doneRows = countif(tostring(customDimensions.outcome) == "done"),
+                rework = max(coalesce(todouble(customMeasurements.rework), 0.0)) by runId
+    | where doneRows > 0 and (includeRework or rework == 0)
+    | project runId, finishedAt, activeMin = max_of(activeSum, coalesce(registryTotal, 0.0)) / 60;
 ev("AldcEstimate")
 | summarize arg_max(timestamp, customDimensions, customMeasurements) by runId
+| where todouble(customMeasurements.parseOk) == 1
 | project runId, tier = tostring(customDimensions.tier),
           estP50Min = todouble(customMeasurements.estP50Min), estP80Min = todouble(customMeasurements.estP80Min)
 | where estP80Min > 0
-| join kind=inner (ev("AldcRun")
-    | where tostring(customDimensions.outcome) == "done"
-    | extend attempt = todouble(customMeasurements.attempt)
-    | summarize arg_max(attempt, timestamp, customMeasurements) by runId
-    | project runId, finishedAt = timestamp, activeMin = todouble(customMeasurements.activeSecondsTotal) / 60) on runId
+| join kind=inner runTime on runId
 | extend withinP80 = toint(activeMin <= estP80Min), ratioP50 = iff(estP50Min > 0, activeMin / estP50Min, real(null))
 | summarize runs = count(), shareWithinP80 = round(avg(withinP80), 2),
             medianActualOverP50 = round(percentile(ratioP50, 50), 2)
@@ -358,6 +384,7 @@ ev("AldcEstimate")
 // kind and New/Ext, over finished tasks. A kind that is always under-planned is where the
 // estimate's input is wrong, not its model.
 let includeExcluded = false;
+let includeRework = false;
 let minSchema = 3;
 let ev = (n: string) { customEvents
     | where name == n and toint(customDimensions.schema) >= minSchema
@@ -366,11 +393,12 @@ let ev = (n: string) { customEvents
     | where isnotempty(runId) };
 ev("AldcEstimate")
 | summarize arg_max(timestamp, customMeasurements) by runId
+| where todouble(customMeasurements.parseOk) == 1
 | project runId, pm = customMeasurements
 | join kind=inner (ev("AldcRun")
     | where tostring(customDimensions.outcome) == "done"
-    | extend attempt = todouble(customMeasurements.attempt)
-    | summarize arg_max(attempt, customMeasurements) by runId
+    | summarize arg_max(timestamp, customMeasurements) by runId
+    | where includeRework or coalesce(todouble(customMeasurements.rework), 0.0) == 0
     | project runId, dm = customMeasurements) on runId
 | mv-expand k = bag_keys(pm) to typeof(string)
 | where k startswith "obj_"
@@ -382,3 +410,21 @@ ev("AldcEstimate")
 | extend drift = done - planned,
          driftPct = iff(planned > 0, round(100.0 * (done - planned) / planned, 0), real(null))
 | order by abs(drift) desc;
+
+// X4. active_time_check — does activeSeconds miss work? Per attempt, the time inside waves
+// (waveSeconds = Σ wave durationS) is a floor for it: a wave is work from start to end. Rows
+// returned here are runs whose clock undercounted; a steady stream means the gap rule in
+// emit.py (_tick) is losing silent steps and needs a look.
+let includeExcluded = false;
+let minSchema = 3;
+customEvents
+| where name == "AldcRun" and toint(customDimensions.schema) >= minSchema
+| where includeExcluded or tostring(customDimensions.exclude) != "true"
+| extend runId = tostring(customDimensions.runId), attempt = todouble(customMeasurements.attempt),
+         activeS = todouble(customMeasurements.activeSeconds), waveS = todouble(customMeasurements.waveSeconds)
+| where isnotempty(runId) and waveS > 0
+| summarize arg_max(timestamp, customDimensions) by runId, attempt, activeS, waveS
+| extend ratio = round(activeS / waveS, 2), tier = tostring(customDimensions.tier)
+| where ratio < 1
+| project timestamp, runId, attempt, tier, activeMin = round(activeS / 60, 1), waveMin = round(waveS / 60, 1), ratio
+| order by ratio asc;

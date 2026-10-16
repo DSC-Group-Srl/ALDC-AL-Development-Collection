@@ -114,7 +114,8 @@ BCQuality was not mounted, and which pin the estate is actually on).
 The ESTIMATION blocks at the end (X1–X3) are the training and calibration set for duration
 estimates: `estimation_dataset` (one row per task: planned scope, delivered size, measured time,
 attempts, tokens), `estimation_calibration` (share of tasks within their P80, by week and tier)
-and `scope_drift` (planned vs delivered objects per kind).
+`scope_drift` (planned vs delivered objects per kind) and `active_time_check` (runs whose
+measured time undercounts their waves — should stay empty).
 
 [`workbook.json`](workbook.json) is an importable Azure Workbook with two tabs. **Quality**: the
 four metrics as tiles, the independence-ratio trend against its 0.15 floor, the most-deviated
@@ -149,7 +150,7 @@ a `schema` dimension; filter on `toint(customDimensions.schema) >= 3`.
 | Event | New fields |
 |---|---|
 | `AldcEstimate` (new, once per run, after the plan and before wave 1) | counts parsed from the plan by the script, never by the model: `obj_<kind>_new` / `obj_<kind>_ext` for a fixed kind set (`table`, `tableextension`, `page`, `pageextension`, `codeunit`, `report`, `reportextension`, `query`, `xmlport`, `enum`, `enumextension`, `interface`, `permissionset`, `apipage`, `testcodeunit`, `other`), `objTotal`, `objWeighted` (S=1, M=2, L=4), `testCodeunitsPlanned`, `wpsPlanned`, `wavesPlanned`, `openQuestions`, `hasIntegration` / `hasEvents` / `hasApi`, `appObjectCount` (`.al` files at `**Base:**`), `parseOk`; passed through when known: `estP50Min`, `estP80Min`, dimensions `estSource` (`stima-sviluppo` · `manual` · `none`), `issueNo`, `model` |
-| `AldcRun` | **`wallMinutes` is now measured** from the run's start in this session, never taken from the conductor; a value it still passes lands in `reportedMinutes`. `activeSeconds` (gaps between the run's events, each capped at `ALDC_METRICS_IDLE_CAP_S`, default 600), `humanWaitSeconds` (gaps after an `AldcGate`), `attempt`, `attempts`, `activeSecondsTotal` and `wallMinutesTotal` (across attempts), `objDone_<kind>_new` / `_ext` (added / modified `.al` files by object kind), `alAddedProd` / `alAddedTest` |
+| `AldcRun` | **`wallMinutes` is now measured** from the run's start in this session, never taken from the conductor; a value it still passes lands in `reportedMinutes`. `activeSeconds` (gaps between the run's events: inside an open wave or WP counted in full up to `ALDC_METRICS_OPEN_CAP_S`, default 7200, so a long compile or test-lane run with no event still counts; between steps capped at `ALDC_METRICS_IDLE_CAP_S`, default 600), `waveSeconds` (Σ wave durations of the attempt — a floor for `activeSeconds`), `humanWaitSeconds` (gaps after an `AldcGate`), `attempt`, `attempts`, `activeSecondsTotal` and `wallMinutesTotal` (across attempts), `rework` (see below), `objDone_<kind>_new` / `_ext` (added / modified `.al` files by object kind), `alAddedProd` / `alAddedTest` |
 | every run event (`AldcRunStart`, `AldcWave`, `AldcWp`, `AldcLane`, `AldcAlive`, `AldcGate`, `AldcEstimate`) | `attempt` — the session's number for this run (a resume in a new session is the next attempt) |
 | `AldcPhase`, `AldcSession` | `req`, `runId` (and `attempt`) of the conductor run live in the session, so tokens sum per task |
 | `AldcGate` (new) | emitted by the conductor right before a mid-run stop-and-ask: `gate` (`fixloop` · `conflict` · `stall` · `blocked` · `contradiction` · `other`) |
@@ -159,6 +160,18 @@ the measured span by up to 2×) — treat it as deprecated for anything older. R
 counted in a local attempt registry (`~/.claude/aldc-plugin-data/runs.json`), which also drops
 a second `AldcRun` for an attempt that already has an outcome (the duplicate row of 28 Sep)
 and a second `AldcEstimate` for a run.
+
+**Rework.** A req whose run already finished `done` and is started again — a follow-up fix
+weeks later — is not another attempt: it gets its own `runId` (hash of `<req>#r<n>`) and
+`rework=<n>` on its events, so its time never inflates the original task against the original
+estimate. The estimation queries leave reworks out unless `includeRework = true`.
+
+**The registry is per machine.** A cloud session with an ephemeral home, or a resume on
+another PC, restarts `attempt` at 1 and skips the local dedupe. The estimation queries do not
+rely on it: they de-duplicate `AldcRun` rows on runId + attempt + activeSeconds, sum their
+`activeSeconds`, and keep the larger of that sum and the registry's `activeSecondsTotal`.
+They also keep only parsed plans (`parseOk = 1`) — plans started before 8.8 have no Planned
+objects table. `X4 active_time_check` lists runs whose clock fell below their own wave time.
 
 `ALDC_METRICS_EXCLUDE=1` adds `exclude=true` to every event — use it for dry runs, demos and
 plugin self-tests (`test_metrics.sh` sets it). The estimation queries leave those out.
