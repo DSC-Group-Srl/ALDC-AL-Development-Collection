@@ -83,6 +83,15 @@ For each page object, extract:
 - All actions and what they trigger
 - Any conditional visibility or editability rules that matter to the user
 
+For each workflow (and for the setup), also extract what its tutorial needs (Phase 3):
+- How the user reaches the starting page — the page caption to type in **Cerca (Alt+Q)**, or the
+  page and action that opens it
+- The fields the user must fill in, in the order the page presents them, and which are mandatory
+  (`ShowMandatory`, `TestField`, validation code)
+- The action that completes the operation and what it produces (a posted document, a ledger entry,
+  a status change, a file)
+- The user-facing texts it can show: `Message`, `Confirm` and `Error` labels along the path
+
 If anything is ambiguous from the AL alone (business meaning of a field, when an action should
 be used), ask the user before proceeding. Do not invent business context.
 
@@ -185,6 +194,10 @@ Rules:
 - Action names as they appear in the BC UI, wrapped in **bold**.
 - No field numbers, no table IDs, no codeunit names.
 - Step-by-step procedures use numbered lists.
+- Every workflow page and `setup.md` teach by example: each one carries a **tutorial** section
+  (see the templates below) that walks one concrete, realistic case from the starting page to a
+  verified result. A tutorial is not a generic list of steps — it names the page to open, the
+  values to type, the action to choose, what the user sees at the end and where to check it.
 - Notes and warnings use blockquotes: `> **Nota:** ...` / `> **Note:** ...`
 - Each page must be self-contained — a user landing on it directly must understand the context.
 
@@ -234,10 +247,28 @@ Aprire [percorso BC per raggiungere la pagina, es. "Cerca → Impostazioni Dyna 
 | **[Caption campo 2]** | [Idem.] |
 
 > **Nota:** [Eventuali avvertenze su campi obbligatori o dipendenze tra campi.]
+
+## Tutorial: come configurare [App Name] per la prima volta
+
+**Scenario:** [Situazione concreta, es. "L'azienda inizia a usare [App Name] e deve impostare
+i parametri minimi per [primo workflow]".]
+
+1. Apri **Cerca (Alt+Q)**, digita `[caption della pagina di setup]` e scegli il risultato.
+2. Nel campo **[Caption]**, inserisci `[valore d'esempio]`. [Perché, se non ovvio.]
+3. [...]
+
+**Risultato atteso:** [Cosa è ora possibile fare, es. "il documento può essere inviato".]
+
+**Come verificare:** [Dove controllare che la configurazione funzioni, es. "apri un ordine e
+verifica che l'azione **[Azione]** sia disponibile".]
 ```
 
 Document every user-visible field from the setup page object. For enum fields, list the
 available values and what each one does in plain language.
+
+The setup tutorial covers only the **minimum** configuration needed to run the first workflow,
+in the order the user must do it — including any page outside setup that must be filled first
+(e.g. number series). With more than one setup page, one tutorial walks them in sequence.
 
 #### Workflow page ([workflow-name].md)
 
@@ -250,11 +281,31 @@ available values and what each one does in plain language.
 
 - [Cosa deve essere configurato o presente prima di eseguire questo workflow.]
 
-## Procedura
+## Tutorial: come [verbo all'infinito + oggetto, es. "registrare un trasferimento parziale"]
 
-1. [Passo 1 — azione concreta nell'interfaccia BC.]
-2. [Passo 2.]
-3. [...]
+**Scenario:** [Situazione concreta e realistica in cui l'utente si trova, in una o due frasi.]
+
+**Dati dell'esempio:** [I valori usati nei passi, es. articolo `1896-S`, ubicazione `BLU`,
+quantità `5`.]
+
+1. Apri **Cerca (Alt+Q)**, digita `[caption della pagina]` e scegli il risultato.
+2. Scegli l'azione **[Azione]**.
+3. Nel campo **[Caption]**, inserisci `[valore dell'esempio]`. [Perché, se non ovvio.]
+4. [...]
+5. Scegli **[Azione conclusiva]**. [Se compare una richiesta di conferma, riportane il testo
+   e cosa rispondere.]
+
+**Risultato atteso:** [Cosa vede l'utente alla fine: messaggio di conferma, documento creato,
+stato cambiato.]
+
+**Come verificare:** [Dove controllare che l'operazione sia andata a buon fine — pagina,
+movimento, campo da guardare.]
+
+**Se qualcosa va storto:**
+
+| Messaggio | Cosa fare |
+|---|---|
+| "[Testo del messaggio mostrato all'utente]" | [Come correggere e riprovare.] |
 
 ## Campi
 
@@ -272,7 +323,30 @@ available values and what each one does in plain language.
 ```
 
 Omit any section that is genuinely empty (e.g. no actions on a read-only list page).
-Do not add empty placeholder sections.
+Do not add empty placeholder sections. The tutorial is the exception: every workflow page has one.
+
+Tutorial rules:
+- **Title** — always `Tutorial: come …` / `Tutorial: how to …` followed by the operation as a verb,
+  so the `toc.yml` and search read as a list of things the user can learn to do.
+- **One case, start to finish** — pick the most common real case, not the general one. If the
+  workflow has genuinely different paths (e.g. full vs. partial transfer, with vs. without
+  approval), add a second `## Tutorial: come …` section rather than branching inside the steps.
+- **Concrete values** — every step that fills a field gives the example value in `code`. For
+  standard BC records (customers, items, locations) use the CRONUS demo company's data; for this
+  app's own records invent plausible values; for option/enum fields use a real option caption.
+- **Start from search** — step 1 always opens the starting page, even if it seems obvious.
+- **Messages from the source** — copy `Confirm` and `Error` texts from their labels, translated
+  in the en-US site; derive the "Se qualcosa va storto" rows from the `Error`/`TestField` calls on
+  the tutorial's own path only (the general error list stays in `faq.md`). Drop the table when the
+  path has no user-facing errors.
+- **No overlap** — the tutorial replaces the old bare "Procedura" list; fields and actions it
+  doesn't touch stay in the **Campi** / **Azioni disponibili** tables, not in the steps.
+- **Screenshots** — where a step needs one, leave `<!-- screenshot: [cosa mostrare] -->`; humans
+  add the image into `images/` later.
+
+English site: `## Tutorial: how to …`, **Scenario:**, **Example data:**, **Expected result:**,
+**How to check:**, **If something goes wrong:** (columns *Message* / *What to do*), and
+**Search (Alt+Q)** in step 1.
 
 #### faq.md
 
@@ -443,7 +517,10 @@ All markdown source files are hand-authored and never touched by docfx. Only `_s
 
 - [ ] Every user-visible field from every setup page is documented in `setup.md`
 - [ ] Every user-facing workflow has its own `.md` file and a `toc.yml` entry
-- [ ] Every workflow page has: intro paragraph, prerequisites (if any), numbered procedure, fields table (if relevant), actions table (if relevant)
+- [ ] Every workflow page has: intro paragraph, prerequisites (if any), tutorial, fields table (if relevant), actions table (if relevant)
+- [ ] `setup.md` has a first-time configuration tutorial
+- [ ] Every tutorial has a scenario, example values in each data-entry step, step 1 opening the page from search, an expected result and a way to check it
+- [ ] Tutorial messages (confirmations, errors) match the AL labels, translated in the en-US site
 - [ ] No AL object names, field numbers, or technical identifiers appear in the content
 - [ ] Field and action names match exactly what appears in the BC UI (Caption values)
 - [ ] FAQ entries cover enum fields, conditional behaviour, and common error conditions

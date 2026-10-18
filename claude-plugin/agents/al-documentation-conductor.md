@@ -79,7 +79,7 @@ already exist.
     source (use when the docs are known stale or the app changed substantially).
   - **Completeness audit** — read the existing content, apply each skill's own self-review
     checklist, and fill genuine gaps only (missing pages, shallow summaries, undocumented
-    fields) rather than rewriting everything.
+    fields, workflow pages or `setup.md` without a tutorial) rather than rewriting everything.
 
   Either way, tell `al-documentation-subagent` (Phase 2) to run in **forced Bootstrap mode** —
   see that agent's Step 1 "Caller override". You have no per-plan changed-object list to scope
