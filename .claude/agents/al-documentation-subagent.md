@@ -92,7 +92,9 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docfx")` (if not already loaded th
 - Bootstrap mode: full Phase 1–6 as written.
 - Incremental mode: re-read only the AL source for the objects/files reported as changed,
   update the corresponding `.md` page(s) (a changed page action/field/workflow → update that
-  workflow's page; a new page object → add a new page + `toc.yml` entry), keep both locales in
+  workflow's page, **tutorial included** — a step, value or message that no longer matches the
+  source is the most visible kind of stale doc; a changed setup field → update `setup.md` and its
+  tutorial; a new page object → add a new page + `toc.yml` entry), keep both locales in
   sync in the same pass exactly as the skill requires, then `docfx build` both `it-IT` and
   `en-US`.
 
