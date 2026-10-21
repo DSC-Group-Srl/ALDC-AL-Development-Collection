@@ -67,9 +67,31 @@ Scan commit messages for:
 **Identify Reviewers:**
 If `{Reviewer}` is specified, include in the draft.
 
-### 3. Generate PR Draft
+### 3. Close the requirement (if still in `in-progress/`)
 
-In a DSC AL-Go repo the PR always targets `main`, never `test`. `test` is rebuilt every night from `main` plus every open PR,
+A requirement's folder is archived by al-conductor's §3 Completion — but only while the
+conductor is still driving. Work that ends later (manual testing, fixes in the main thread,
+LOW work through al-developer) has no other owner for that step: **this command is it.**
+
+1. Find the requirement(s) this branch belongs to:
+   `git diff main...{Branch} --name-only -- app/requirements/in-progress/`, plus any folder
+   named in commit messages, the branch name, or the spec the work followed.
+2. For each one still in `app/requirements/in-progress/{req}/`, ask the user (HITL) whether
+   the work is finished. If yes, on this branch:
+   1. write `{req}-complete.md` from `${CLAUDE_PLUGIN_ROOT}/docs/templates/plan-complete-template.md`
+      if it does not exist (what shipped, objects, tests + lane result, deviations, deferred items);
+   2. append durable decisions to `app/requirements/memory.md` (never to the project CLAUDE.md);
+   3. move any document of this requirement lying loose in `in-progress/` into its folder;
+   4. `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit.
+3. Backlog check, one line: list the other folders in `in-progress/` and any loose files at its
+   root, so the user can say which are already done. Archive only the ones they confirm.
+
+### 4. Generate PR Draft
+
+In a DSC AL-Go repo the branch is cut from `main` and the PR always targets `main`, never `test`.
+If `git log main..{Branch} --oneline` lists commits that are not this work (the nightly test
+rebuild's merges of other PRs), the branch was cut from `test`: stop and tell the user — it
+needs rebasing onto `main` (`git rebase --onto main test {Branch}`, their call) before the PR. `test` is rebuilt every night from `main` plus every open PR,
 and that rebuild is how the change reaches the test environment for functional test/UAT. When it comes back KO, the fix goes on
 this same branch and PR. The whole flow (PR build, nightly rebuild, CI/CD on `test`, release, production) is in
 `bc-dev:skill-al-go-workflows`. Load it if the user asks what happens after the PR, or a check fails.
@@ -286,6 +308,7 @@ Create `/reports/pr-draft.md` with this structure:
 
 ## Success Criteria
 
+- ✅ Finished requirement folders moved to `app/requirements/archived/` with `{req}-complete.md`
 - ✅ PR draft file created under `/reports/pr-draft.md`
 - ✅ Changes summarized by category
 - ✅ All modified AL objects documented

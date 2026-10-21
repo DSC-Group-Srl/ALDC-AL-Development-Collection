@@ -158,7 +158,10 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    objects, tests + lane result, deviations, deferred items, skills summary).
 3. Append durable decisions to `app/requirements/memory.md` (create it if absent). **Never
    append to the project CLAUDE.md** — it loads into every session and subagent.
-4. `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit.
+4. Move any document of this requirement lying loose in `in-progress/` into its folder, then
+   `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit. If the
+   user stops you before this step (manual testing still to come), say that
+   `/bc-dev:al-pr-prepare` archives it when the work really ends.
 5. Emit the run metric (counts only):
    `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRun req=<req> tier=<LOW|MEDIUM|HIGH>
    wpsPlanned=<n> wps=<n> waves=<n> fixLoops=<n> stops=<human stops incl. the 2 gates>

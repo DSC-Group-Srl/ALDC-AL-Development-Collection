@@ -135,7 +135,7 @@ TABLE_LITE_ROW = 'D3DFEE'   // righe alternate chiare (Autore, Versione, Note)
 
 ```
 Font globale:  Verdana
-Body:          size 22 (11pt), line spacing 360 (auto), indent left 357 DXA
+Body:          size 22 (11pt), line spacing 360 (auto), indent left 357 DXA, GIUSTIFICATO
 H1:            size 22, bold, color BLUE_H1, border bottom sz 12
 H2:            size 22, color BLUE_H1, border bottom sz 8 color BLUE_H2
 H3:            size 24, color BLUE_H2, border bottom sz 4 color BLUE_H3
@@ -163,8 +163,50 @@ Titolo grande centrato (size 52 bold): nome cliente su riga 1, titolo su riga 2.
 Poi tabella metadati 2 colonne (col1=2957, col2=6436 DXA), righe alternate
 TABLE_LITE_ROW / TABLE_DARK_ROW, bordi bianchi, label in grassetto, valori normali.
 Righe: Autore / Supervisore progetto / Versione / Data / Note e commenti.
+Poi **page break** — la copertina resta sola a pagina 1.
 Poi `Sommario` H1 + campo TOC (`TOC \o "1-9" \z \u \h`).
-Poi page break.
+Poi **un secondo page break** — il Sommario resta solo a pagina 2.
+
+### Impaginazione DSC — regole di casa
+
+Ogni regola qui sotto si vede a colpo d'occhio sul documento aperto ma non leggendo il codice:
+per questo la Fase 4 le verifica una per una sul file prodotto.
+
+| Elemento | Regola |
+|---|---|
+| Pagina 1 | **Solo** la copertina: titolo grande, nome cliente, tabella metadati |
+| Pagina 2 | **Solo** il Sommario (intestazione + campo TOC) |
+| Pagina 3 | Primo capitolo |
+| Interruzioni prima del primo capitolo | **Esattamente due** `<w:br w:type="page"/>`: dopo la tabella metadati e dopo il TOC |
+| Paragrafi di prosa | **Giustificati** (`AlignmentType.JUSTIFIED` → `<w:jc w:val="both"/>`) |
+| Voci di elenco puntato / numerato | **Giustificate** anche loro (helper `listItem` del generatore) |
+| Heading, celle di tabella, copertina | Allineamento invariato (heading e celle a sinistra, copertina centrata) |
+| Spaziatura body | before 0, after 160, interlinea 360 auto; elenchi after 80 |
+
+### Dove salvare il file
+
+Mai una cartella inventata sul momento. Il percorso canonico, relativo alla radice del repo, è:
+
+| Tipo documento | Cartella |
+|---|---|
+| DAF — Analisi funzionale | `guides/word/DAF/` |
+| MAN — Manuale utente / guida operativa | `guides/word/Manuals/` |
+| Note di rilascio | `guides/word/Release Notes/` |
+
+Crea la cartella se non esiste. I `.docx` sotto `guides/word/` **sono versionati**: lo standard
+di repository DSC ha `*.docx` nel `.gitignore`, quindi se il `.gitignore` del repo ignora i
+`.docx` aggiungi in coda, una volta sola:
+
+```gitignore
+# Word deliverables for the customer (skill-functional-docx)
+!guides/word/
+!guides/word/**
+!guides/word/**/*.docx
+```
+
+Poi verifica con `git check-ignore -v "guides/word/<cartella>/<file>.docx"`: nessun output =
+il file è tracciabile. Se il repo non ha `guides/` (fuori standard), chiedi all'utente dove
+salvare invece di scegliere tu.
 
 ### Footer (tutte le pagine)
 
@@ -201,6 +243,14 @@ Appare solo nel campo **Autore** della tabella di copertina.
 - [ ] Campi BC in **grassetto** con caption UI esatta
 - [ ] File validato con `scripts/office/validate.py`
 - [ ] Nome file rispetta la convenzione di naming
+- [ ] File salvato in `guides/word/{DAF,Manuals,Release Notes}/` e non ignorato da git
+      (`git check-ignore` senza output)
+- [ ] Impaginazione verificata sul `word/document.xml` prodotto (unzip), regola per regola
+      dalla sezione *Impaginazione DSC*:
+  - [ ] esattamente **due** `w:type="page"` prima del primo paragrafo `Heading1` che segue la
+        fine del campo TOC (copertina sola a pag. 1, Sommario solo a pag. 2, contenuto da pag. 3).
+        Non cercare il testo del primo titolo: il TOC lo contiene già e falsa il conteggio
+  - [ ] ogni paragrafo di prosa e ogni voce di elenco ha `<w:jc w:val="both"/>`
 
 ---
 

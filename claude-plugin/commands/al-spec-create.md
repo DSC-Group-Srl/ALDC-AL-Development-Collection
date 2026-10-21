@@ -22,8 +22,16 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
 ## Guardrails
 
 - **Never** create or modify real AL objects during this phase.
-- Output only to `app/requirements/in-progress/{req_name}/` (the move to `archived/` is
-  al-conductor's job when the requirement ships).
+- **Name the folder the way it will sit in the archive**: `{req_name}` = `NNNN-kebab-name`,
+  where `NNNN` is the next free 4-digit number across `app/requirements/in-progress/` **and**
+  `app/requirements/archived/` (e.g. `0035-advance-review`); a ticket id replaces the number
+  when the request has one (`BOG26-018-kebab-name`). If the repo's existing folders follow
+  another scheme consistently, follow theirs. Every file in the folder carries the same prefix.
+- Output only to `app/requirements/in-progress/{req_name}/`. **Every** document of the
+  requirement — the original request, architecture, studies, notes — lives inside that folder,
+  never loose in `in-progress/`, so archiving is a single `git mv`. The move to `archived/` is
+  al-conductor's §3 Completion, or `/bc-dev:al-pr-prepare`'s closure step when the work ends
+  outside the conductor.
 - If `{req_name}.architecture.md` exists (HIGH), read it first — the spec implements it and
   references its TD-ids instead of repeating them.
 - If the spec already exists, confirm with the user before overwriting.

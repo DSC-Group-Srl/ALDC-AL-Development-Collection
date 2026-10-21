@@ -31,7 +31,7 @@ const CONTENT_W = PAGE_W - MAR_L - MAR_R; // 9496
 const LOGO_CX = 1195214;
 const LOGO_CY = 409575;
 
-const logoData = fs.readFileSync('/home/claude/dsc_logo.png');
+const logoData = fs.readFileSync(require('path').join(__dirname, 'dsc_logo.png'));
 
 // ── Helper: bold label run ──────────────────────────────────────────────────
 function labelRun(text) {
@@ -212,10 +212,22 @@ function h3(text) {
     border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: BLUE_H3, space: 1 } }
   });
 }
+// Prose and list items are always justified (DSC house style). Headings, table cells and
+// the cover stay as they are.
 function body(text, indent) {
   return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
     indent: indent ? { left: 357 } : undefined,
     spacing: { line: 360, lineRule: 'auto', before: 0, after: 160 },
+    children: [new TextRun({ text, font: 'Verdana', size: 22 })]
+  });
+}
+// reference: 'bullets' or 'numbered' (see numbering.config below)
+function listItem(text, reference) {
+  return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    numbering: { reference, level: 0 },
+    spacing: { line: 360, lineRule: 'auto', before: 0, after: 80 },
     children: [new TextRun({ text, font: 'Verdana', size: 22 })]
   });
 }
@@ -365,10 +377,10 @@ const doc = new Document({
           ]
         }),
 
-        emptyPara(),
-        emptyPara(),
+        // Page 1 is the cover alone: break before the Sommario, never after it only.
+        new Paragraph({ children: [new PageBreak()] }),
 
-        // ── SOMMARIO ──────────────────────────────────────────────────────
+        // ── SOMMARIO (page 2, alone) ──────────────────────────────────────
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
           children: [new TextRun({ text: 'Sommario', bold: true, font: 'Verdana', size: 22, color: BLUE_H1 })],
@@ -381,6 +393,7 @@ const doc = new Document({
           headingStyleRange: '1-9',
         }),
 
+        // Second break: the first chapter starts on page 3.
         new Paragraph({ children: [new PageBreak()] }),
 
         // ── SEZIONE 1 — PLACEHOLDER ────────────────────────────────────────
@@ -392,6 +405,8 @@ const doc = new Document({
 
         h3('1.1.1   [Titolo sotto-sottosezione]'),
         body('[Testo. Strutturare in elenchi numerati per le procedure, elenchi puntati per gli elenchi di elementi.]', true),
+        listItem('[Primo elemento di un elenco puntato]', 'bullets'),
+        listItem('[Secondo elemento di un elenco puntato]', 'bullets'),
 
         emptyPara(),
 
@@ -522,7 +537,9 @@ const doc = new Document({
   ]
 });
 
+// Real documents go to guides/word/<DAF|Manuals|Release Notes>/ (see SKILL.md, "Dove salvare
+// il file"); the reference template is written next to the working directory.
 Packer.toBuffer(doc).then(buf => {
-  fs.writeFileSync('/home/claude/DSC_Template_DAF.docx', buf);
+  fs.writeFileSync('DSC_Template_DAF.docx', buf);
   console.log('Written:', buf.length, 'bytes');
 });

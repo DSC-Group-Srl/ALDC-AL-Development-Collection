@@ -58,7 +58,7 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
 ```markdown
 ## Client Document: {app name} — {DAF | MAN}
 
-**Output file:** {path, following the skill's naming convention}
+**Output file:** {guides/word/{DAF|Manuals|Release Notes}/…, per the skill's "Dove salvare il file" and naming convention}
 **Checklist:** {✅ all items passed | ⚠️ list failing items}
 **[DA CHIARIRE] flags:** {None | list, each with its section}
 **Validation:** {✅ scripts/office/validate.py passed | ⚠️ issue}
@@ -68,7 +68,8 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
 
 **CAN:**
 - Read AL source and existing documentation (functional site content, if present) for context
-- Write/Edit the `.docx` output only
+- Write/Edit the `.docx` output only, under `guides/word/` (plus the `.gitignore` exception the
+  skill prescribes when the repo ignores `*.docx`)
 - Run `scripts/office/validate.py` via Bash
 
 **CANNOT:**

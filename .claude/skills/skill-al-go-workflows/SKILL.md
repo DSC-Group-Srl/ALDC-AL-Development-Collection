@@ -363,4 +363,6 @@ workflow.
   test lane
 - `skill-test-lane`: running tests locally before the PR. CI's Pull Request Build runs them again
 - `/bc-dev:al-pr-prepare`: the PR that starts the lifecycle. `skill-changelog`: release notes
+- `skill-al-go-backport`: a signed build of a released AppSource app for an older BC major
+  (`release/bcN` branch, `-bcN` pre-release)
 - `bc-dev:al-triage`: the KO loop on a PR
