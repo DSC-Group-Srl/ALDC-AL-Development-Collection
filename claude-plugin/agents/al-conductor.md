@@ -168,7 +168,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    lane=<ran|skipped> testsPassed=<n> testsFailed=<n> reviewFirstPass=<0-1> reviews=<n>
    parallelism=<Σ WP seconds ÷ Σ wave seconds> outcome=<done|stopped>
    --numstat-base <Base commit>`
-   Do not report a duration: the script measures it.
+   Do not report a duration: the script measures it. If you lose the Base commit, the script
+   reads it from the plan's `**Base:**` line.
 6. `Task(al-documentation-subagent)` with `app.json`, the consolidated object/file lists and
    `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)

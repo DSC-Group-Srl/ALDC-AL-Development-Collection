@@ -226,12 +226,24 @@ def _is_test_project(top: str, rel: str, cache: dict[str, bool]) -> bool:
     return res
 
 
+def _numstat_path(p: str) -> str:
+    """The new-side path of a numstat entry: `a => b` and `dir/{a => b}/f` resolve to b."""
+    if " => " not in p:
+        return p
+    m = re.match(r"^(.*)\{(.*) => (.*)\}(.*)$", p)
+    if m:
+        return re.sub(r"/{2,}", "/", m.group(1) + m.group(3) + m.group(4))
+    return p.split(" => ", 1)[1]
+
+
 def numstat_totals(base: str, cwd: str) -> dict[str, float]:
     """Added/removed line totals vs `base`, split AL vs everything else, AL added split test vs
     prod app, and one count per object kind for .al files added (`_new`) or changed (`_ext`).
-    Deleted files only count toward alRemoved. Totals only — no path is returned."""
+    A moved or renamed file is changed, not new (a restructure otherwise reads as all-new
+    objects plus thousands of removed lines). Deleted files only count toward alRemoved.
+    Totals only — no path is returned."""
     top = (_git(["rev-parse", "--show-toplevel"], cwd) or "").strip() or cwd
-    out = _git(["diff", "--numstat", "--no-renames", base], top)
+    out = _git(["diff", "--numstat", "-M", base], top)
     if out is None:
         return {}
     t = {"alAdded": 0, "alRemoved": 0, "otherAdded": 0, "otherRemoved": 0, "filesChanged": 0,
@@ -242,22 +254,27 @@ def numstat_totals(base: str, cwd: str) -> dict[str, float]:
         parts = line.split("\t")
         if len(parts) < 3 or not parts[0].isdigit() or not parts[1].isdigit():
             continue
-        kind = "al" if parts[2].lower().endswith(".al") else "other"
+        path = _numstat_path(parts[2])
+        kind = "al" if path.lower().endswith(".al") else "other"
         t[f"{kind}Added"] += int(parts[0])
         t[f"{kind}Removed"] += int(parts[1])
         t["filesChanged"] += 1
         if kind == "al":
-            t["alAddedTest" if _is_test_project(top, parts[2], cache) else "alAddedProd"] += int(parts[0])
-    for line in (_git(["diff", "--name-status", "--no-renames", base], top) or "").splitlines():
+            t["alAddedTest" if _is_test_project(top, path, cache) else "alAddedProd"] += int(parts[0])
+    for line in (_git(["diff", "--name-status", "-M", base], top) or "").splitlines():
         parts = line.split("\t")
-        if len(parts) < 2 or parts[0][:1] not in ("A", "M") or not parts[1].lower().endswith(".al"):
+        st = parts[0][:1]
+        if len(parts) < 2 or st not in ("A", "M", "R", "C"):
+            continue
+        path = parts[-1]  # R/C lines carry old and new path; the new one is last
+        if not path.lower().endswith(".al"):
             continue
         try:
-            with open(os.path.join(top, parts[1]), encoding="utf-8", errors="replace") as fh:
+            with open(os.path.join(top, path), encoding="utf-8", errors="replace") as fh:
                 k = al_object_kind(fh.read(65536))
         except OSError:
             continue
-        t[f"objDone_{k}_{'new' if parts[0][:1] == 'A' else 'ext'}"] += 1
+        t[f"objDone_{k}_{'new' if st in ('A', 'C') else 'ext'}"] += 1
     return {k: float(v) for k, v in t.items()}
 
 
@@ -325,6 +342,30 @@ def _open_questions(plan_text: str, plan_path: str) -> int:
     return n
 
 
+RE_BASE = re.compile(r"\*\*Base:\*\*\s*`?\s*([0-9a-fA-F]{7,40})\b")
+
+
+def plan_base(req: str, cwd: str) -> str:
+    """The `**Base:**` commit of this requirement's plan, for an AldcRun the caller sent without
+    --numstat-base. Looks where the conductor writes it and where the closing step archives it."""
+    if not req or not RE_TOKEN.match(req) or ".." in req:
+        return ""
+    import glob
+
+    top = (_git(["rev-parse", "--show-toplevel"], cwd) or "").strip() or cwd
+    for root in dict.fromkeys((cwd, top)):
+        for pat in ("requirements/*", "*/requirements/*", ".github/plans"):
+            for path in sorted(glob.glob(os.path.join(root, pat, req, f"{req}.plan.md"))):
+                try:
+                    with open(path, encoding="utf-8", errors="replace") as fh:
+                        m = RE_BASE.search(fh.read(400_000))
+                except OSError:
+                    continue
+                if m:
+                    return m.group(1)
+    return ""
+
+
 RE_INTEGRATION = re.compile(r"\b(integration|integrazione|httpclient|http|web ?services?|soap|odata|"
                             r"rest api|webhook)\b", re.I)
 
@@ -345,7 +386,7 @@ def parse_plan(path: str, cwd: str) -> tuple[dict[str, float], dict[str, str]]:
     m = re.search(r"\*\*Tier:\*\*\s*\{?\s*(LOW|MEDIUM|HIGH)\b", text, re.I)
     if m:
         props["tier"] = m.group(1).upper()
-    m = re.search(r"\*\*Base:\*\*\s*`?\s*([0-9a-fA-F]{7,40})\b", text)
+    m = RE_BASE.search(text)
     base = m.group(1) if m else ""
 
     ok_obj = ok_wp = False
@@ -778,6 +819,9 @@ def main(argv: list[str]) -> int:
         if not built:
             return 0
         props, meas = built
+        if event == "AldcRun" and not base:
+            # The model drops the flag now and then; the plan always carries the commit.
+            base = plan_base(props.get("req", ""), cwd)
         if base and RE_TOKEN.match(base):
             meas.update(numstat_totals(base, cwd))
         if event == "AldcEstimate":
@@ -1053,11 +1097,15 @@ def _self_test_numstat() -> list[tuple[str, bool]]:
         w("test/app.json", json.dumps({"name": "Credit QA", "dependencies": [{"name": "Library Assert"}]}))
         w("app/src/Old.Table.al", 'table 50100 "Old"\n{\n}\n')
         w("app/src/Gone.Codeunit.al", 'codeunit 50199 "Gone"\n{\n}\n')
+        moved = 'enum 50150 "Moved"\n{\n    value(0; A) { }\n    value(1; B) { }\n    value(2; C) { }\n'
+        w("app/src/Moved.Enum.al", moved + "}\n")
         _git([*g, "add", "-A"], d)
         _git([*g, "commit", "-q", "-m", "base"], d)
         base = (_git(["rev-parse", "HEAD"], d) or "").strip()
         w("app/src/Old.Table.al", 'table 50100 "Old"\n{\n    // field added\n}\n')
         os.remove(os.path.join(d, "app/src/Gone.Codeunit.al"))
+        os.remove(os.path.join(d, "app/src/Moved.Enum.al"))
+        w("app/src/Enums/Moved.Enum.al", moved + "    value(3; D) { }\n}\n")
         w("app/src/Ext.TableExt.al", '// header\n/* block\n   comment */\nnamespace Dsc.Credit;\n\n'
           'tableextension 50101 "Cust" extends Customer\n{\n}\n')
         w("app/src/Api.Page.al", 'page 50120 "Credit API"\n{\n    PageType = API;\n}\n')
@@ -1066,6 +1114,9 @@ def _self_test_numstat() -> list[tuple[str, bool]]:
         _git([*g, "add", "-A"], d)
         _git([*g, "commit", "-q", "-m", "run"], d)
         t = numstat_totals(base, d)
+        w("app/requirements/archived/req-x/req-x.plan.md", f"# Plan\n\n**Base:** `{base[:12]}`\n")
+        found = plan_base("req-x", d)
+        traversal = plan_base("../req-x", d)
     finally:
         shutil.rmtree(d, ignore_errors=True)
     return [
@@ -1074,8 +1125,11 @@ def _self_test_numstat() -> list[tuple[str, bool]]:
         ("changed object is _ext", t.get("objDone_table_ext") == 1 and t.get("objDone_table_new") == 0),
         ("deleted file only in alRemoved", t.get("objDone_codeunit_new") == 0 and t.get("objDone_codeunit_ext") == 0
          and t.get("alRemoved") == 3),
-        ("AL added split test vs prod", t.get("alAddedTest") == 4 and t.get("alAddedProd") == 1 + 8 + 4),
-        ("existing totals unchanged", t.get("otherAdded") == 1 and t.get("filesChanged") == 6),
+        ("AL added split test vs prod", t.get("alAddedTest") == 4 and t.get("alAddedProd") == 1 + 8 + 4 + 1),
+        ("existing totals unchanged", t.get("otherAdded") == 1 and t.get("filesChanged") == 7),
+        ("moved file is _ext, not _new", t.get("objDone_enum_ext") == 1 and t.get("objDone_enum_new") == 0),
+        ("run base read from the archived plan", found == base[:12]),
+        ("plan lookup refuses a path-shaped req", traversal == ""),
         ("no path in the totals", not any("/" in k or ".al" in k.lower() for k in t)),
     ]
 
