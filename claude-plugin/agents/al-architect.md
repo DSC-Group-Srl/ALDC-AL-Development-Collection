@@ -50,7 +50,11 @@ test app), register each with `al_addproject` and query with `filters.scope='all
 
 Ask clarifying questions only where the answer changes a decision: business rules, data
 volumes, integration direction and timing (real-time vs batch, push vs pull), security and
-compliance, SaaS vs on-prem, target BC version.
+compliance, SaaS vs on-prem, target BC version. Return each one ready to be asked with
+`AskUserQuestion` (the caller does the asking, at most 4 at a time, most blocking first): the
+question in plain words, what it changes, 2–4 options with a one-line trade-off, your
+recommendation first. A section or decision code goes in parentheses after the meaning,
+never as the subject.
 
 ## Governing rules
 

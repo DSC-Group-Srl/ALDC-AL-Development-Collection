@@ -59,6 +59,26 @@ there is no approval bounce-back to surface progress. Check in on it periodicall
 latest line (`▶ Wave 1/2 · WP-1, WP-2 running`, `✅ Wave 1/2 done · lane 14/14`) **before the
 user has to ask**. One line is enough.
 
+## Relaying an agent's questions to the developer
+
+When `al-architect`, `al-conductor`, `al-triage` or a spec's §Open Questions come back with
+questions, the main thread asks them — subagents have no `AskUserQuestion`. Developers kept
+getting the plan's raw list dumped on them: `WP-3`, `§4.1`, `D-2`, `Q7`, "option B", all at
+once, in prose. They need to understand what is being decided, not decode the plan.
+
+- **Use `AskUserQuestion`**, at most 4 questions per call, most blocking first. More than 4 →
+  ask the rest in a second call after the first answers. Never a numbered list in prose.
+- **Plain words.** Each question says what the choice changes for the app or its users; each
+  option is a short label plus a one-line trade-off; your recommendation first.
+- **No codes as the subject.** A plan label (WP, §, FR, D-, Q-, wave, option letter) or object
+  ID never stands alone — if it helps traceability it goes in parentheses after the meaning.
+- **Answer what you can first.** Drop questions the spec, the code or an earlier answer
+  already settles.
+- **Hand the answers back** to the agent (SendMessage, or a new Task carrying them).
+
+This is wired into the routing SessionStart hook (`tools/routing/precondition_hook.sh`), which
+is what actually reaches the main thread in a consuming project.
+
 ## AL Coding Standards
 
 **The rules live in `rules-templates/`, not here.** `rules-floor-cheatsheet.md` is the

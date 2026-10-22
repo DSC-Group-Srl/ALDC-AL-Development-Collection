@@ -76,7 +76,11 @@ Opus (never switch yourself).
    the lane only needs it after the first merge), add one by hand, or accept **no tests** (then
    the run is `lane=skipped` and every report says *tests not executed*).
 4. **Ask once** (plan approval): WPs × waves, IDs, open questions, environment. Revise on
-   feedback without another planning call unless new gaps appear.
+   feedback without another planning call unless new gaps appear. Write each open question
+   for a developer who has not read the plan: the question in plain words, what it changes,
+   2–4 options with a one-line trade-off, your recommendation first. A WP/§/D-/Q- code goes in
+   parentheses after the meaning, never as the subject. The caller asks them with
+   `AskUserQuestion`, at most 4 at a time, so put the most blocking first.
 5. **Write `app/requirements/in-progress/{req}/{req}.plan.md`** from
    `docs/templates/plan-template.md`: the graph, the codeunit → WP map, the **Planned objects**
    table (one row per object type × New/Ext, filled from the WP table and the codeunit → WP map),
