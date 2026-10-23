@@ -142,6 +142,25 @@ DSC repos routinely put the base app, test app, and performance app in sibling f
 
 Headline fact (get this into any prose referencing multi-project builds): **`al_build scope='all'` does not rebuild or refresh a sibling dependent project** — it only builds the target project plus its own upstream dependencies, against its own isolated `.alpackages`. The verified way to keep a base app and its test app in sync in one command is `Bash: al workspace compile <workspaceFile>`, which compiles every project in the manifest in dependency order against one shared package cache.
 
+## Hook wiring — one bash process per event
+
+On Windows every hook is its own `cmd /c bash <script>`, and Claude Code starts the hooks of
+one event in parallel; concurrent Git Bash (MSYS2) start-ups intermittently die with
+`fatal error - add_item (...) failed, errno 1` and the harness silently skips that hook,
+guards included (issue #77). So `hooks/hooks.json` has **one bash entry per event**:
+
+- **SessionStart** → `tools/hooks/sessionstart.sh`: runs the BCQuality, AL tool, ALCops, npx,
+  python, rules, routing and heartbeat scripts as background jobs of that one process, each
+  with its own timeout, and merges their `additionalContext` into one JSON payload (pure bash,
+  no python). `tools/environment/git-bash-check.ps1` stays a separate PowerShell hook.
+- **PreToolUse** (no matcher) → `tools/hooks/pretooluse.sh`: starts `metrics/alive.sh` in the
+  background, then routes by `tool_name` — Read/Bash/PowerShell to the read-guard, Write/Edit
+  to conductor-guard then main-thread-guard (first deny wins). Other tools: silent.
+- **SessionEnd**, **SubagentStop**: one script each, unchanged.
+
+A new hook script goes into the matching dispatcher, never as a new `hooks.json` entry.
+Self-test: `bash tools/hooks/test_dispatchers.sh`.
+
 ## Quality metrics
 
 `hooks/hooks.json` wires a `SubagentStop` hook (`tools/metrics/capture_subagent.sh` →
@@ -159,7 +178,7 @@ session incl. subagents, and tokens per changed AL line when a conductor run fin
 (read-guard), `AldcHook`. `/bc-dev:al-metrics` prints an EFFICIENCY section with a USD estimate
 from `prices.json`; KQL E1–E5 in `tools/metrics/azure/queries.kql`.
 
-`hooks/hooks.json` also wires a `SessionStart` heartbeat (`tools/metrics/heartbeat.sh` →
+The `SessionStart` dispatcher also runs a heartbeat (`tools/metrics/heartbeat.sh` →
 `heartbeat.py`) that reports `bc-dev`'s own version as an `AldcHeartbeat` event — immediately
 when the version on that machine changed since last seen (an upgrade), otherwise at most
 once a day. This is how "what does everyone actually have installed" gets answered without
@@ -209,6 +228,6 @@ four files only when the project has not been initialized.
 ## Targeted reads
 
 `agents/al-file-reader.md` (Haiku) returns exact line ranges for a question over large files;
-`tools/read-guard/` (PreToolUse on Read/Bash/PowerShell) denies the first whole-file read of a
+`tools/read-guard/` (PreToolUse on Read/Bash/PowerShell, routed by `tools/hooks/pretooluse.sh`) denies the first whole-file read of a
 source file over `ALDC_READ_MIN_LINES` (350) in an AL workspace and allows the repeat (Edit needs
 one full read). Modeled on Spotify's "shunt" bulk-reader. Kill switch `ALDC_READ_GUARD_DISABLE=1`.

@@ -190,7 +190,8 @@ claude-plugin/
 ├── commands/              # 10 slash commands (/bc-dev:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /bc-dev:al-initialize
-├── hooks/hooks.json       # SessionStart preconditions (rules, BCQuality, AL CLI, Node/npx) + PostToolUse/Stop reminders
+├── hooks/hooks.json       # one dispatcher per event: SessionStart preconditions (rules, BCQuality, AL CLI,
+│                          #   Node/npx, python) and PreToolUse guards via tools/hooks/; SessionEnd/SubagentStop metrics
 ├── .mcp.json              # MCP server config (al-mcp, nab-al-tools)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code
 └── README.md              # This file

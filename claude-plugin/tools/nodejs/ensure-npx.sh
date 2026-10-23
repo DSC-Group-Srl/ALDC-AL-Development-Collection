@@ -5,7 +5,7 @@
 # requirement, so .mcp.json's "nab-al-tools" server
 # (npx -y @nabsolutions/nab-al-tools-mcp@next) has something to run.
 #
-# Wired from hooks/hooks.json on SessionStart. Emits the Copilot hook output
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json). Emits the Copilot hook output
 # contract on stdout, same shape as tools/al-cli/ensure-al-tool.sh.
 set -euo pipefail
 

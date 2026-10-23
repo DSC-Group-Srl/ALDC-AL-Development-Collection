@@ -1,6 +1,6 @@
 ---
 name: skill-al-go-workflows
-description: How DSC Group runs AL-Go for GitHub on its Business Central repos — PTE (al-pte template) and AppSource/Global (al-appsource template) — the main/test branch model, the nightly Rebuild Test Branch, the PR → test environment → functional test/UAT → merge → release → production flow, every workflow in the repo and when to dispatch it, where each AL-Go setting goes, the secrets each workflow expects (by name), and how to read and fix a failed run with gh. Use whenever the user mentions AL-Go, GitHub Actions/workflows, CI/CD, a pipeline, a failed build or PR check, the test branch, publishing to a test/production environment, creating a release, publishing to AppSource, Template Sync, Update AL-Go System Files, DeployTo/environments settings, appDependencyProbingPaths, signing, or self-hosted runners in a DSC AL repo.
+description: How DSC Group runs AL-Go for GitHub on its Business Central repos — PTE (al-pte template) and AppSource/Global (al-appsource template) — the main/test branch model, the nightly Rebuild Test Branch, the PR → test environment → functional test/UAT → merge → release → production flow, every workflow in the repo and when to dispatch it, where each AL-Go setting goes, the secrets each workflow expects (by name), and how to read and fix a failed run with gh. Use whenever the user mentions AL-Go, GitHub Actions/workflows, CI/CD, a pipeline, a failed build or PR check, the test branch, publishing to a test/production environment, creating a release, publishing to AppSource, Template Sync, Update AL-Go System Files, DeployTo/environments settings, appDependencyProbingPaths, signing, or self-hosted runners in a DSC AL repo. Also for setting up a PTE customer's test environment end to end: creating the GitHub environment and its AUTHCONTEXT / AuthContext secret from the Royal TS JSON with the customer's tenant id, registering the Entra app (Microsoft Entra Applications page, permission sets, consent) in the customer's BC environment, rebuilding test and following the deploy run.
 ---
 
 # AL-Go workflows — the DSC way
@@ -154,11 +154,13 @@ gh workflow run PublishToEnvironment.yaml --ref main \
   -f appVersion=current -f environmentName='<Customer>-Production' -f createEnvIfNotExists=false
 ```
 
-- `environmentName` is the GitHub environment name. It must already exist with its
-  `AUTHCONTEXT` and a `DeployTo<env>` whose `Branches` includes `main` and
-  `continuousDeployment: false`, so production is never deployed by a push. If it doesn't exist,
-  stop: adding an environment is the manual step in **Environments** below. Never
-  `createEnvIfNotExists=true` for production.
+- `environmentName` is the GitHub environment name (`Production` in the DSC repos). It must
+  already exist with its `AUTHCONTEXT` environment secret. A push never deploys it: either there
+  is no `DeployToProduction` (AL-Go then skips production environments in CI/CD and logs
+  `Ignoring environment Production, which is a production environment`, so a green
+  `Deploy to Production` job on `main` deployed nothing), or there is one with
+  `"Branches": ["main"], "continuousDeployment": false`. If the environment doesn't exist, stop:
+  adding one is **Environments** below. Never `createEnvIfNotExists=true` for production.
 - Check the run: the `Deploy to <env>` job is green, and it ends with the environment URL.
 
 **Step 2b — AppSource: Publish To AppSource.**
@@ -180,12 +182,23 @@ gh workflow run PublishToAppSource.yaml --ref main -f appVersion=current -f proj
 | **PTE** | local container / sandbox, published by hand from VS Code (or the test lane) | the customer's tenant, published by the pipeline | the customer's tenant, `Publish To Environment` |
 | **AppSource** | DSC environments | DSC environments | DSC stops at Partner Center: submission, then Microsoft's technical validation, then the marketplace. Customers install it into their own tenant. Their Dev/Test/Prod is **not** DSC's pipeline |
 
-**Adding a BC environment to a repo is a manual step owned by Tommaso Celano**, and access for
-others is being opened gradually. The steps are: the `AUTHCONTEXT` secret (the JSON is in
-RoyalTS, folder "DSC GROUP"), the Entra ID app registration enabled on the customer's tenant,
-that app added to the **Microsoft Entra Applications** page of every target BC environment, and
-the permissions **D365 BASIC** + **D365 EXTEN. MGMT.** Claude never attempts any of these. When
-a deploy needs a new environment, say so and point the user to Tommaso.
+**Adding a BC environment to a PTE repo** is owned by Tommaso Celano, and access for others is
+being opened gradually. It is four steps, all in **[pte-test-environment.md](pte-test-environment.md)**:
+
+1. a GitHub environment named like the BC environment, with branch policy `main` + `test`
+   (production: `main`), and the environment secret `AUTHCONTEXT` = the auth-context JSON from
+   Royal TS (folder "DSC GROUP") with the customer's tenant id in it;
+2. `environments` + `DeployTo<env>` in `.AL-Go/settings.json` (§4), through a PR into `main`;
+3. DSC's Entra app consented in the customer's tenant, added on the **Microsoft Entra
+   Applications** page of every target BC environment, State **Enabled**, permission sets
+   **D365 FULL ACCESS** + **EXTEN. MGT. - ADMIN**;
+4. Rebuild Test Branch, then follow the CI/CD run on `test` to a green `Deploy to <env>`.
+
+`scripts/New-ALGoCustomerEnvironment.ps1` does 1 and 2 with a confirmation before each change and
+prints 3 as a checklist. **The user runs it in their own terminal**: it reads the secret with a
+hidden prompt. Never ask for the JSON in chat, never run the script yourself except with
+`-SkipGitHub -DryRun` (settings diff only), and never do step 3: it is an admin action in the
+customer's tenant. Walk the user through it.
 
 **Who can do what.** A *Developer* creates branches, opens PRs, merges them into `main` and
 starts production releases, with no approval at any step, but can't push directly to `main`. A
@@ -240,7 +253,10 @@ deploy step needs. (This is how `fujitsu-base`, `martesana-base` and `bigben-bas
 
 The key after `DeployTo` must match the `environments` entry exactly. Deploy authenticates with
 the first secret found among `<env>-AuthContext`, `<env>_AuthContext`, `AuthContext`
-(environment or repo secrets).
+(environment or repo secrets). DSC uses the environment secret `AUTHCONTEXT`. Only the app is
+deployed: the test app goes too only with `includeTestAppsInSandboxEnvironment: true`, which no
+DSC repo sets yet. The full pattern from `fujitsu-base` / `martesana-base`, and the GitHub
+environments behind it, is in [pte-test-environment.md](pte-test-environment.md) §D.
 
 A dependency on another DSC repo (as `dyna-arx` → `dyna-license`) goes in `.AL-Go/settings.json`:
 
@@ -322,7 +338,9 @@ Dispatching (confirm with the user first, and **always** for production, release
 gh workflow run RebuildTestBranch.yaml --ref main
 gh workflow run CICD.yaml --ref test
 gh workflow run PublishToEnvironment.yaml --ref main -f appVersion=PR_42 -f environmentName=Customer-Test
-gh run watch <run-id>
+gh run watch <run-id> --exit-status
+# After a rebuild: the CI/CD run on test, its Deploy to <env> job and what a good deploy log
+# looks like are in pte-test-environment.md §A
 # Create release / Publish To Environment (production) / Publish To AppSource:
 # the full commands with DSC's inputs are in §2 "Releasing to production"
 ```
@@ -344,7 +362,8 @@ OR across two `props.*` qualifiers, so owner and referenced customer need two qu
 | Rebuild Test Branch fails at push | `GhTokenWorkflow` missing/expired, or its app not on the `test` ruleset bypass list | CI/CD admins |
 | `test` rebuilt but the test environment is unchanged | CI/CD doesn't trigger on `test` pushes (§2.3), or no `DeployTo<env>` has `test` in `Branches` | dispatch CI/CD on `test`. Check the settings |
 | Test deploy stopped working after a Monday | a merged `[template-sync]` PR removed `environments`/`DeployTo<env>` from `.github/AL-Go-Settings.json` | restore them in `.AL-Go/settings.json` (§4) |
-| Deploy step: authentication / environment not found | `<env>_AuthContext` secret missing, or `EnvironmentName` ≠ the BC environment name | user adds the secret. Fix `DeployTo<env>` |
+| Deploy step: authentication / environment not found | `AUTHCONTEXT` missing on the GitHub environment, Entra app not registered/enabled in that BC environment, or `EnvironmentName` ≠ the BC environment name | the AADSTS/401 table in [pte-test-environment.md](pte-test-environment.md) §A |
+| Rebuild green but no CI/CD on `test` | no open PRs: `test` == `main`, the push changes no files, `paths-ignore` skips the trigger | nothing to do (`main` already deployed), or `gh workflow run CICD.yaml --ref test` |
 | Build fails: app.json placeholders, `00000000-…` GUID | new repo whose Initialize PR isn't merged, or `<name>`/`<publisher>`/`<affix>` not filled | merge `chore/initialize-template-repo`. Fill app.json and the affix |
 | Initialize Template Repository: `startup_failure` | branch protection / Actions permissions blocked the bot on the first push | re-dispatch once Actions may push, or apply its diff by hand |
 | Template Sync fails restoring `TEMPLATE.code-workspace` | `.templatesyncignore` still names the old file | point it at `<repo>.code-workspace` (Initialize normally does this) |
@@ -359,6 +378,9 @@ workflow.
 
 ## Related
 
+- [pte-test-environment.md](pte-test-environment.md) + `scripts/New-ALGoCustomerEnvironment.ps1`:
+  a PTE customer's test (or production) environment end to end: GitHub environment and
+  `AUTHCONTEXT`, `DeployTo<env>`, the Entra app in BC, rebuild and follow the deploy
 - `skill-al-go-devenv`: local container / cloud sandbox from `.AL-Go/localDevEnv.ps1` for the
   test lane
 - `skill-test-lane`: running tests locally before the PR. CI's Pull Request Build runs them again

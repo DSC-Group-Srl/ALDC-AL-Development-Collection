@@ -110,9 +110,12 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 - wave closed (§2.8): `$EMIT AldcWave stage=end wave=<k> waves=<N> verdict=<verdict>
   lane=<ran|skipped> passed=<n> failed=<n> fixLoops=<n>`
 
-1. **Worktrees.** Work on a feature branch `aldc/{req}` (create it from the current branch if
-   absent). For each WP of the wave:
-   `git worktree add "<repo>/../.aldc-wt/<repo-name>-{req}-wp<n>" -b aldc/{req}/wp<n> aldc/{req}`
+1. **Worktrees.** Work on the requirement's own branch `{branch}`: the spec header's
+   `**Branch:**` (one folder, one branch — its PR archives the folder). Check it out; absent →
+   create it from `main`. The spec has no Branch line → use the current branch unless it is
+   `main`/`test`, else propose `feature/{req}` (HITL), and write the line into the spec header.
+   For each WP of the wave:
+   `git worktree add "<repo>/../.aldc-wt/<repo-name>-{req}-wp<n>" -b aldc/{req}/wp<n> {branch}`
    and copy each project's `.alpackages/` into the worktree (symbols are untracked). Not a git
    repo, or worktrees fail → run the wave's WPs **sequentially** in the main checkout and say so.
 2. **Implement in parallel** — one message, one `Task(al-implement-subagent)` per WP: wave
@@ -125,7 +128,7 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    then commit in the worktree:
    `git -C <wt> add -A && git -C <wt> commit -m "feat({req}): WP-<n> <title>"`.
    A summary with Blockers → Unplanned-finding triage (§4) before merging that WP.
-4. **Merge + shared files.** In the main checkout on `aldc/{req}`:
+4. **Merge + shared files.** In the main checkout on `{branch}`:
    `git merge --no-ff --no-edit aldc/{req}/wp<n>` for each WP. **Any conflict → `git merge
    --abort`, stop, report** (disjoint ownership should make this impossible; never auto-resolve).
    Shared-file requests from the wave → one `Task(al-implement-subagent)` in *shared-files* mode
@@ -146,7 +149,7 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    Trust the verdict field; don't re-derive it. A report that contradicts itself (APPROVED with
    a CRITICAL) → stop and ask.
 7. **Fix loop.** Failing tests (map codeunit → WP) or NEEDS_REVISION issues → re-run **only**
-   those WPs: new worktree from `aldc/{req}` HEAD, the findings as instructions, then §2.3–2.6
+   those WPs: new worktree from `{branch}` HEAD, the findings as instructions, then §2.3–2.6
    again for them. Max 2 fix rounds per WP, then stop and ask. A changed-behavior WP whose RED
    must be proven runs the lane on its new test before its fix is merged.
 8. **Close the wave.** Remove its worktrees (`git worktree remove --force`, delete the WP
@@ -163,7 +166,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 3. Append durable decisions to `app/requirements/memory.md` (create it if absent). **Never
    append to the project CLAUDE.md** — it loads into every session and subagent.
 4. Move any document of this requirement lying loose in `in-progress/` into its folder, then
-   `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit. If the
+   `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit on
+   `{branch}` so the move ships in that branch's PR. If the
    user stops you before this step (manual testing still to come), say that
    `/bc-dev:al-pr-prepare` archives it when the work really ends.
 5. Emit the run metric (counts only):

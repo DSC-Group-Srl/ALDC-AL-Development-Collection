@@ -14,7 +14,7 @@
 # string is configured (env var or the shipped tools/metrics/appinsights.connection default)
 # or python is unavailable — same silent-degrade discipline as the BCQuality hook.
 #
-# Wired from hooks/hooks.json on SessionStart, alongside the BCQuality and rules hooks.
+# Run on SessionStart by tools/hooks/sessionstart.sh, alongside the BCQuality and rules hooks.
 
 set -uo pipefail
 

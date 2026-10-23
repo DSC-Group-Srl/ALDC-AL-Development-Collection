@@ -73,18 +73,42 @@ A requirement's folder is archived by al-conductor's §3 Completion — but only
 conductor is still driving. Work that ends later (manual testing, fixes in the main thread,
 LOW work through al-developer) has no other owner for that step: **this command is it.**
 
-1. Find the requirement(s) this branch belongs to:
+One requirement folder belongs to one branch, and that branch's PR archives it. Say so to the
+user every time, even when nothing is left to move.
+
+1. Find the requirement this branch belongs to, deterministically first, from the `**Branch:**`
+   line `/bc-dev:al-spec-create` writes in the spec header:
+   ```bash
+   grep -lE '^\*\*Branch:\*\* `?{Branch}`?( |$)' app/requirements/in-progress/*/*.spec.md
+   ```
+   No match (older specs have no Branch line) → fall back to
    `git diff main...{Branch} --name-only -- app/requirements/in-progress/`, plus any folder
-   named in commit messages, the branch name, or the spec the work followed.
+   named in commit messages, the branch name, or the spec the work followed; then add the
+   missing Branch line (value: `{Branch}`) to that spec's header in the same commit.
 2. For each one still in `app/requirements/in-progress/{req}/`, ask the user (HITL) whether
-   the work is finished. If yes, on this branch:
+   the work is finished. If yes, on this branch, in this PR — never in a later one:
    1. write `{req}-complete.md` from `${CLAUDE_PLUGIN_ROOT}/docs/templates/plan-complete-template.md`
       if it does not exist (what shipped, objects, tests + lane result, deviations, deferred items);
    2. append durable decisions to `app/requirements/memory.md` (never to the project CLAUDE.md);
    3. move any document of this requirement lying loose in `in-progress/` into its folder;
    4. `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit.
-3. Backlog check, one line: list the other folders in `in-progress/` and any loose files at its
-   root, so the user can say which are already done. Archive only the ones they confirm.
+   Not finished yet (UAT still open) → the PR still carries the move: tell the user the folder
+   must be archived on this branch before the merge, and leave the Requirement Folder
+   checkbox (§4) unticked.
+3. **PR already merged** (`gh pr list --head {Branch} --state merged`) and the folder still in
+   `in-progress/` on `main` (`git ls-tree -d origin/main app/requirements/in-progress/{req}`)
+   → the archive missed its PR. Propose a follow-up docs PR (HITL): a branch
+   `docs/archive-{req}` from `main`, `{req}-complete.md` + the `git mv`, PR into `main`.
+4. Backlog check — flag the mismatches, one line each, so the user can say which are done:
+   - **this branch has no requirement folder** (no spec matched in step 1): ask whether one
+     should exist, or whether the change is small enough to need none;
+   - **a folder whose branch is gone**: for each other spec in `in-progress/`, read its
+     `**Branch:**` and check it — `git ls-remote --heads origin {its branch}` empty (deleted) or
+     `gh pr list --head {its branch} --state merged` non-empty (merged) → stale, propose the
+     follow-up docs PR of step 3. No Branch line → list it as "branch unknown";
+   - any loose files at the root of `in-progress/`.
+
+   Archive only the ones the user confirms.
 
 ### 4. Generate PR Draft
 
@@ -123,6 +147,13 @@ Create `/reports/pr-draft.md` with this structure:
 
 - Closes #[issue-number]
 - Relates to #[issue-number]
+
+## Requirement Folder
+
+- [ ] Requirement folder archived (`in-progress/{req}` → `archived/{req}` with `{req}-complete.md`) — or: no requirement folder for this branch ([reason])
+
+*(Mandatory, never deleted from the draft. Unticked = the folder still has to move on this
+branch before the merge.)*
 
 ## Changes Summary
 
@@ -308,7 +339,8 @@ Create `/reports/pr-draft.md` with this structure:
 
 ## Success Criteria
 
-- ✅ Finished requirement folders moved to `app/requirements/archived/` with `{req}-complete.md`
+- ✅ Finished requirement folders moved to `app/requirements/archived/` with `{req}-complete.md`, in this branch's PR
+- ✅ PR draft carries the "Requirement Folder" checkbox; branch/folder mismatches flagged
 - ✅ PR draft file created under `/reports/pr-draft.md`
 - ✅ Changes summarized by category
 - ✅ All modified AL objects documented

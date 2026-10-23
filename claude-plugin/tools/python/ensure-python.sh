@@ -10,7 +10,7 @@
 # installing python where it can, and to give the human a clear, specific
 # nudge where it can't.
 #
-# Wired from hooks/hooks.json on SessionStart. Emits the Copilot hook output
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json). Emits the Copilot hook output
 # contract on stdout, same shape as tools/al-cli/ensure-al-tool.sh and
 # tools/nodejs/ensure-npx.sh.
 set -euo pipefail

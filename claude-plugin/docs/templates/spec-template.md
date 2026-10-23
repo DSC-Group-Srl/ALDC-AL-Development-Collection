@@ -5,6 +5,7 @@
 # {req_name} — Technical Specification
 
 **Version:** 1.0 · **Date:** YYYY-MM-DD · **Complexity:** [LOW / MEDIUM / HIGH] · **Status:** [Draft / Approved / Implemented]
+**Branch:** `{branch}` *(the one branch this requirement is built on; its PR archives this folder)*
 
 ---
 

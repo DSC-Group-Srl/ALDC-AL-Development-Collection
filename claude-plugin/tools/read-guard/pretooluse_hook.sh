@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse read-guard launcher (matcher: Read|Bash|PowerShell). All logic and its self-test
+# PreToolUse read-guard launcher (Read|Bash|PowerShell, routed by tools/hooks/pretooluse.sh). All logic and its self-test
 # live in read_guard.py; this only finds a python interpreter. No python -> allow (fail open).
 #
 # Fast paths in plain bash so the common case costs no python start-up: a ranged Read, and any

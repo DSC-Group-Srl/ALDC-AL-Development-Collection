@@ -8,7 +8,7 @@
 # agent just enacts the injected directive instead of re-deriving the
 # "is init done" question per file (and per agent).
 #
-# Wired from hooks/hooks.json on SessionStart. Emits the hookSpecificOutput
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json). Emits the hookSpecificOutput
 # additionalContext contract on stdout, same shape as tools/bcquality/precondition_hook.sh.
 set -euo pipefail
 

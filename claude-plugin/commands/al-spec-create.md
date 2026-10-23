@@ -32,6 +32,13 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
   never loose in `in-progress/`, so archiving is a single `git mv`. The move to `archived/` is
   al-conductor's §3 Completion, or `/bc-dev:al-pr-prepare`'s closure step when the work ends
   outside the conductor.
+- **One requirement folder, one branch.** The spec header records the branch the work is done
+  on (`**Branch:**`), so `/bc-dev:al-pr-prepare` finds the folder from the branch instead of
+  guessing, and archives it in that branch's PR. Take it from `git branch --show-current`.
+  On `main` or `test` (or a detached HEAD), propose a branch name (`feature/{req_name}`, or the
+  repo's own scheme if its branches follow one) and ask the user (HITL) before
+  `git switch -c {branch} main`. A branch already recorded in another `in-progress/` spec is
+  taken: say so and propose a new one.
 - If `{req_name}.architecture.md` exists (HIGH), read it first — the spec implements it and
   references its TD-ids instead of repeating them.
 - If the spec already exists, confirm with the user before overwriting.
@@ -63,6 +70,7 @@ Create `app/requirements/in-progress/{req_name}/{req_name}.spec.md` from
 `${CLAUDE_PLUGIN_ROOT}/docs/templates/spec-template.md` — `Read` it; it is the single source of
 truth for the structure. Fill every placeholder with real values and apply its `## Rules`:
 
+- `**Branch:**` in the header is the branch settled in the Guardrails, never left as a placeholder.
 - Omit §3/§5/§6/§8/§9 entirely for object types the feature does not touch — the largest
   lever on this document's size.
 - `{Complexity}` controls depth inside applicable sections. MEDIUM fills §Decisions (the
@@ -95,6 +103,7 @@ Spec approval is the **one** human gate before implementation starts.
 ## Success Criteria
 
 - Spec file created at `app/requirements/in-progress/{req_name}/{req_name}.spec.md`
+- Spec header names the requirement's own branch (`**Branch:**`), never `main` or `test`
 - Object IDs (app and test) verified free within `idRanges`
 - Architecture document consulted and referenced (HIGH)
 - §Decisions filled (MEDIUM)

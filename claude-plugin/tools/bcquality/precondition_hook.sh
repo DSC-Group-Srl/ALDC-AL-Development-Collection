@@ -22,7 +22,7 @@
 # pinnedCommit for advanced/pinned use, but is no longer required — the defaults
 # below are enough to make BCQuality work with zero per-project setup.
 #
-# Wired from hooks/hooks.json on SessionStart.
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json).
 # Emits the Copilot hook output contract on stdout:
 #   {"hookSpecificOutput":{"hookEventName":"<Event>","additionalContext":"<text>"}}
 #

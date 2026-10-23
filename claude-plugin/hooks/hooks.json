@@ -9,86 +9,10 @@
             "args": [
               "/c",
               "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/bcquality/precondition_hook.sh",
-              "SessionStart"
-            ],
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-al-tool.sh",
-              "SessionStart"
-            ],
-            "timeout": 60
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/ensure-alcops.sh",
-              "SessionStart"
-            ],
-            "timeout": 30
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/nodejs/ensure-npx.sh",
+              "${CLAUDE_PLUGIN_ROOT}/tools/hooks/sessionstart.sh",
               "SessionStart"
             ],
             "timeout": 120
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/python/ensure-python.sh",
-              "SessionStart"
-            ],
-            "timeout": 60
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/rules/precondition_hook.sh",
-              "SessionStart"
-            ],
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/routing/precondition_hook.sh",
-              "SessionStart"
-            ],
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/heartbeat.sh"
-            ],
-            "timeout": 10
           },
           {
             "type": "command",
@@ -101,7 +25,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -109,48 +32,9 @@
             "args": [
               "/c",
               "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/conductor-guard/pretooluse_hook.sh"
+              "${CLAUDE_PLUGIN_ROOT}/tools/hooks/pretooluse.sh"
             ],
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/main-thread-guard/pretooluse_hook.sh"
-            ],
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/read-guard/pretooluse_hook.sh"
-            ],
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cmd",
-            "args": [
-              "/c",
-              "bash",
-              "${CLAUDE_PLUGIN_ROOT}/tools/metrics/alive.sh"
-            ],
-            "timeout": 5
+            "timeout": 15
           }
         ]
       }

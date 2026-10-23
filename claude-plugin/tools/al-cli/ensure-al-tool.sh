@@ -8,7 +8,7 @@
 # for Claude Code, since Claude Code's own resolver silently drops `al` when
 # it lives under $HOME (see al-launch.sh for the workaround).
 #
-# Wired from hooks/hooks.json on SessionStart. Emits the Copilot hook output
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json). Emits the Copilot hook output
 # contract on stdout, same shape as tools/bcquality/precondition_hook.sh.
 set -euo pipefail
 

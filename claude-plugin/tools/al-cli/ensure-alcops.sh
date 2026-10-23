@@ -23,7 +23,7 @@
 # `code` CLI is available, so interactive editing gets ALCops' own
 # update-tracking/notification UX on top of the DLLs this hook places.
 #
-# Wired from hooks/hooks.json on SessionStart. Emits the Copilot hook output
+# Run on SessionStart by tools/hooks/sessionstart.sh (hooks/hooks.json). Emits the Copilot hook output
 # contract on stdout, same shape as ensure-al-tool.sh. Idempotent and cheap
 # on repeat runs: skips the network entirely once ALCops.LinterCop.dll is
 # already present in every discovered analyzer folder.

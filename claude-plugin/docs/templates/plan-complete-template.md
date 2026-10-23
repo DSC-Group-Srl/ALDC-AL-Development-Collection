@@ -9,7 +9,7 @@ holds the per-wave detail — reference it, don't copy it.
 
 {2–3 sentences: what was built and the value delivered.}
 
-**Waves:** {W} · **WPs:** {N} · **Fix rounds:** {n} · **Branch:** aldc/{req} · **Base → head:** {sha}..{sha}
+**Waves:** {W} · **WPs:** {N} · **Fix rounds:** {n} · **Branch:** {the spec's Branch} · **Base → head:** {sha}..{sha}
 **Tests:** {passed}/{total} on {environment} ({date}) | **tests not executed** (no environment — accepted by user)
 
 ## Objects

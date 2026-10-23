@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# ALDC metrics — session heartbeat (PreToolUse, every tool).
+# ALDC metrics — session heartbeat (PreToolUse, every tool; started in the background by
+# tools/hooks/pretooluse.sh).
 #
 # Sends "AldcAlive" at most once every $ALDC_ALIVE_INTERVAL_S (default 120) per session, so
 # the GITCloner team view can tell a session that is working from one that is gone, and see

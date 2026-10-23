@@ -9,7 +9,7 @@ and continues after the last logged wave. Replace placeholders; drop sections th
 
 {1–2 sentences: what gets built, why.}
 
-**Tier:** {MEDIUM|HIGH} · **Base:** {commit sha the run started from} · **Branch:** aldc/{req}
+**Tier:** {MEDIUM|HIGH} · **Base:** {commit sha the run started from} · **Branch:** {the spec's Branch}
 **Test environment:** {launch.json configuration name | none — tests not executed (accepted by user)}
 **Approved:** {date}
 

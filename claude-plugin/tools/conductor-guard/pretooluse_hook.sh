@@ -8,7 +8,7 @@
 # writing/editing code itself. Every other agent (al-developer,
 # al-implement-subagent, ...) is unaffected — writing AL is their actual job.
 #
-# Wired from hooks/hooks.json on PreToolUse (matcher: Write|Edit). Reads the
+# Run on PreToolUse Write|Edit by tools/hooks/pretooluse.sh (hooks/hooks.json). Reads the
 # hook input JSON from stdin — fields used: .agent_type, .tool_name,
 # .tool_input.file_path. No jq dependency (none of this plugin's other hooks
 # require one) — field extraction is a tested grep/sed pattern; safe here
