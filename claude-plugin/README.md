@@ -102,6 +102,7 @@ Loaded automatically by agents when needed:
 | `skill-translate` | XLF translation, NAB AL Tools |
 | `skill-migrate` | BC version migration |
 | `skill-estimation` | PERT estimation, complexity scoring |
+| `skill-freshdesk` | Freshdesk tickets as symptom/requirement source, private notes |
 
 ## BCQuality (optional, auto-managed)
 
@@ -177,6 +178,7 @@ without one it logs the gap to `metrics/capture.log` rather than failing.
 - **nab-al-tools** — [NAB AL Tools MCP server](https://github.com/jwikman/nab-al-tools/blob/main/extension/mcp-resources) (`npx @nabsolutions/nab-al-tools-mcp@next`, pre-release channel): full XLF translation workflow — create/refresh language files, retrieve and save translations, review states, keyword search, BC terminology glossary. See `skill-translate`. A `SessionStart` hook (`tools/nodejs/ensure-npx.sh`) checks `npx`/Node.js >= 20 is available and tries to install Node.js LTS if it's missing entirely — it never touches an existing Node install (e.g. a broken nvm/fnm setup), it just reports that case.
 - **context7** — Library documentation lookup
 - **microsoft-docs** — Microsoft Learn documentation search
+- **freshdesk** — DSC's helpdesk (dsc-group.freshdesk.com), opt-in via your own `FRESHDESK_API_KEY`: read a ticket by number, post a confirmed private note. Tiny shared call budget, capped per session by `tools/freshdesk-guard/`. See `skill-freshdesk`.
 
 ## Plugin Structure
 
@@ -192,7 +194,7 @@ claude-plugin/
 ├── rules-templates/       # AL coding rules copied by /bc-dev:al-initialize
 ├── hooks/hooks.json       # one dispatcher per event: SessionStart preconditions (rules, BCQuality, AL CLI,
 │                          #   Node/npx, python) and PreToolUse guards via tools/hooks/; SessionEnd/SubagentStop metrics
-├── .mcp.json              # MCP server config (al-mcp, nab-al-tools)
+├── .mcp.json              # MCP server config (al-mcp, nab-al-tools, freshdesk)
 ├── CLAUDE.md              # Plugin-level guidance loaded by Claude Code
 └── README.md              # This file
 ```

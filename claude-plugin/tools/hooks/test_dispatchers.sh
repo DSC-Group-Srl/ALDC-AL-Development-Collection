@@ -19,7 +19,9 @@ export TMPDIR="$T"
 # Nothing a test does may reach telemetry or the user's real state.
 export ALDC_METRICS_EXCLUDE=1 ALDC_METRICS_APPINSIGHTS_DISABLE=1 ALDC_READ_GUARD_NO_METRICS=1
 export CLAUDE_PLUGIN_DATA="$T/plugin-data" ALDC_LIVE_DIR="$T/live"
+export ALDC_FRESHDESK_DIR="$T/freshdesk"
 unset ALDC_READ_GUARD_DISABLE ALDC_MAIN_THREAD_GUARD_DISABLE ALDC_FAST_PATH_DISABLE ALDC_SESSIONSTART_SCRIPTS
+unset ALDC_FRESHDESK_GUARD_DISABLE ALDC_FRESHDESK_SESSION_LIMIT ALDC_FRESHDESK_GUARD_NO_METRICS
 
 FAIL=0
 ok()   { echo "ok   $1"; }
@@ -46,7 +48,7 @@ sys.stdout.buffer.write((d if isinstance(d,str) else json.dumps(d)).encode("utf-
   fi
 }
 
-# pre <label> <expect DENY|SILENT> <json>  [expected substring of the reason]
+# pre <label> <expect DENY|ASK|SILENT> <json>  [expected substring of the reason]
 pre() {
   local label="$1" want="$2" json="$3" needle="${4:-}" out rc dec
   out="$(printf '%s' "$json" | bash "$PRE")"; rc=$?
@@ -55,8 +57,9 @@ pre() {
     [ -z "$out" ] && ok "$label" || bad "$label (expected silence, got: ${out:0:120})"
     return
   fi
+  local wantdec; wantdec="$(printf '%s' "$want" | tr '[:upper:]' '[:lower:]')"
   dec="$(json_get "$out" hookSpecificOutput.permissionDecision 2>/dev/null)"
-  if [ "$dec" != deny ]; then bad "$label (expected deny, got: ${out:0:160})"; return; fi
+  if [ "$dec" != "$wantdec" ]; then bad "$label (expected $wantdec, got: ${out:0:160})"; return; fi
   if [ -n "$needle" ] && ! printf '%s' "$out" | grep -qF "$needle"; then
     bad "$label (deny without '$needle')"; return
   fi
@@ -106,6 +109,42 @@ out="$(printf '%s' '{"session_id":"alive-1","tool_name":"Glob","tool_input":{}}'
 for _ in $(seq 1 50); do [ -f "$T/live/.alive-alive-1" ] && break; sleep 0.1; done
 [ -z "$out" ] && [ -f "$T/live/.alive-alive-1" ] && ok "alive.sh ran in the background, printed nothing" \
   || bad "alive.sh (output='${out:0:80}', stamp present: $([ -f "$T/live/.alive-alive-1" ] && echo yes || echo no))"
+
+echo
+echo "=== pretooluse.sh: freshdesk-guard ==="
+FD=mcp__plugin_bc-dev_freshdesk__
+fd() { printf '{"session_id":"%s","tool_name":"%s%s","tool_input":%s}' "$1" "$FD" "$2" "$3"; }
+pre "freshdesk fetchTicket allowed (silent)" SILENT "$(fd fd1 fetchTicket '{"ticket_id":48213}')"
+pre "freshdesk fetchSolutionArticle allowed (silent)" SILENT "$(fd fd1 fetchSolutionArticle '{"id":7}')"
+pre "freshdesk replyTicket denied" DENY "$(fd fd2 replyTicket '{"ticket_id":48213,"body":"Hi"}')" "emails the customer"
+pre "freshdesk list tool denied" DENY "$(fd fd2 listTickets '{}')" "list/search"
+pre "freshdesk search tool denied" DENY "$(fd fd2 searchContacts '{"term":"x"}')" "list/search"
+pre "freshdesk updateTicket denied" DENY "$(fd fd2 updateTicket '{"ticket_id":1,"status":5}')" "customer-facing"
+[ -f "$T/freshdesk/session-fd2" ] && bad "allowlist denies were counted" || ok "allowlist denies do not count"
+pre "freshdesk createTicketNote private:true -> ask" ASK "$(fd fd3 createTicketNote '{"ticket_id":1,"body":"x","private":true}')" "PRIVATE"
+pre "freshdesk createTicketNote without private -> ask + must be private" ASK "$(fd fd3 createTicketNote '{"ticket_id":1,"body":"x"}')" "must be private"
+pre "freshdesk createTicketNote private:false -> deny" DENY "$(fd fd3 createTicketNote '{"ticket_id":1,"body":"x","private":false}')" "private set to false"
+pre "freshdesk escaped private:false inside the body is not a field" ASK   "$(fd fd3b createTicketNote '{"ticket_id":1,"body":"say \"private\": false","private":true}')"
+for i in 3 4; do pre "freshdesk call $i of 4 allowed" SILENT "$(fd fd1 fetchTicketConversations '{"ticket_id":48213}')"; done
+pre "freshdesk 5th call in a session denied" DENY "$(fd fd1 fetchTicket '{"ticket_id":48213}')" "4 of 4"
+[ "$(cat "$T/freshdesk/session-fd1" 2>/dev/null)" = 4 ] && ok "denied 5th call not counted (counter stays 4)"   || bad "counter after 5th call = '$(cat "$T/freshdesk/session-fd1" 2>/dev/null)'"
+pre "freshdesk other session has its own budget" SILENT "$(fd fd9 fetchTicket '{"ticket_id":1}')"
+ALDC_FRESHDESK_SESSION_LIMIT=1 pre "freshdesk limit override (ALDC_FRESHDESK_SESSION_LIMIT=1)" DENY   "$(fd fd9 fetchTicket '{"ticket_id":1}')" "1 of 1"
+ALDC_FRESHDESK_GUARD_DISABLE=1 pre "freshdesk kill switch -> silent even for replyTicket" SILENT   "$(fd fd2 replyTicket '{"ticket_id":1,"body":"Hi"}')"
+touch -d '10 days ago' "$T/freshdesk/session-old" 2>/dev/null || touch -t 202001010000 "$T/freshdesk/session-old"
+pre "freshdesk first call of a new session" SILENT "$(fd fd10 fetchTicket '{"ticket_id":1}')"
+for _ in $(seq 1 30); do [ -f "$T/freshdesk/session-old" ] || break; sleep 0.1; done
+[ -f "$T/freshdesk/session-old" ] && bad "counters older than 7 days are not swept" || ok "counters older than 7 days are swept"
+# Metrics: AldcHook records land in the (temp) plugin data, without ticket ids or text.
+J="$T/plugin-data/metrics/aldc-metrics.jsonl"
+if [ -n "$PY" ]; then
+  for _ in $(seq 1 100); do [ "$(grep -c freshdesk-guard "$J" 2>/dev/null)" -ge 10 ] && break; sleep 0.1; done
+  if grep -q '"hook": "freshdesk-guard"' "$J" 2>/dev/null && grep -q '"decision": "ask"' "$J"      && grep -q '"calls"' "$J"; then ok "AldcHook freshdesk-guard records written"
+  else bad "no AldcHook freshdesk-guard record in $J"; fi
+  grep -qE '48213|ticket_id|"body"|Hi"' "$J" 2>/dev/null && bad "a ticket id or text leaked into metrics"     || ok "no ticket id / text / tool_input in metrics"
+else
+  echo "skip freshdesk metrics check (no python)"
+fi
 
 echo
 echo "=== pretooluse.sh: dispatch contract (fake guards) ==="

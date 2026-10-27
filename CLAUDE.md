@@ -31,15 +31,15 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
   commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
-  skills/                   #   30 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
+  skills/                   #   31 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
                             #   skill-al-go-workflows, skill-plugin-feedback, skill-gitcloner,
-                            #   skill-dyna-license, skill-al-go-backport)
+                            #   skill-dyna-license, skill-al-go-backport, skill-freshdesk)
   rules-templates/          #   AL rules. /al-initialize copies the floor (cheat sheet, 2
                             #   protocols, agent-contract) to .claude/rules/ (auto-loaded) and
                             #   the al-*.md domain files to .claude/aldc-rules/ (on demand)
   hooks/hooks.json          #   SessionStart, PreToolUse, SubagentStop, SessionEnd wiring
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
-                            #   conductor-guard, metrics; testlane/ (shared test env + lock)
+                            #   conductor-guard, freshdesk-guard, metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 

@@ -3,7 +3,7 @@ description: >
   Prepare a clean, documented pull request draft for AL features or fixes with
   summary, testing notes, and checklist. Use when preparing a PR, creating a
   pull request, or documenting changes for review.
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash, Skill, mcp__plugin_bc-dev_freshdesk__createTicketNote
 argument-hint: "<Branch> <Reviewer>"
 ---
 
@@ -63,6 +63,8 @@ Scan commit messages for:
 - Fixes #123
 - Closes #456
 - Related to WORK-789
+- Freshdesk #1234 — also look in the branch name and the spec/diagnosis/plan header
+  (`Source: Freshdesk #NNNN`)
 
 **Identify Reviewers:**
 If `{Reviewer}` is specified, include in the draft.
@@ -147,6 +149,7 @@ Create `/reports/pr-draft.md` with this structure:
 
 - Closes #[issue-number]
 - Relates to #[issue-number]
+- Freshdesk: [#NNNN](https://dsc-group.freshdesk.com/a/tickets/NNNN) *(only when the work references a ticket)*
 
 ## Requirement Folder
 
@@ -332,6 +335,13 @@ branch before the merge.)*
 **Generated on:** [Timestamp]
 ```
 
+### 5. Freshdesk ticket (if referenced)
+
+Once the PR is merged (`gh pr list --head {Branch} --state merged`), **offer** (HITL) the
+fix-shipped private note on the ticket: load `Skill(skill: "bc-dev:skill-freshdesk")`, fill its
+note template, show the text, post only after the user confirms. Never reply to the customer.
+Not merged yet → tell the user to re-run this command after the merge for the note.
+
 ## Output
 
 **Primary:** `/reports/pr-draft.md`
@@ -344,7 +354,7 @@ branch before the merge.)*
 - ✅ PR draft file created under `/reports/pr-draft.md`
 - ✅ Changes summarized by category
 - ✅ All modified AL objects documented
-- ✅ Related issues referenced
+- ✅ Related issues referenced (Freshdesk ticket linked when the work came from one)
 - ✅ Review checklist complete
 - ✅ Deployment notes clear
 

@@ -6,6 +6,7 @@
     python emit.py AldcLane result=ran lockWaitS=4.2 publishS=31 runS=18 passed=12 failed=0
     python emit.py AldcRead action=blocked lines=1840 chars=90211
     python emit.py AldcHook hook=read-guard decision=deny ms=41
+    python emit.py AldcHook hook=freshdesk-guard decision=ask tool=createTicketNote calls=2
 
 Live progress (al-conductor), read by the GITCloner control panel:
 
@@ -90,7 +91,9 @@ EVENTS: dict[str, set[str]] = {
     "AldcLane": {"result", "lockWaitS", "publishS", "runS", "passed", "failed", "errored",
                  "skipped", "staleRecovered", "wave", "envType"} | RUN_KEYS,
     "AldcRead": {"action", "lines", "chars", "threshold"},
-    "AldcHook": {"hook", "decision", "ms"},
+    # tool/calls: freshdesk-guard reports the allowlisted Freshdesk tool name (or "other") and
+    # the session's call count - never a ticket id, text or tool_input.
+    "AldcHook": {"hook", "decision", "ms", "tool", "calls"},
     "AldcRunStart": {"tier", "wpsPlanned", "waves", "lane"} | RUN_KEYS,
     "AldcWave": {"stage", "wave", "waves", "wps", "verdict", "lane", "passed", "failed",
                  "fixLoops", "durationS"} | RUN_KEYS,
@@ -891,6 +894,19 @@ def self_test() -> int:
             "alAdded": 0.0, "alRemoved": 0.0, "otherAdded": 0.0, "otherRemoved": 0.0, "filesChanged": 0.0})),
         ("project is a name, not a path", b and "/" not in b[0]["project"] and "\\" not in b[0]["project"]),
         ("identity dimension present", b and b[0].get("where") in ("local", "cloud")),
+    ]
+    fd = build("AldcHook", ["hook=freshdesk-guard", "decision=ask", "tool=createTicketNote",
+                            "calls=2", "ticket=48213", "body=Dear customer", "tool_input={}"], cwd)
+    fd_bad = build("AldcHook", ["hook=freshdesk-guard", "decision=deny",
+                                "tool=Ticket 48213: the invoice is wrong"], cwd)
+    checks += [
+        ("freshdesk hook: tool token + call count kept",
+         fd and fd[0].get("tool") == "createTicketNote" and fd[0].get("decision") == "ask"
+         and fd[1].get("calls") == 2.0),
+        ("freshdesk hook: ticket id / text / tool_input never kept",
+         fd and not ({"ticket", "body", "tool_input"} & (set(fd[0]) | set(fd[1])))
+         and "48213" not in json.dumps(fd)),
+        ("freshdesk hook: free-text tool value rejected", fd_bad and "tool" not in fd_bad[0]),
     ]
 
     # Live snapshot: a two-wave run, timed with a fake clock.

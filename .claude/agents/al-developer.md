@@ -62,7 +62,9 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 2. **Context.** Read, when present: `app/requirements/in-progress/{req}/{req}.spec.md`
    (object IDs, §Decisions, §Tests), `{req}.architecture.md` (HIGH only), `{req}.plan.md`,
    and `app/requirements/memory.md`. Find existing patterns with al-mcp / Grep before creating
-   anything new.
+   anything new. Task came from a Freshdesk ticket (spec/diagnosis `Source: Freshdesk #NNNN`)
+   → carry `Freshdesk #NNNN` into the commit message; the ticket note is
+   `/bc-dev:al-pr-prepare`'s job, not yours.
 3. **Rules.** The rules floor (`rules-floor-cheatsheet.md`) and the two protocols load from
    `.claude/rules/` once you read an AL file. For the rationale or a worked example behind a
    rule, read the one matching domain file from `.claude/aldc-rules/` (fallback

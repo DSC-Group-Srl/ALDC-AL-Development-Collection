@@ -21,7 +21,7 @@ Route user requests to the appropriate agent:
 | Planned feature (MEDIUM/HIGH) | `bc-dev:al-conductor` | Plan once -> parallel work packages in git worktrees -> review + locked test lane per wave -> commit |
 | Estimate, size, propose | `bc-dev:al-presales` | PERT estimation, SWOT analysis, cost breakdown |
 | Build BC agents | `bc-dev:al-agent-builder` | AI Development Toolkit agent creation |
-| Diagnose a bug / incident (existing code) | `bc-dev:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
+| Diagnose a bug / incident (existing code, or a Freshdesk ticket number) | `bc-dev:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `bc-dev:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
 | Document an app end-to-end (on demand) | `bc-dev:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
 | Extract user stories/use cases + generate or customize demo data | `bc-dev:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then delegates the Contoso Demo Tool integration (harness, then data content) to `al-developer` — read-only on AL code itself; bootstrap and incremental (diff-based) modes |
@@ -101,7 +101,7 @@ corpus does not reach.
 
 ## Tooling — what this plugin actually has at runtime
 
-This plugin runs in the **Claude Code harness**, not VS Code. Agents have native tools (`Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch`) plus the MCP servers declared in `.mcp.json`: **al-mcp** (the official AL CLI's own MCP server — `al launchmcpserver`, full read/write access to compile, build, download symbols, publish, run tests, and query symbols), **context7** (library docs), **microsoft-docs** (Microsoft Learn). The VS Code AL extension commands (`AL: Package`, etc.) and Copilot chat context-variables (`#search`, `#problems`, …) **do not exist here** — agent prose must not invoke them as if they were tools.
+This plugin runs in the **Claude Code harness**, not VS Code. Agents have native tools (`Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch`) plus the MCP servers declared in `.mcp.json`: **al-mcp** (the official AL CLI's own MCP server — `al launchmcpserver`, full read/write access to compile, build, download symbols, publish, run tests, and query symbols), **context7** (library docs), **microsoft-docs** (Microsoft Learn), **freshdesk** (DSC's helpdesk, opt-in via `FRESHDESK_API_KEY`). The VS Code AL extension commands (`AL: Package`, etc.) and Copilot chat context-variables (`#search`, `#problems`, …) **do not exist here** — agent prose must not invoke them as if they were tools.
 
 The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as the [`Microsoft.Dynamics.BusinessCentral.Development.Tools`](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-al-tool) .NET tool. Beyond plain compile/package, `al` also ships `launchmcpserver`/`launchlspserver` — first-class agentic surfaces — plus `publishapp`, `runtests`, and `auth` as bare CLI verbs. Use this canonical mapping when writing agent/skill/command prose (verify against the live tool list before trusting this table — MCP tool surfaces change across `al` versions):
 
@@ -132,6 +132,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | **CI/CD on GitHub (AL-Go)** | `gh run list` / `gh run view <id> --log-failed` / `gh pr checks`; dispatch with `gh workflow run` (HITL for Publish To Environment, Create release, Publish To AppSource). DSC's branch model (`main` trunk, nightly-rebuilt `test`), the PR → test env → UAT → merge → production flow, every workflow, settings and secrets by name, PTE vs AppSource: load `bc-dev:skill-al-go-workflows`. |
 | **Run tests** | Only through the **test lane** (`bc-dev:skill-test-lane`, `tools/testlane/lane.py`): the user picks the environment from `.vscode/launch.json` (none usable → add one, or accept *tests not executed*); a lock serializes the one shared environment across parallel work packages and sessions. The AL CLI lower-cases its options, so the lane targets an environment via a single-configuration scratch `launch.json` + `--project`. No usable environment and the repo has `.AL-Go/localDevEnv.ps1` → `bc-dev:skill-al-go-devenv` creates a local container non-interactively (one UAC click) and registers its credentials where the AL CLI reads them (`tools/testlane/save-onprem-credentials.ps1`). |
 | **Auth (cloud/AAD)** | **al-mcp** `al_auth_login`/`al_auth_logout`, or `Bash: al auth login`/`logout`. Usually unnecessary — `al_downloadsymbols`/`al_publish`/`al_run_tests` default to `useInteractiveLogin=true` and handle it inline. |
+| **Freshdesk tickets** (dsc-group.freshdesk.com) | **freshdesk** MCP (`mcp__plugin_bc-dev_freshdesk__*`), opt-in via the developer's own `FRESHDESK_API_KEY` — load `bc-dev:skill-freshdesk` first (setup, call budget, read/note templates). Read one ticket by number, once; write only confirmed private notes, never a reply. `tools/freshdesk-guard/` enforces the allowlist and the per-session cap. |
 | **Debug / snapshot / CPU profile** | **VS Code only** (AL debugger, snapshot debugging, CPU profiler) — a human step, not an agent tool on this surface. |
 
 > Steer away from waste, don't ban tools: prefer **al-mcp** for symbol facts (it's grounded and cheaper than re-reading files), but `microsoft-docs`/`context7`/`WebSearch` remain fair game for conceptual gaps. Flag what you genuinely can't resolve rather than burning turns on trial-and-error tool bursts.
@@ -155,7 +156,9 @@ guards included (issue #77). So `hooks/hooks.json` has **one bash entry per even
   no python). `tools/environment/git-bash-check.ps1` stays a separate PowerShell hook.
 - **PreToolUse** (no matcher) → `tools/hooks/pretooluse.sh`: starts `metrics/alive.sh` in the
   background, then routes by `tool_name` — Read/Bash/PowerShell to the read-guard, Write/Edit
-  to conductor-guard then main-thread-guard (first deny wins). Other tools: silent.
+  to conductor-guard then main-thread-guard (first deny wins), `mcp__plugin_bc-dev_freshdesk__*`
+  to `freshdesk-guard` (allowlist, per-session cap, `createTicketNote` → human ask, private
+  only; kill switch `ALDC_FRESHDESK_GUARD_DISABLE=1`). Other tools: silent.
 - **SessionEnd**, **SubagentStop**: one script each, unchanged.
 
 A new hook script goes into the matching dispatcher, never as a new `hooks.json` entry.

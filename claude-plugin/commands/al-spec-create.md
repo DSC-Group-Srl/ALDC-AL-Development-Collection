@@ -4,7 +4,7 @@ description: >
   blueprint for Business Central features. Use when you need to create a spec, write
   a specification, or detail a requirement. Reads architecture.md if exists.
   Outputs to app/requirements/in-progress/{req_name}/.
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, Skill, mcp__plugin_bc-dev_al-mcp__al_symbolsearch, mcp__plugin_bc-dev_al-mcp__al_symbolrelations, mcp__plugin_bc-dev_al-mcp__al_downloadsymbols
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, Skill, mcp__plugin_bc-dev_al-mcp__al_symbolsearch, mcp__plugin_bc-dev_al-mcp__al_symbolrelations, mcp__plugin_bc-dev_al-mcp__al_downloadsymbols, mcp__plugin_bc-dev_freshdesk__fetchTicket, mcp__plugin_bc-dev_freshdesk__fetchTicketConversations
 argument-hint: "<req_name> <Complexity>"
 ---
 
@@ -42,6 +42,11 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
 - If `{req_name}.architecture.md` exists (HIGH), read it first — the spec implements it and
   references its TD-ids instead of repeating them.
 - If the spec already exists, confirm with the user before overwriting.
+- **Freshdesk ticket as the requirement source.** Given a ticket number or a
+  `dsc-group.freshdesk.com` link, load `Skill(skill: "bc-dev:skill-freshdesk")` and read that
+  ticket **once**; the spec header records `Source: Freshdesk #NNNN`. Restate the request in
+  your own words — no customer names, emails, phone numbers or other personal data copied in.
+  `freshdesk` tools not connected → ask the user to paste the ticket text.
 - There is **no separate test-plan file**: §7 of the spec is the test plan.
 
 ## Step 1 — Read context
@@ -71,6 +76,7 @@ Create `app/requirements/in-progress/{req_name}/{req_name}.spec.md` from
 truth for the structure. Fill every placeholder with real values and apply its `## Rules`:
 
 - `**Branch:**` in the header is the branch settled in the Guardrails, never left as a placeholder.
+- `Source: Freshdesk #NNNN` in the header when the request came from a ticket.
 - Omit §3/§5/§6/§8/§9 entirely for object types the feature does not touch — the largest
   lever on this document's size.
 - `{Complexity}` controls depth inside applicable sections. MEDIUM fills §Decisions (the

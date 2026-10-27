@@ -21,6 +21,13 @@
     "ms-learn": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "freshdesk": {
+      "type": "http",
+      "url": "https://dsc-group.freshdesk.com/mcp",
+      "headers": {
+        "Authorization": "${FRESHDESK_API_KEY:-}"
+      }
     }
   }
 }

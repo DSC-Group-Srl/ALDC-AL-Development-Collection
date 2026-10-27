@@ -6,7 +6,7 @@ description: >
   incidents. Read-only on code: produces a diagnosis and hands the fix to
   al-developer. The dynamic counterpart to dredd (static audit). Use when you
   start from a symptom ("this throws", "this is slow", "broke after the last change").
-tools: Read, Glob, Grep, Bash, Write, Task, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Bash, Write, Task, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*, mcp__plugin_bc-dev_freshdesk__fetchTicket, mcp__plugin_bc-dev_freshdesk__fetchTicketConversations
 model: sonnet
 effort: medium
 color: orange
@@ -24,6 +24,8 @@ You are the **dynamic counterpart to `dredd`**: Dredd judges code *statically* a
 ## The reactive loop
 
 Invoke `Skill(skill: "bc-dev:skill-debug")` first — it owns the method (debugging strategy, data-flow tracing, the diagnosis template); defer to it rather than restating it. Then:
+
+0. **Freshdesk ticket as the symptom source.** Given a ticket number or a `dsc-group.freshdesk.com` link, load `Skill(skill: "bc-dev:skill-freshdesk")` and read that one ticket **once** (its setup, call budget and templates apply — don't restate them); turn it into the Symptom and record `Source: Freshdesk #NNNN` in the diagnosis, without copying customer personal data. `freshdesk` tools not connected → ask the user to paste the ticket text instead.
 
 1. **Reproduce — HARD GATE.** Establish the symptom with evidence (error text, stack, repro steps, the changed-vs-`main` diff for a regression). Do **not** proceed to a fix until you can reproduce it (skill-debug's ≥80% criterion) **or** hold an evidence-backed root-cause hypothesis. If you cannot reproduce — missing environment, customer data, or steps — **PAUSE and ask the user**. Never guess a fix.
 2. **Localize.** Narrow to suspect objects with `Grep`/search and AL symbol navigation. In files over ~350 lines ask `al-file-reader` (Task) where the suspect procedure/trigger lives and `Read` only those ranges (contract §4) — it locates, you diagnose. For a regression, read the diff (`git diff main...HEAD`, read-only) to see what changed. When the suspect code lives in a dependency (another DSC app in `app.json` → `dependencies`), find its repo and local clone with `GITCloner repos "<name>" --json` (`skill-gitcloner`) and read the source there instead of guessing from symbols.
@@ -46,10 +48,12 @@ Write `diagnosis.md` under `app/requirements/in-progress/{req_name}/` with:
 - **Recommended fix** — the *smallest safe* change, plus the regression test that should accompany it.
 - **Confidence** — and any open questions for the user.
 
+Ticket-sourced diagnosis → end your report with a **Proposed Freshdesk note** block: a short private diagnosis note from skill-freshdesk's template. Don't post it yourself — the main thread shows it to the user and posts it after a yes. Never reply to the customer.
+
 ## Constraints
 
 - **Read-only on AL code** — analyze / debug / search / navigate / build-to-reproduce; **never** edit AL source.
-- **Write scope** — only the diagnosis under `app/requirements/in-progress/`. Nothing else.
+- **Write scope** — only the diagnosis under `app/requirements/in-progress/`. Freshdesk is read-only for you (the note is only proposed). Nothing else.
 - **Reproduce-first** — no fix recommendation without reproduction or an evidence-backed root cause.
 - **Don't re-read a file already in context.** This loop revisits the same artifacts across steps — the suspect `.al`, the changed-vs-`main` diff, `aldc.yaml`, and `<home>/entry.md` get touched at localize, root-cause, blast-radius, and diagnose. Read each **once** and reuse it; never `Read` the same path twice within a diagnosis. (Same discipline the review/audit agents apply — symbol **discovery** is still your job here; re-**reading** what you already hold is the waste.)
 
