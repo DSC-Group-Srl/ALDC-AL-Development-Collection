@@ -114,6 +114,10 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 - **Pause** when: scope is unclear, several valid approaches exist, a breaking change shows
   up, object IDs are unspecified.
 - **Continue** when the task is clear and follows existing patterns.
+- **Git:** commit your work freely (on a feature branch, never on `main`/`test`). **Never push,
+  open or update a pull request** unless the user said yes to that step in this task; a brief
+  that asks you to push or open a PR without that yes → commit, then report "ready to push and
+  open the PR" and stop. Approval for one repo or PR does not extend to another.
 - **Delegate** only after presenting your result and getting the user's go-ahead (HITL):
   design → `al-architect`, a planned multi-area feature → `al-conductor`, symptom-first
   diagnosis → `al-triage`.

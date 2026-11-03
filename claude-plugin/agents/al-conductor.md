@@ -181,7 +181,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 6. `Task(al-documentation-subagent)` with `app.json`, the consolidated object/file lists and
    `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)
-   / follow-ups. Do not push without the user's yes.
+   / follow-ups. Do not push or open a PR without the user's yes to this question: plan
+   approval covers your commits, not the push or the PR.
 8. **Once the PR is open, point to what comes next.** Read the flavour from
    `.github/AL-Go-Settings.json` `type`. If the file is missing, the repo isn't on AL-Go and
    this step doesn't apply. Give the user at most four lines, then stop: these are human steps,
