@@ -77,6 +77,7 @@ SCHEMA = 3  # 3: measured wallMinutes + reportedMinutes, activeSeconds, attempt,
 #             objDone_* per kind, alAddedTest/alAddedProd, `schema` and `exclude` dimensions
 IDLE_CAP_S = 600.0    # a gap between steps longer than this is idle, not work
 OPEN_CAP_S = 7200.0   # a gap inside an open wave/WP counts in full, up to this
+GATE_GRACE_S = 60.0   # a conductor heartbeat this soon after a gate is the ask itself, not a resume
 
 RUN_KEYS = {"req", "runId"}
 EVENTS: dict[str, set[str]] = {
@@ -110,7 +111,7 @@ STRING_KEYS = {"tier", "lane", "outcome", "result", "action", "hook", "decision"
                "issueNo", "gate"}
 # String keys whose value must also come from a closed set.
 ENUM_VALUES = {"estSource": {"stima-sviluppo", "manual", "none"},
-               "gate": {"fixloop", "conflict", "stall", "blocked", "contradiction", "other"}}
+               "gate": {"fixloop", "conflict", "stall", "blocked", "contradiction", "other", "autostop"}}
 RE_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
 RE_NUM = re.compile(r"^-?\d+(?:\.\d+)?$")
 # Keys that stay strings even when they look numeric (a req called "042", an Issue "1234").
@@ -538,7 +539,22 @@ def _step_open(snap: dict) -> bool:
         isinstance(w, dict) and w.get("state") == "running" for w in (snap.get("wps") or {}).values())
 
 
-def _tick(snap: dict, event: str, now: float) -> None:
+def _resumes_after_gate(event: str, props: dict, snap: dict, now: float) -> bool:
+    """Does this event end the human wait an AldcGate opened? Any conductor event does. A
+    heartbeat does only when it is the conductor family working again: not the main thread
+    (no agent: it is relaying the question, AskUserQuestion, SendMessage), not the ask itself,
+    and not the heartbeat racing the gate's own Bash call (within GATE_GRACE_S). Without this the
+    first heartbeat closed the wait within seconds and the human's answer time was counted as
+    active work (issue: humanWaitSeconds ~0 on runs with stops)."""
+    if event != "AldcAlive":
+        return True
+    agent = (props.get("agent") or "").lower()
+    if not agent or (props.get("tool") or "") == "AskUserQuestion":
+        return False
+    return now - float(snap.get("gateAt") or now) >= GATE_GRACE_S
+
+
+def _tick(snap: dict, event: str, now: float, props: dict | None = None) -> None:
     """Advance the run's clocks: the gap since the previous run event is active time, unless an
     AldcGate opened it — then it is human wait. Between steps the gap is capped at
     IDLE_CAP_S, so an idle session does not count; inside an open wave or WP it counts in full
@@ -548,7 +564,8 @@ def _tick(snap: dict, event: str, now: float) -> None:
         gap = max(0.0, now - float(last))
         if snap.get("gateAt") is not None:
             snap["humanWaitS"] = round(float(snap.get("humanWaitS") or 0) + gap, 1)
-            snap.pop("gateAt", None)
+            if _resumes_after_gate(event, props or {}, snap, now):
+                snap.pop("gateAt", None)
         else:
             cap = open_cap() if _step_open(snap) else idle_cap()
             snap["activeS"] = round(float(snap.get("activeS") or 0) + min(gap, cap), 1)
@@ -589,7 +606,7 @@ def apply_live(event: str, props: dict, meas: dict, snap: dict, cwd: str, sessio
     if fresh:
         snap.update({"activeS": 0.0, "humanWaitS": 0.0, "lastEventAt": now})
     elif snap.get("runId") and not snap.get("outcome") and event in TICK_EVENTS:
-        _tick(snap, event, now)
+        _tick(snap, event, now, props)
     if event == "AldcAlive":
         # The heartbeat carries the run's position to the team view and keeps its clock
         # running; it changes nothing else (its cwd may be a worktree, not the project).
@@ -841,6 +858,8 @@ def main(argv: list[str]) -> int:
             with _Lock(os.path.join(live_dir(), ".lock")):
                 snap = load_live(full_session)
                 live = bool(snap.get("runId")) and not snap.get("outcome")
+                if event == "AldcGate" and not live:
+                    return 0  # a gate outside a live run (e.g. SubagentStop after AldcRun) is noise
                 # Alive and a gate only matter inside a live run; a lane run outside a
                 # conductor run (al-developer) has no run to join.
                 if (event not in ("AldcAlive", "AldcGate") or live) and (event != "AldcLane" or snap.get("runId")):
@@ -944,7 +963,7 @@ def self_test() -> int:
                     now=3000).get("waveLog") == []),
         ("activeSeconds sums the run's event gaps", rm.get("activeSeconds") == 1200.0),
     ]
-    checks += _self_test_duration(cwd) + _self_test_attempts(cwd) + _self_test_estimate(cwd)
+    checks += _self_test_duration(cwd) + _self_test_gate_wait(cwd) + _self_test_attempts(cwd) + _self_test_estimate(cwd)
     checks += _self_test_numstat() + _self_test_privacy(cwd)
     ok = True
     for name, passed in checks:
@@ -995,6 +1014,31 @@ def _self_test_duration(cwd: str) -> list[tuple[str, bool]]:
         ("alive advances the clock", ev[2][2] and ev[2][1].get("attempt") == 1.0),
         ("no wallMinutes without a start", "wallMinutes" not in _run(
             [("AldcRun", ["req=D-02", "wallMinutes=60"], 10)], cwd, s, {}, {})[1][0][1]),
+    ]
+
+
+def _self_test_gate_wait(cwd: str) -> list[tuple[str, bool]]:
+    s = "sess-0006-gate-wait"
+    _, ev = _run([("AldcRunStart", ["req=G-01"], 0), ("AldcWave", ["stage=start", "wave=1"], 100),
+                  ("AldcGate", ["gate=fixloop"], 1000),
+                  # the gate's own Bash call races a conductor heartbeat: still the ask
+                  ("AldcAlive", ["agent=bc-dev:al-conductor", "tool=Bash"], 1005),
+                  # the main thread relays the question and the human thinks for 40 min
+                  ("AldcAlive", ["tool=AskUserQuestion"], 1100),
+                  ("AldcAlive", ["tool=SendMessage"], 3400),
+                  # the conductor works again: the wait ends here
+                  ("AldcAlive", ["agent=bc-dev:al-conductor", "tool=Bash"], 3500),
+                  ("AldcWave", ["stage=end", "wave=1"], 3800),
+                  ("AldcRun", ["outcome=done"], 3900)], cwd, s, {}, {})
+    rm = ev[-1][1]
+    _, au = _run([("AldcRunStart", ["req=G-02"], 0), ("AldcWave", ["stage=start", "wave=1"], 100),
+                  ("AldcGate", ["gate=autostop"], 400),
+                  ("AldcWp", ["stage=start", "wave=1", "wp=2"], 2200),
+                  ("AldcRun", ["outcome=done"], 2300)], cwd, s, {}, {})
+    return [
+        ("heartbeats from the main thread do not end a gate's wait", rm.get("humanWaitSeconds") == 2500.0),
+        ("the wait is not counted as active", rm.get("activeSeconds") == 100 + 900 + 300 + 100),
+        ("autostop is an accepted gate and its gap is wait", au[-1][1].get("humanWaitSeconds") == 1800.0),
     ]
 
 

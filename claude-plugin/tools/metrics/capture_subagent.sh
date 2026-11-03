@@ -61,4 +61,15 @@ printf '%s' "$STDIN_JSON" | "$PY" "$script_dir/parse_subagent.py" \
   --log "$log_file" \
   >/dev/null 2>>"$log_file" || note "parser failed (non-fatal)"
 
+# al-conductor stopped. If its run is still open it is waiting on the human (a stop-and-ask, a
+# background Task handing a question to the main thread): open the wait automatically, so it is
+# never counted as active work when the conductor forgets its own `AldcGate` marker. emit.py
+# drops the gate when the run already finished (AldcRun outcome set).
+agent_type=$(printf '%s' "$STDIN_JSON" | grep -o '"agent_type"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_.:-]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
+session_id=$(printf '%s' "$STDIN_JSON" | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_-]*"' | head -1 | sed -E 's/.*"([A-Za-z0-9_-]+)"$/\1/')
+case "$agent_type" in
+  *al-conductor)
+    [ -n "$session_id" ] && "$PY" "$script_dir/emit.py" AldcGate gate=autostop --session "$session_id"       >/dev/null 2>>"$log_file" || true ;;
+esac
+
 exit 0

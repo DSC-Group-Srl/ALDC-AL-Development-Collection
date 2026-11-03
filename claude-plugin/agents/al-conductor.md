@@ -203,6 +203,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 
 Every **stop and ask** below (and in §2) starts with one marker, so the time spent waiting for
 the human is not counted as work: `$EMIT AldcGate gate=<fixloop|conflict|stall|blocked|contradiction|other>`.
+When you stop with the run still open, the SubagentStop hook also opens the wait (`gate=autostop`),
+so a forgotten marker no longer turns the human's answer time into active work; send it anyway.
 
 - **Unplanned finding** (from implementer or reviewer): blocks this WP's acceptance criteria →
   one scoped fix in the fix loop. Doesn't → one line under *Deferred* in the plan, continue.
