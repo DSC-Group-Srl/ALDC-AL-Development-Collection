@@ -145,7 +145,12 @@ Headline fact (get this into any prose referencing multi-project builds): **`al_
 
 ## Hook wiring — one bash process per event
 
-On Windows every hook is its own `cmd /c bash <script>`, and Claude Code starts the hooks of
+Every hook, `.mcp.json` al-mcp and `.lsp.json` launch bash through
+`cmd /c tools/environment/run-bash.cmd <script>`, never a bare `bash`: `cmd /c bash` can resolve
+`C:\Windows\System32\bash.exe` (the WSL launcher) and run the script in the default WSL distro,
+which kills al-mcp with `CONNECTION_CLOSED` (issue #83). The wrapper picks Git Bash explicitly.
+
+On Windows every hook is its own bash process, and Claude Code starts the hooks of
 one event in parallel; concurrent Git Bash (MSYS2) start-ups intermittently die with
 `fatal error - add_item (...) failed, errno 1` and the harness silently skips that hook,
 guards included (issue #77). So `hooks/hooks.json` has **one bash entry per event**:

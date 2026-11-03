@@ -21,10 +21,13 @@
 # "C:\Program Files\Git\...", and Claude Code mishandles the space in that
 # resolved path, erroring with "command should not contain spaces, use
 # args instead" (anthropic/claude-code#4507, #4876, #58510). So .mcp.json,
-# .lsp.json, and hooks.json all spawn `cmd /c bash al-launch.sh <args>`
+# .lsp.json, and hooks.json all spawn
+# `cmd /c tools/environment/run-bash.cmd al-launch.sh <args>` (formerly `cmd /c bash ...`)
 # instead of bare `bash` — "cmd" always resolves to
 # C:\Windows\System32\cmd.exe (no spaces), and cmd's own PATH search +
-# quoting for the nested `bash` call doesn't hit the bug. This repo is
+# quoting for the nested call doesn't hit the bug. run-bash.cmd then
+# resolves Git Bash explicitly, because a bare `bash` on PATH can be the
+# WSL launcher in System32 (issue #83). This repo is
 # Windows-only in practice, so the `cmd` wrapper is applied
 # unconditionally rather than branched by OS.
 set -euo pipefail

@@ -1,7 +1,7 @@
 {
   "al": {
     "command": "cmd",
-    "args": ["/c", "bash", "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh", "launchlspserver"],
+    "args": ["/c", "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd", "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh", "launchlspserver"],
     "extensionToLanguage": {
       ".al": "al"
     }

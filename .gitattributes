@@ -2,6 +2,8 @@
 # BCQuality install scripts must stay LF to run after a Windows checkout.
 tools/bcquality/*.sh              text eol=lf
 claude-plugin/tools/bcquality/*.sh text eol=lf
+# cmd wrappers (run-bash.cmd) must stay CRLF or cmd.exe misparses them.
+*.cmd text eol=crlf
 
 # ── GitHub Linguist — identify this repository as AL ─────────────────────────
 # ALDC is a framework *for* Microsoft Dynamics 365 Business Central (AL); it ships

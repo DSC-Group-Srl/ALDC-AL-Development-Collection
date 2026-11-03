@@ -4,7 +4,7 @@
       "command": "cmd",
       "args": [
         "/c",
-        "bash",
+        "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd",
         "${CLAUDE_PLUGIN_ROOT}/tools/al-cli/al-launch.sh",
         "launchmcpserver",
         "--transport",

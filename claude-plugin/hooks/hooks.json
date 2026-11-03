@@ -8,7 +8,7 @@
             "command": "cmd",
             "args": [
               "/c",
-              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd",
               "${CLAUDE_PLUGIN_ROOT}/tools/hooks/sessionstart.sh",
               "SessionStart"
             ],
@@ -31,7 +31,7 @@
             "command": "cmd",
             "args": [
               "/c",
-              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd",
               "${CLAUDE_PLUGIN_ROOT}/tools/hooks/pretooluse.sh"
             ],
             "timeout": 15
@@ -47,7 +47,7 @@
             "command": "cmd",
             "args": [
               "/c",
-              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd",
               "${CLAUDE_PLUGIN_ROOT}/tools/metrics/session_end.sh"
             ],
             "timeout": 15
@@ -63,7 +63,7 @@
             "command": "cmd",
             "args": [
               "/c",
-              "bash",
+              "${CLAUDE_PLUGIN_ROOT}/tools/environment/run-bash.cmd",
               "${CLAUDE_PLUGIN_ROOT}/tools/metrics/capture_subagent.sh"
             ],
             "timeout": 10
