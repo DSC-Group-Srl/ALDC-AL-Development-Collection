@@ -48,7 +48,8 @@ are authoritative. Domain depth: `.claude/aldc-rules/al-*.md` (fallback
   on every build — restore it before you finish: `git -C <worktree> checkout -- "*.g.xlf"`.
 - Do not `git commit`, merge, rebase or switch branches; the conductor commits.
 - Do not publish or run tests against any environment (`al_publish`, `al_run_tests`,
-  `al publishapp`, `al runtests`) — the conductor runs the shared **test lane** after the wave.
+  `al publishapp`, `al runtests`) — the conductor runs the shared **test lane** after the wave,
+  and it alone sets the scratch version (revision bump, never build + 1 — `skill-test-lane` §2).
 
 ## Procedure
 

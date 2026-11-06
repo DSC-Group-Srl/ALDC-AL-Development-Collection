@@ -257,12 +257,40 @@ def _al(args: list[str], timeout: int) -> tuple[int, str]:
         return 124, "timeout"
 
 
+RE_VER = r"(\d+\.\d+\.\d+\.\d+)"
+RE_HIGHER = re.compile(r"higher version\s+" + RE_VER + r"\s+was previously installed", re.I)
+RE_SAME_VER = re.compile(r"different \.app file with the same app id.*?version\s*\(?\s*" + RE_VER, re.I | re.S)
+
+
+def scratch_version(blocking: str) -> str:
+    """Next scratch version after `blocking`: same major.minor.build, revision + 1.
+
+    AL-Go CI builds major.minor.<run number>.0, so a scratch build with a non-zero revision
+    is above the installed CI build, below the next one, and never a number CI uploads (#89).
+    """
+    p = [int(x) for x in blocking.split(".")]
+    return f"{p[0]}.{p[1]}.{p[2]}.{p[3] + 1}"
+
+
+def _version_block(text: str) -> tuple[str, str] | None:
+    m = RE_HIGHER.search(text)
+    if m:
+        return "version-below-installed", m.group(1)
+    m = RE_SAME_VER.search(text)
+    if m:
+        return "version-already-uploaded", m.group(1)
+    return None
+
+
 def _classify_publish(code: int, text: str) -> str:
     if code == 0 and "failed" not in text.lower():
         return "published"
     t = text.lower()
     if "duplicate package id" in t:
         return "already-current"      # this exact build is already there — fine
+    vb = _version_block(text)
+    if vb:
+        return vb[0]                   # bump the revision, never the build (#89)
     if "destinazione di compilazione" in t or "target" in t and "allowed" in t:
         return "target-not-allowed"    # OnPrem/Internal app on a SaaS sandbox
     if any(s in t for s in ("certificate", "econnreset", "timed out", "timeout", "unable to connect",
@@ -280,8 +308,13 @@ def cmd_publish(scratch: str, app: str) -> int:
     emit_metric([f"result=publish-{res}", f"publishS={round(time.time() - t0, 1)}"])
     reason = next((ln.split("Reason:", 1)[1].strip() for ln in text.splitlines()
                    if "Reason:" in ln and not ln.lstrip().startswith("[")), "")[:400]
-    return out({"ok": res in ("published", "already-current"), "result": res,
-                "seconds": round(time.time() - t0, 1), "reason": reason})
+    payload = {"ok": res in ("published", "already-current"), "result": res,
+               "seconds": round(time.time() - t0, 1), "reason": reason}
+    vb = _version_block(text)
+    if vb and res == vb[0]:
+        payload["blockingVersion"] = vb[1]
+        payload["nextScratchVersion"] = scratch_version(vb[1])
+    return out(payload)
 
 
 RE_TOTALS = re.compile(r"Test run completed:\s*(\d+)\s+passed,\s*(\d+)\s+failed,\s*(\d+)\s+skipped", re.I)
@@ -427,7 +460,17 @@ def self_test() -> int:
         ("release", r["released"] is True and r2["released"] is False),
         ("dup package id = already-current", _classify_publish(1, "A duplicate package ID is detected") == "already-current"),
         ("sandbox target rejection classified", _classify_publish(1, "destinazione di compilazione superiore") == "target-not-allowed"),
-        ("tls = tool-blocked", _classify_publish(1, "unable to verify the first certificate") == "tool-blocked"),
+        ("higher installed version classified",
+         _classify_publish(1, "Version 28.20.80.0 can't be installed because a higher version 28.20.81.0 was previously installed.")
+         == "version-below-installed"),
+        ("same version uploaded classified",
+         _classify_publish(1, "A different .app file with the same App ID (abc) and version (28.20.81.0) has already been uploaded to our service.")
+         == "version-already-uploaded"),
+        ("scratch version bumps revision, never build",
+         scratch_version("28.20.80.0") == "28.20.80.1" and scratch_version("28.20.80.1") == "28.20.80.2"),
+        ("blocking version extracted",
+         _version_block("a higher version 28.20.80.0 was previously installed") == ("version-below-installed", "28.20.80.0")),
+        ("tls = tool-blocked",_classify_publish(1, "unable to verify the first certificate") == "tool-blocked"),
         ("totals regex", RE_TOTALS.search("Test run completed: 3 passed, 1 failed, 0 skipped.") is not None),
     ]
     ok = True

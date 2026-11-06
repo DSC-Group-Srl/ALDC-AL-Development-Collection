@@ -94,7 +94,8 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    session, ask which `.vscode/launch.json` configuration to use; if none is usable, offer to
    create a local container with the repo's AL-Go script (`skill-al-go-devenv`, when the lane
    reports `devEnv.suggest`), to add a configuration, or to accept that no tests will run. Run the codeunits you created or
-   affected. Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
+   affected. Publish refused for the version → use the lane's `nextScratchVersion` (revision
+   bump, never build + 1, never committed — `skill-test-lane` §2 Scratch version). Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
    executed**; never report PASS for a test that did not run. Told not to run tests (by the
    user or your delegator, however softly) → contract §5: answer the concurrency fear once
    with the lane lock; if the ban holds, the report says **tests NOT executed**, how many new

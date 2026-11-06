@@ -144,7 +144,9 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
      security-sensitive waves else `light`;
    - the **test lane** via Bash (`bc-dev:skill-test-lane` §2): prepare → acquire → publish base
      app → publish test app → run the wave's codeunits (all codeunits on the last wave) →
-     **release, always**. Skipped when the user accepted no tests.
+     **release, always**. Skipped when the user accepted no tests. A version rejection →
+     `nextScratchVersion` from the lane (revision bump, **never build + 1** — that collides
+     with the next AL-Go CI build, #89), restored before the wave commit (`skill-test-lane` §2).
 
    Trust the verdict field; don't re-derive it. A report that contradicts itself (APPROVED with
    a CRITICAL) → stop and ask.

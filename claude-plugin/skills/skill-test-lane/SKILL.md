@@ -55,6 +55,34 @@ python "$L" release <envKey>                              # ALWAYS — also afte
 - `acquire` returning `acquired: false` after the wait → report who holds it (`holder`) and
   stop; do not force it (`status <envKey>` shows the holder at any time).
 
+### Scratch version — bump the revision, never the build
+
+The environment the lane uses is often also the AL-Go `DeployTo` target of `main`, and AL-Go
+CI builds `major.minor.<CI/CD run number>.0`. A scratch build published as `X.Y.(N+1).0` takes
+the number the **next CI run** will produce: BC keeps every uploaded `.app` per App ID +
+version, so that CI deploy is rejected for good, and every older CI build is now "below an
+installed version" too. The sandbox is left without the app until a later CI run (#89).
+
+- Publish first with the version as it is. When BC refuses it, `publish` returns
+  `version-below-installed` or `version-already-uploaded` with `blockingVersion` and
+  `nextScratchVersion`. Set **both** `app.json` files (app and test app) to
+  `nextScratchVersion`, rebuild, publish again.
+- `nextScratchVersion` keeps major.minor.build of the blocking build and adds 1 to the
+  **revision**: installed CI `28.20.80.0` → scratch `28.20.80.1`, then `.2` on the next fix
+  loop. It is above the installed build (publish accepted), below the next CI build
+  `28.20.81.0` (CI deploy not blocked), and never a number CI uploads.
+- Never compute a version yourself as build + 1, and never take "the smallest version that
+  publishes" from a repo's CLAUDE.md as license to change the build number.
+- **The scratch version is never committed.** Restore the `version` field of both `app.json`
+  files before the commit (`git checkout -- <app.json>` only when nothing else in that file
+  changed; otherwise edit the field back).
+- **Cleanup.** The AL CLI has no uninstall/unpublish verb, and the agent does not mint tokens
+  for the BC automation API to do it. With revision versions there is usually nothing to
+  clean: the next CI build is higher and upgrades over the scratch build. If the user wants
+  the environment back on the CI build right away, tell them to uninstall and unpublish the
+  scratch versions in **Extension Management** (test app first, then the app), and list the
+  versions the lane published this run.
+
 ## 3. Read the results — classifications, not log scraping
 
 `publish.result`:
@@ -63,6 +91,8 @@ python "$L" release <envKey>                              # ALWAYS — also afte
 |---|---|---|
 | `published` | ok | continue |
 | `already-current` | this exact package is already there | continue (not an error) |
+| `version-below-installed` | a higher version (`blockingVersion`) is installed | set both `app.json` to `nextScratchVersion`, rebuild, publish again (§2 Scratch version) |
+| `version-already-uploaded` | a different `.app` with this App ID + version was uploaded before | same: `nextScratchVersion`, rebuild, publish again |
 | `target-not-allowed` | app target not allowed on this env (OnPrem app on SaaS) | stop; offer a local container via `bc-dev:skill-al-go-devenv`, or pick another config |
 | `auth-required` | no cached AAD token | ask the user to run `! al auth login` once, then retry |
 | (run) `UserNotAuthenticatedException` | UserPassword server, no credential in the AL CLI's cache | `tools/testlane/save-onprem-credentials.ps1` (see `skill-al-go-devenv` §3) |
