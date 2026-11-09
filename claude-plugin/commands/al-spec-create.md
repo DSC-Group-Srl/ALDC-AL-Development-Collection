@@ -35,10 +35,16 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
 - **One requirement folder, one branch.** The spec header records the branch the work is done
   on (`**Branch:**`), so `/bc-dev:al-pr-prepare` finds the folder from the branch instead of
   guessing, and archives it in that branch's PR. Take it from `git branch --show-current`.
-  On `main` or `test` (or a detached HEAD), propose a branch name (`feature/{req_name}`, or the
-  repo's own scheme if its branches follow one) and ask the user (HITL) before
-  `git switch -c {branch} main`. A branch already recorded in another `in-progress/` spec is
-  taken: say so and propose a new one.
+  Already on a feature branch → record it; never cut another one for the same work.
+  On `main` or `test` (or a detached HEAD), check the repo's flow (the session's *ALDC git*
+  line, or `gh api repos/{owner}/{repo}/properties/values` → `branch-protection-enabled`):
+  - **protection on** — propose a branch name (`feature/{req_name}`, or the repo's own scheme)
+    and ask the user (`AskUserQuestion`, with "stay on the current branch" as an option) before
+    `git switch -c {branch} main`. A branch already recorded in another `in-progress/` spec is
+    taken: say so and propose a new one.
+  - **protection off** (legacy flow, no PRs) — no branch: record `**Branch:** main`; the
+    one-branch-per-folder check does not apply, and the folder is archived in the completion
+    commit instead of a PR.
 - If `{req_name}.architecture.md` exists (HIGH), read it first — the spec implements it and
   references its TD-ids instead of repeating them.
 - If the spec already exists, confirm with the user before overwriting.

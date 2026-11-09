@@ -13,6 +13,16 @@ argument-hint: "<Branch> <Reviewer>"
 
 Your goal is to prepare a **pull request draft** for the branch `{Branch}` summarizing all modifications, test evidence, and validation steps.
 
+**First, check the repo's flow**: `gh api repos/{owner}/{repo}/properties/values --jq '.[]|select(.property_name=="branch-protection-enabled")|.value'`
+(or the session's *ALDC git* line). `false` → this repo has no PRs (legacy flow): say so in
+one line, archive the requirement folder in a commit on `main` instead (§ Requirement Folder
+steps, without the PR body), and offer "push to main and test?" — on yes run
+`bash "${CLAUDE_PLUGIN_ROOT}/tools/git/sync_main_test.sh"`. Stop there.
+
+**After the PR is merged** (asked later, or noticed): run
+`bash "${CLAUDE_PLUGIN_ROOT}/tools/git/cleanup_merged.sh"` — back to `main`, pulled, merged
+branches deleted — and report its lines.
+
 ## 🔒 Human Gate: Pre-PR Review
 
 **Before generating PR draft document:**

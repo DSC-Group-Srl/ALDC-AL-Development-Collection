@@ -1,397 +1,85 @@
 ---
 description: >
-  Generate or update CLAUDE.md file tracking project conventions, decisions, and
-  configuration for continuity across sessions. Use when you need to create or update
-  project memory, track decisions, or maintain session continuity.
-allowed-tools: Read, Grep, Glob, Write, Edit
+  Prune and recreate the project CLAUDE.md: keep only what a fresh session needs and cannot
+  derive, move decisions to app/requirements/memory.md, drop the rest, and show the result
+  before writing. Use when CLAUDE.md is long, stale, contradicts the plugin, or the
+  SessionStart hook suggests a refresh; also to create a first CLAUDE.md.
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash, AskUserQuestion
+argument-hint: "[--check]"
 ---
 
-# AL Project Memory (CLAUDE.md) Generator
+# Prune and recreate CLAUDE.md
 
-Generate and maintain a `CLAUDE.md` file that serves as the **project memory and configuration** - tracking conventions, decisions, learnings, and important context across development sessions.
+The project `CLAUDE.md` loads into **every** session and every subagent. Each line costs tokens
+on every turn, and each stale line steers agents wrong. It is not a diary, a backlog or a
+decision log. This command rebuilds it from what is true today.
 
-## Purpose
+`--check` → do steps 1–3 and report the classification only; write nothing.
 
-The `CLAUDE.md` file provides:
-- **Project Conventions**: Naming, structure, and coding standards for this project
-- **Session Continuity**: What happened in previous sessions
-- **Decision Log**: Why things were done a certain way
-- **Problem/Solution Patterns**: What issues occurred and how they were solved
-- **TODO Tracking**: What needs to be done next
-- **Learning Journal**: Insights gained during development
-- **Agent Context**: Loaded automatically by agents for consistent behavior
+## 1. Read
 
-This enables AI assistants and developers to pick up where they left off and build on previous work. The `CLAUDE.md` file replaces the legacy `memory.md` pattern, leveraging Claude Code's built-in project memory mechanism.
+- `CLAUDE.md` (and `CLAUDE.local.md` if present — report it, never edit it: it is personal).
+- `app.json` of every project (`find . -maxdepth 2 -name app.json`): name, publisher, idRanges,
+  prefix if visible from object names, dependencies, runtime/application.
+- `.github/AL-Go-Settings.json` `type` (PTE / AppSource App), `.code-workspace`, the folder
+  layout (`app/`, `app-test/`, `app-performance/`, `app-demo/`).
+- `app/requirements/memory.md` (the decision log), and `git log --format='%h %ad %s' --date=short -- CLAUDE.md | head -20`.
 
-## Execution Steps
+## 2. Classify every line or block of the current CLAUDE.md
 
-### 1. Initialize CLAUDE.md Structure
+| Class | What | Goes to |
+|---|---|---|
+| **Keep** | Project facts a fresh session cannot derive and needs: customer/product purpose in 1–3 lines, object prefix, idRanges per project, non-obvious build/symbol quirks, external systems and their contacts *by role*, test environment name, conventions this repo follows that differ from the bc-dev rules. | new CLAUDE.md |
+| **Move** | Decisions with a rationale ("we chose X because Y"). | `app/requirements/memory.md`, dated, one entry each |
+| **Drop: derivable** | Object lists, file trees, field lists, anything `app.json`, the code or `git log` already says. | nowhere |
+| **Drop: plugin duplicate** | Restated bc-dev rules, agent routing, coding standards, AL-Go flow, TDD/HITL principles. The plugin injects these itself; a copy only drifts. | nowhere |
+| **Drop: contradicts the plugin** | Notes overriding plugin behaviour — e.g. AL-Go release inputs (GoLive, directCommit, useGhTokenWorkflow: fixed in `bc-dev:skill-al-go-workflows` and enforced by a guard), "skip tests", "push without asking", branch policies (read from the repo's `branch-protection-enabled` property). | nowhere — list them to the user separately, they may reveal a plugin gap worth `bc-dev:skill-plugin-feedback` |
+| **Drop: stale** | Session diaries, "current focus", TODOs, done items, paths or objects that no longer exist (check with `Glob`/`Grep`), finished requirements. | nowhere (open TODOs the user still wants → their tracker, ask) |
 
-If `CLAUDE.md` doesn't exist, create with this template:
+When a line is ambiguous, keep it and mark it for the question in step 4 — never guess-delete a
+fact you cannot verify.
 
-```markdown
-# Project Configuration - [Extension Name]
+## 3. Draft the new file
 
-> **Purpose**: Project conventions, decisions, and configuration for AI agents and developers
-> **Maintained by**: AI assistants and developers
-> **Last Updated**: [Date]
-
-## Project Conventions
-
-**Naming Prefix**: [e.g., DSC]
-**Table ID Range**: [e.g., 50100..50199]
-**Page ID Range**: [e.g., 50100..50199]
-**Codeunit ID Range**: [e.g., 50100..50199]
-**Report ID Range**: [e.g., 50100..50199]
-**Query ID Range**: [e.g., 50100..50199]
-
-**Structure**: Feature-based organization (`src/feature/subfeature/`)
-**Events**: Event-driven architecture preferred
-**Permissions**: Least-privilege principle
-
-## Quick Reference
-
-**Current Focus**: [What we're working on now]
-**Next Steps**: [Immediate next actions]
-**Blockers**: [Current blockers if any]
-
----
-
-### [Date] - Session [N]
-
-**Focus**: [What was worked on]
-
-**Completed**:
-- [Task 1]
-- [Task 2]
-
-**Decisions Made**:
-- **[Decision]**: [Rationale]
-
-**Problems Encountered**:
-- **[Problem]**: [Solution or workaround]
-
-**Next Session**:
-- [ ] [Task to continue]
-- [ ] [Task to start]
-
-**Notes**:
-- [Any important observations]
-
----
-
-## Decision Log
-
-### [Date] - [Decision Title]
-
-**Context**: [Why this decision needed to be made]  
-**Options Considered**:
-1. [Option 1]: [Pros/Cons]
-2. [Option 2]: [Pros/Cons]
-
-**Decision**: [What was chosen]  
-**Rationale**: [Why this option]  
-**Impact**: [What this affects]  
-**Review Date**: [When to revisit if applicable]
-
----
-
-## Problem/Solution Patterns
-
-### [Problem Category] - [Specific Issue]
-
-**Symptom**: [What we observed]  
-**Root Cause**: [What was actually wrong]  
-**Solution**: [How we fixed it]  
-**Prevention**: [How to avoid in future]  
-**Related Code**: [File paths or line numbers]
-
----
-
-## Learning Journal
-
-### [Date] - [Topic/Insight]
-
-**What We Learned**: [Key insight or pattern discovered]  
-**Why It Matters**: [Impact on project]  
-**Where Applied**: [Code locations]  
-**Resources**: [Links to docs, articles that helped]
-
----
-
-## TODO & Backlog
-
-### High Priority
-- [ ] [Task] - [Why important] - [Target date]
-
-### Medium Priority
-- [ ] [Task] - [Context]
-
-### Future Ideas
-- [ ] [Idea] - [Rationale]
-
-### Done ✅
-- [x] [Completed task] - [Date completed]
-```
-
-### 2. If CLAUDE.md Exists - Update It
-
-**Add new session entry:**
-```
-# Check for recent changes
-Bash: git diff / git status
-
-# Check current problems
-Bash: al compile   (read the compiler output)
-
-# Check open work
-the TodoWrite list
-```
-
-**Update with:**
-- New session log entry at the top
-- Any decisions made in this session
-- Problems solved
-- Learnings discovered
-- Progress on existing TODOs
-- New TODOs identified
-
-### 3. Session Entry Creation
-
-For each development session, document:
-
-**Format:**
-```markdown
-### [Today's Date] - Session N
-
-**Focus**: [Main task(s) worked on]
-
-**Completed**:
-- ✅ [Specific accomplishment 1]
-- ✅ [Specific accomplishment 2]
-
-**Decisions Made**:
-- **[Decision Topic]**: [Choice made and brief reason]
-
-**Problems Encountered**:
-- **[Problem Description]**: 
-  - Symptom: [What we saw]
-  - Cause: [Root cause if known]
-  - Solution: [How fixed or workaround]
-
-**Learnings**:
-- [Insight gained from this session]
-
-**Next Session**:
-- [ ] [Continue/start task 1]
-- [ ] [Continue/start task 2]
-
-**Files Changed**:
-- `[file path]`: [What changed]
-
-**Notes**:
-- [Any other important context]
-```
-
-### 4. Decision Documentation
-
-When architectural/technical decisions are made:
+Target: **under 80 lines**. Structure (omit empty sections):
 
 ```markdown
-### [Date] - [Decision Title]
+# {App name} — Claude Code instructions
+<!-- aldc-refreshed: {YYYY-MM-DD} -->
 
-**Context**: 
-[What situation required this decision? What were we trying to solve?]
+{1–3 lines: what the app does, for whom (PTE for customer X / AppSource product Y).}
 
-**Options Considered**:
-1. **[Option 1]**
-   - Pros: [Benefits]
-   - Cons: [Drawbacks]
-   
-2. **[Option 2]**
-   - Pros: [Benefits]
-   - Cons: [Drawbacks]
+## Project facts
+- Prefix: `{XXX}` · idRanges: app {a..b}, test {c..d}
+- Layout: app/, app-test/ … (only if it differs from the AL-Go template)
+- Dependencies worth knowing: {only non-obvious ones and why}
 
-**Decision**: [What we chose]
+## Conventions that differ from bc-dev
+- …
 
-**Rationale**: 
-[Why this option was best given the context, constraints, and requirements]
+## Gotchas
+- {symptom → cause → what to do}, one line each
 
-**Implementation Notes**:
-- [Key points about how this was implemented]
-
-**Impact**: 
-- Code: [What code was affected]
-- Performance: [Performance implications if any]
-- Maintenance: [Ongoing maintenance considerations]
-
-**Review Date**: [Optional - when to revisit this decision]
-
-**References**:
-- [Links to documentation, discussions, etc.]
+Decisions: `app/requirements/memory.md`. Requirements: `app/requirements/`.
 ```
 
-### 5. Problem/Solution Pattern Documentation
+The stamp line is what the SessionStart hook reads to know when the file was last pruned —
+always write it with today's date.
 
-When bugs are fixed or challenges overcome:
+## 4. Confirm, then write
 
-```markdown
-### [Category] - [Problem Title]
+1. Show the user: the line count before → after, and per class a short list of what goes
+   (group, max 5 items per class; "+N more" if longer). List **contradicts the plugin** items
+   explicitly.
+2. Ask with `AskUserQuestion` (one call): write it as shown (recommended) / show the full new
+   file first / cancel. Add one question per genuinely ambiguous line (max 3).
+3. On yes: append the **Move** entries to `app/requirements/memory.md` (create it with
+   `# Decisions` if absent), write `CLAUDE.md`, and commit both on the current branch:
+   `docs: prune CLAUDE.md`. Do not push (pushing is its own question).
 
-**Date Encountered**: [Date]
+## Rules for this command and for every session
 
-**Symptom**: 
-[What behavior did we observe? What was wrong?]
-
-**Context**:
-[When does this happen? What conditions trigger it?]
-
-**Root Cause**: 
-[What was actually causing the problem?]
-
-**Solution**: 
-[How we fixed it - code changes, configuration, etc.]
-
-**Code Changed**:
-```al
-// Before
-[problematic code]
-
-// After
-[fixed code]
-```
-
-**Prevention**: 
-[How to avoid this in the future - pattern to follow, test to add, etc.]
-
-**Related**:
-- Files: `[file paths]`
-- Similar issues: [References to related problems]
-- Documentation: [Links to relevant docs]
-```
-
-### 6. Learning Capture
-
-When discovering new patterns or insights:
-
-```markdown
-### [Date] - [Topic]
-
-**What We Learned**:
-[The key insight, pattern, or understanding gained]
-
-**How We Learned It**:
-[Through debugging, documentation, experimentation, etc.]
-
-**Why It Matters**:
-[Impact on the project, development efficiency, code quality, etc.]
-
-**Where Applied**:
-- `[file path]`: [How this learning was applied]
-
-**Best Practice**:
-[If this leads to a best practice for this project]
-
-**Resources**:
-- [Links to documentation that helped]
-- [Code examples from BC or other sources]
-```
-
-### 7. Update Quick Reference
-
-At the end of each session, update the top section:
-
-```markdown
-## Quick Reference
-
-**Current Focus**: [Update with current work]  
-**Last Session**: [Date of last session]  
-**Next Steps**: 
-1. [Most immediate next action]
-2. [Second priority]
-
-**Active Blockers**: 
-- [Blocker 1]: [Status]
-
-**Recent Achievements** (Last 7 days):
-- [Achievement 1]
-- [Achievement 2]
-
-**Active Branch**: [Git branch if relevant]
-```
-
-### 8. Maintenance & Cleanup
-
-**Weekly:**
-- Move completed TODOs to "Done" section
-- Archive old session entries (keep last 10, summarize older ones)
-- Update code evolution section if major changes
-
-**Monthly:**
-- Review decision log - mark outdated decisions
-- Consolidate similar problem/solution patterns
-- Clean up deprecated patterns section
-- Update environment notes if setup changed
-
-## Output Format
-
-Deliver:
-1. ✅ Created/updated `CLAUDE.md` at project root
-2. ✅ Summary of key additions made
-3. ✅ Highlight any important patterns/decisions documented
-4. ✅ Suggest next session focus based on TODOs
-
-## Integration with Development Workflow
-
-### At Session Start
-```markdown
-**AI Assistant**: Load CLAUDE.md to understand:
-- What was done last session
-- What the plan was for this session
-- Any blockers or important context
-```
-
-### During Development
-```markdown
-**Capture**:
-- Decisions as they're made
-- Problems as they're encountered
-- Learnings as they're discovered
-```
-
-### At Session End
-```markdown
-**Update**:
-- Session log with completion status
-- TODOs with progress
-- Quick Reference with next steps
-```
-
-## Key Principles
-
-- **Chronological**: Most recent first for quick access
-- **Searchable**: Use clear headings and keywords
-- **Contextual**: Include enough context to understand later
-- **Actionable**: TODOs and next steps are concrete
-- **Honest**: Document failures and mistakes - they're learning opportunities
-- **Linked**: Reference files, line numbers, other sections
-- **Concise**: Important but brief - detailed docs go in context.md
-
-## Success Criteria
-
-A successful `CLAUDE.md` enables:
-- ✅ Picking up project after weeks away
-- ✅ Understanding why code is the way it is
-- ✅ Avoiding repeat mistakes
-- ✅ Building on previous learnings
-- ✅ Tracking progress over time
-- ✅ AI assistant continuity across sessions
-
-## Collaboration
-
-When multiple developers work on the project:
-- Each adds their session entries
-- Decisions are collaborative - note who participated
-- Problem solutions are shared learning
-- TODOs can be assigned to people
-- Communication log tracks cross-team discussions
+- Never append session notes, progress, TODOs or decisions to `CLAUDE.md`. Decisions go to
+  `app/requirements/memory.md`; requirement documents to `app/requirements/`.
+- Never record plugin overrides in `CLAUDE.md` or memory. If the plugin is wrong for this
+  project, that is a plugin issue (`bc-dev:skill-plugin-feedback`).

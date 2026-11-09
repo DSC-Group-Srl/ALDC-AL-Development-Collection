@@ -112,8 +112,11 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 
 1. **Worktrees.** Work on the requirement's own branch `{branch}`: the spec header's
    `**Branch:**` (one folder, one branch — its PR archives the folder). Check it out; absent →
-   create it from `main`. The spec has no Branch line → use the current branch unless it is
-   `main`/`test`, else propose `feature/{req}` (HITL), and write the line into the spec header.
+   create it from `main` (the user approved that name with the spec). The spec has no Branch
+   line → use the current branch unless it is `main`/`test`, else ask the user first
+   (`feature/{req}` vs staying on the current branch — never create one unasked), and write the
+   line into the spec header. `**Branch:** main` means the repo has branch protection off
+   (legacy flow): work on `main`, no PR.
    For each WP of the wave:
    `git worktree add "<repo>/../.aldc-wt/<repo-name>-{req}-wp<n>" -b aldc/{req}/wp<n> {branch}`
    and copy each project's `.alpackages/` into the worktree (symbols are untracked). Not a git
@@ -169,7 +172,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    append to the project CLAUDE.md** — it loads into every session and subagent.
 4. Move any document of this requirement lying loose in `in-progress/` into its folder, then
    `git mv app/requirements/in-progress/{req} app/requirements/archived/{req}`, commit on
-   `{branch}` so the move ships in that branch's PR. If the
+   `{branch}` so the move ships in that branch's PR (`main` in the legacy flow: it ships with
+   the push). If the
    user stops you before this step (manual testing still to come), say that
    `/bc-dev:al-pr-prepare` archives it when the work really ends.
 5. Emit the run metric (counts only):
@@ -184,7 +188,11 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)
    / follow-ups. Do not push or open a PR without the user's yes to this question: plan
-   approval covers your commits, not the push or the PR.
+   approval covers your commits, not the push or the PR. Legacy flow (`**Branch:** main`,
+   branch protection off): the question is "push to main and test?", and the push is
+   `tools/git/sync_main_test.sh` (it keeps both identical), never a PR.
+   When the PR is later merged, the main thread runs `tools/git/cleanup_merged.sh` (back to
+   `main`, merged branches deleted).
 8. **Once the PR is open, point to what comes next.** Read the flavour from
    `.github/AL-Go-Settings.json` `type`. If the file is missing, the repo isn't on AL-Go and
    this step doesn't apply. Give the user at most four lines, then stop: these are human steps,

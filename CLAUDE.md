@@ -39,7 +39,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
                             #   the al-*.md domain files to .claude/aldc-rules/ (on demand)
   hooks/hooks.json          #   SessionStart, PreToolUse, SubagentStop, SessionEnd wiring
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
-                            #   conductor-guard, freshdesk-guard, metrics; testlane/ (shared test env + lock)
+                            #   conductor-guard, freshdesk-guard, al-go-guard, git (branch
+                            #   policy, post-merge cleanup, main/test sync), claudemd, metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 

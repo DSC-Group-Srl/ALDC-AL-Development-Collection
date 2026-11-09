@@ -76,7 +76,7 @@ Invoked explicitly from the chat input. Implemented as plugin slash commands und
 | Spec Create | `/bc-dev:al-spec-create` | Create functional-technical specifications |
 | Build | `/bc-dev:al-build` | Build, package, deploy extensions |
 | PR Prepare | `/bc-dev:al-pr-prepare` | Prepare pull requests with validation |
-| Memory Create | `/bc-dev:al-memory-create` | Generate session continuity memory |
+| Memory Create | `/bc-dev:al-memory-create` | Prune and recreate the project CLAUDE.md (decisions move to `app/requirements/memory.md`) |
 | Context Create | `/bc-dev:al-context-create` | Generate project context for AI |
 | Initialize | `/bc-dev:al-initialize` | Full environment and workspace setup |
 | Agent Create | `/bc-dev:al-agent-create` | Create a coded BC agent (Agent SDK) |

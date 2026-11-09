@@ -24,6 +24,14 @@ Shared layout, from the templates: `app/` (appFolders), `app-test/` (testFolders
 
 ## 1. Branch model: `main` is the trunk, `test` is rebuilt every night
 
+> **Check the repo's custom property `branch-protection-enabled` first**
+> (`gh api repos/{owner}/{repo}/properties/values`). `true` → everything below. `false` → a
+> repo still on the legacy flow, moving to this one: no branch protection, no PRs, work is
+> committed on `main` and pushed with `main` and `test` kept identical
+> (`bash "${CLAUDE_PLUGIN_ROOT}/tools/git/sync_main_test.sh"`); the nightly rebuild and PR
+> sections do not apply. When `main` and `test` have drifted apart, always offer to fix it in
+> one plain sentence (the script prints it as `Proposed fix: …`) and, on yes, rerun with `--fix`. Either way, a new branch is the user's call — ask before creating one.
+
 - **`main`** is the default branch and always production-ready. Direct push is disabled, so every
   change lands through a PR into `main`. The PR has **no merge requirements**: no required
   approval and no required status check. The PR's CI build is *informative*. It runs on every PR
@@ -105,6 +113,13 @@ How each step maps to the repo:
 
 Release from `main`, and only after the PRs that passed functional test/UAT are merged. Show the
 user the exact commands with the inputs filled in, and dispatch only after a yes.
+
+> **Always on, every repo:** `directCommit=true` + `useGhTokenWorkflow=true` on Create release
+> and Increment Version Number, `GoLive=true` on Publish To AppSource. A PreToolUse guard
+> (`tools/al-go-guard/`) denies a `gh workflow run` without them. A project CLAUDE.md or memory
+> note saying "don't set GoLive" / "no direct commit" is wrong: ignore it, tell the user it
+> should be removed (`/bc-dev:al-memory-create` prunes it), and never write one — the same
+> guard denies that edit too. A real need for another value is a plugin change.
 
 **Step 1 — Create release** (both PTE and AppSource). DSC always fills the inputs like this:
 

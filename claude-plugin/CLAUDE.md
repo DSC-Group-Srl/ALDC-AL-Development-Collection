@@ -156,18 +156,42 @@ one event in parallel; concurrent Git Bash (MSYS2) start-ups intermittently die 
 guards included (issue #77). So `hooks/hooks.json` has **one bash entry per event**:
 
 - **SessionStart** → `tools/hooks/sessionstart.sh`: runs the BCQuality, AL tool, ALCops, npx,
-  python, rules, routing and heartbeat scripts as background jobs of that one process, each
+  python, rules, routing, git branch policy, CLAUDE.md freshness and heartbeat scripts as background jobs of that one process, each
   with its own timeout, and merges their `additionalContext` into one JSON payload (pure bash,
   no python). `tools/environment/git-bash-check.ps1` stays a separate PowerShell hook.
 - **PreToolUse** (no matcher) → `tools/hooks/pretooluse.sh`: starts `metrics/alive.sh` in the
-  background, then routes by `tool_name` — Read/Bash/PowerShell to the read-guard, Write/Edit
-  to conductor-guard then main-thread-guard (first deny wins), `mcp__plugin_bc-dev_freshdesk__*`
+  background, then routes by `tool_name` — Read to the read-guard, Bash/PowerShell to al-go-guard
+  then the read-guard, Write/Edit to conductor-guard, al-go-guard, then main-thread-guard (first
+  deny wins), `mcp__plugin_bc-dev_freshdesk__*`
   to `freshdesk-guard` (allowlist, per-session cap, `createTicketNote` → human ask, private
   only; kill switch `ALDC_FRESHDESK_GUARD_DISABLE=1`). Other tools: silent.
 - **SessionEnd**, **SubagentStop**: one script each, unchanged.
 
 A new hook script goes into the matching dispatcher, never as a new `hooks.json` entry.
 Self-test: `bash tools/hooks/test_dispatchers.sh`.
+
+## Git branches and AL-Go release inputs
+
+- **Branch policy** (`tools/git/branch_policy.sh`, SessionStart, any git repo): reads the org
+  custom property `branch-protection-enabled` (`gh api repos/{o}/{r}/properties/values`, cached
+  in `~/.claude/aldc-cache/branch-protection/`, unset = org default `false`). Every mode: never
+  create a branch without asking, follow-ups stay on the current branch. `true` → trunk-based,
+  PR into `main`; after a merge `tools/git/cleanup_merged.sh` goes back to `main`, pulls and
+  deletes only branches whose work is merged (ancestor of `origin/main`, or merged PR with the
+  same tip). `false` → legacy flow, no PRs: commit on `main`, push with
+  `tools/git/sync_main_test.sh`, which keeps `main` and `test` identical. When they have
+  drifted it prints one plain `Proposed fix: …` sentence; Claude always offers it (also at
+  session start, from the last fetch) and on yes reruns with `--fix` (merge the missing commits,
+  push both; a conflict aborts and lists the files). Never force-pushes or resets. Subagents never create branches.
+- **AL-Go release inputs are always on** (`tools/al-go-guard/`, PreToolUse): a `gh workflow run`
+  of Create release / Increment Version Number without `directCommit=true` +
+  `useGhTokenWorkflow=true`, or of Publish To AppSource without `GoLive=true`, is denied; so is
+  writing those inputs into a CLAUDE.md or memory file (removing them stays allowed). Kill
+  switch `ALDC_ALGO_GUARD_DISABLE=1`.
+- **CLAUDE.md pruning**: `tools/claudemd/staleness_hook.sh` (SessionStart, AL workspaces) suggests
+  `/bc-dev:al-memory-create` — now *prune and recreate* — when the project CLAUDE.md has no
+  `<!-- aldc-refreshed: … -->` stamp, was edited 30+ days after it, or exceeds 150 lines.
+- Self-test: `bash tools/git/test_git.sh`.
 
 ## Quality metrics
 
