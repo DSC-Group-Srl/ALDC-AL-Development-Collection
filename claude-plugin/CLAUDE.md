@@ -156,7 +156,7 @@ one event in parallel; concurrent Git Bash (MSYS2) start-ups intermittently die 
 guards included (issue #77). So `hooks/hooks.json` has **one bash entry per event**:
 
 - **SessionStart** → `tools/hooks/sessionstart.sh`: runs the BCQuality, AL tool, ALCops, npx,
-  python, rules, routing, git branch policy, CLAUDE.md freshness and heartbeat scripts as background jobs of that one process, each
+  python, rules, routing, git branch policy, CLAUDE.md freshness, VS Code workspace and heartbeat scripts as background jobs of that one process, each
   with its own timeout, and merges their `additionalContext` into one JSON payload (pure bash,
   no python). `tools/environment/git-bash-check.ps1` stays a separate PowerShell hook.
 - **PreToolUse** (no matcher) → `tools/hooks/pretooluse.sh`: starts `metrics/alive.sh` in the
@@ -192,6 +192,17 @@ Self-test: `bash tools/hooks/test_dispatchers.sh`.
   `/bc-dev:al-memory-create` — now *prune and recreate* — when the project CLAUDE.md has no
   `<!-- aldc-refreshed: … -->` stamp, was edited 30+ days after it, or exceeds 150 lines.
 - Self-test: `bash tools/git/test_git.sh`.
+
+## VS Code workspace awareness
+
+`tools/vscode/workspace_hook.sh` (SessionStart, any folder): when the session runs inside a VS Code
+window with a multi-root workspace, it lists the window's other folders (AL app name, own git
+repo) so the agent looks there before saying a file or project does not exist. It reads the lock
+file the Claude Code VS Code extension writes per window (`~/.claude/ide/<port>.lock`,
+`workspaceFolders`), picked by `$CLAUDE_CODE_SSE_PORT`, or — only when the environment says
+VS Code — by the live lock that contains the session folder. No lock, a single-folder window or
+only nested folders: silent. Pure bash. Kill switch `ALDC_VSCODE_WORKSPACE_DISABLE=1`.
+Self-test: `bash tools/vscode/test_workspace.sh`.
 
 ## Quality metrics
 
