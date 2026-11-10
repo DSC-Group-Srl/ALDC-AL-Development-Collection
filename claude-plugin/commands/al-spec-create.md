@@ -32,6 +32,21 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
   never loose in `in-progress/`, so archiving is a single `git mv`. The move to `archived/` is
   al-conductor's §3 Completion, or `/bc-dev:al-pr-prepare`'s closure step when the work ends
   outside the conductor.
+- **One requirement, one Business Central Issue.** DSC plans and bills the work as an Issue
+  in its own Business Central; the spec header's `**BC Issue:**` line is what ties estimates,
+  telemetry and timesheets to it. Before writing the spec, load `bc-dev:skill-bc-issue` and
+  derive the likely Issue (the repo's `customer` property plus the open Issues assigned to
+  the developer), **propose it and let the user confirm** — "yes", another one, or no Issue —
+  then link the session (`emit.py AldcIssue`) and write
+  `**BC Issue:** <entryNo> (<issueListRef>)`. A number the user already gave is verified, not
+  asked again.
+  No Issue exists, or the `businesscentral` connection is not signed in and the user has no
+  number → write `**BC Issue:** none` and move on; never block the spec on it, never create an
+  Issue. Many Issues carry no estimate, and that is fine. When the Issue carries `estimatedHours`, quote it in the spec's effort section; when
+  its notes carry the estimator's agent wall-clock (P50 / P80 minutes), write the header line
+  `**Agent estimate:** P50 <n> min · P80 <n> min (stima-sviluppo)` exactly in that shape. Both
+  header lines are read by the telemetry script itself (session start, run start), so nobody
+  has to pass the numbers again: keep them on their own lines, in the header.
 - **One requirement folder, one branch.** The spec header records the branch the work is done
   on (`**Branch:**`), so `/bc-dev:al-pr-prepare` finds the folder from the branch instead of
   guessing, and archives it in that branch's PR. Take it from `git branch --show-current`.

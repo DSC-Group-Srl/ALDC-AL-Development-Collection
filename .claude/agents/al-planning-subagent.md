@@ -4,7 +4,7 @@ description: >
   Internal AL-aware research and context gathering subagent for Business Central
   development. Only invoked by al-conductor via Task tool. Returns structured
   findings to Conductor for plan creation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*, mcp__claude_ai_Code_Reader_DSC__find_app, mcp__claude_ai_Code_Reader_DSC__search_customer, mcp__claude_ai_Code_Reader_DSC__list_customers, mcp__claude_ai_Code_Reader_DSC__customer_map, mcp__claude_ai_Code_Reader_DSC__app_overview, mcp__claude_ai_Code_Reader_DSC__code_map, mcp__claude_ai_Code_Reader_DSC__search_code, mcp__claude_ai_Code_Reader_DSC__read_file, mcp__claude_ai_Code_Reader_DSC__where_used, mcp__claude_ai_Code_Reader_DSC__find_field, mcp__claude_ai_Code_Reader_DSC__event_hooks, mcp__claude_ai_Code_Reader_DSC__standard_code, mcp__claude_ai_Code_Reader_DSC__caption_of, mcp__claude_ai_Code_Reader_DSC__recent_changes
 model: sonnet
 effort: medium
 color: yellow
@@ -45,6 +45,12 @@ Answer only what the Conductor listed as a gap, plus anything the WP draft canno
 implemented without:
 
 - relevant base objects and existing extensions (type, ID, name, exact file path);
+- what lives **outside this workspace** and the WP draft depends on — a dependency app's
+  procedure, another app of the same customer on the same event or table, the standard code
+  around a hook: the DSC Code Reader tools (`find_app`, `customer_map`, `where_used`,
+  `event_hooks`, `standard_code`, `read_file`). One resolve, then one or two reads; cite repo,
+  path and commit date; keep object names and IDs (its "no technical words" voice is for
+  consultants, not for you). Tools absent → an uncertainty, not a guess;
 - events to subscribe to or publish — confirm existence with **one targeted**
   `al_symbolsearch` / `al_symbolrelations` per event, never by name-variant guessing;
   unresolved → an uncertainty, not a guess;

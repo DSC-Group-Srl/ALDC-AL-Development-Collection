@@ -6,6 +6,8 @@
 
 **Version:** 1.0 · **Date:** YYYY-MM-DD · **Complexity:** [LOW / MEDIUM / HIGH] · **Status:** [Draft / Approved / Implemented]
 **Branch:** `{branch}` *(the one branch this requirement is built on; its PR archives this folder)*
+**BC Issue:** {entryNo} ({issueListRef}) *(the DSC Business Central Issue this work is planned and billed on — `skill-bc-issue`; `none` when there is none)*
+**Agent estimate:** P50 {n} min · P80 {n} min ({stima-sviluppo|manual}) *(agent wall-clock from the Issue's estimate, when it has one — otherwise delete this line; the telemetry script reads it, so keep the shape)*
 
 ---
 

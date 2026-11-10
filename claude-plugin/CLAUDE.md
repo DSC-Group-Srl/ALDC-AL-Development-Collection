@@ -19,7 +19,7 @@ Route user requests to the appropriate agent:
 | Design, architecture, strategy | `bc-dev:al-architect` | Solution design, data modeling, integration strategy |
 | Implement, code, debug, fix | `bc-dev:al-developer` | Tactical AL implementation with full tool access |
 | Planned feature (MEDIUM/HIGH) | `bc-dev:al-conductor` | Plan once -> parallel work packages in git worktrees -> review + locked test lane per wave -> commit |
-| Estimate, size, propose | `bc-dev:al-presales` | PERT estimation, SWOT analysis, cost breakdown |
+| Estimate, size, propose | *not in bc-dev* — `/bc-cons:stima-sviluppo` (plugin `bc-cons`) | The calibrated estimator (human hours and agent effort, tuned on bc-dev telemetry) lives there; it writes the estimate on the Business Central Issue, and bc-dev reads it back with `skill-bc-issue`. bc-dev had its own `al-presales` agent and `skill-estimation` until 8.20; they were retired so there is one estimation method. |
 | Build BC agents | `bc-dev:al-agent-builder` | AI Development Toolkit agent creation |
 | Diagnose a bug / incident (existing code, or a Freshdesk ticket number) | `bc-dev:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `bc-dev:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
@@ -133,6 +133,8 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | **Run tests** | Only through the **test lane** (`bc-dev:skill-test-lane`, `tools/testlane/lane.py`): the user picks the environment from `.vscode/launch.json` (none usable → add one, or accept *tests not executed*); a lock serializes the one shared environment across parallel work packages and sessions. The AL CLI lower-cases its options, so the lane targets an environment via a single-configuration scratch `launch.json` + `--project`. No usable environment and the repo has `.AL-Go/localDevEnv.ps1` → `bc-dev:skill-al-go-devenv` creates a local container non-interactively (one UAC click) and registers its credentials where the AL CLI reads them (`tools/testlane/save-onprem-credentials.ps1`). |
 | **Auth (cloud/AAD)** | **al-mcp** `al_auth_login`/`al_auth_logout`, or `Bash: al auth login`/`logout`. Usually unnecessary — `al_downloadsymbols`/`al_publish`/`al_run_tests` default to `useInteractiveLogin=true` and handle it inline. |
 | **Freshdesk tickets** (dsc-group.freshdesk.com) | **freshdesk** MCP (`mcp__plugin_bc-dev_freshdesk__*`), opt-in via the developer's own `FRESHDESK_API_KEY` — load `bc-dev:skill-freshdesk` first (setup, call budget, read/note templates). Read one ticket by number, once; write only confirmed private notes, never a reply. `tools/freshdesk-guard/` enforces the allowlist and the per-session cap. |
+| **DSC's own Business Central** (Issues, Tasks, Projects, booked hours) | **businesscentral** MCP (`mcp__plugin_bc-dev_businesscentral__*`): DSC tenant, `Production`, company `DSC GROUP SRL`, configuration `OPERATIONS`, the developer's own sign-in. **Read-only** (`tools/bc-guard/` denies everything but `List_` actions). Load `bc-dev:skill-bc-issue` first: it finds the Issue a piece of work belongs to, links the session to it (`emit.py AldcIssue`) and reads the estimate and booked hours on it. Never a customer's Business Central. |
+| **Code outside the workspace** (a dependency app, the customer's other apps, standard BC) | **DSC Code Reader** — DSC's organisation connector (`mcp__claude_ai_Code_Reader_DSC__*`), not a plugin server: load `bc-dev:skill-code-reader`. Read-only by rule; its issue tools are never used. Not connected → `skill-gitcloner`. |
 | **Debug / snapshot / CPU profile** | **VS Code only** (AL debugger, snapshot debugging, CPU profiler) — a human step, not an agent tool on this surface. |
 
 > Steer away from waste, don't ban tools: prefer **al-mcp** for symbol facts (it's grounded and cheaper than re-reading files), but `microsoft-docs`/`context7`/`WebSearch` remain fair game for conceptual gaps. Flag what you genuinely can't resolve rather than burning turns on trial-and-error tool bursts.
@@ -156,7 +158,7 @@ one event in parallel; concurrent Git Bash (MSYS2) start-ups intermittently die 
 guards included (issue #77). So `hooks/hooks.json` has **one bash entry per event**:
 
 - **SessionStart** → `tools/hooks/sessionstart.sh`: runs the BCQuality, AL tool, ALCops, npx,
-  python, rules, routing, git branch policy, CLAUDE.md freshness, VS Code workspace and heartbeat scripts as background jobs of that one process, each
+  python, rules, routing, git branch policy, CLAUDE.md freshness, VS Code workspace, Business Central Issue link and heartbeat scripts as background jobs of that one process, each
   with its own timeout, and merges their `additionalContext` into one JSON payload (pure bash,
   no python). `tools/environment/git-bash-check.ps1` stays a separate PowerShell hook.
 - **PreToolUse** (no matcher) → `tools/hooks/pretooluse.sh`: starts `metrics/alive.sh` in the
@@ -164,7 +166,11 @@ guards included (issue #77). So `hooks/hooks.json` has **one bash entry per even
   then the read-guard, Write/Edit to conductor-guard, al-go-guard, then main-thread-guard (first
   deny wins), `mcp__plugin_bc-dev_freshdesk__*`
   to `freshdesk-guard` (allowlist, per-session cap, `createTicketNote` → human ask, private
-  only; kill switch `ALDC_FRESHDESK_GUARD_DISABLE=1`). Other tools: silent.
+  only; kill switch `ALDC_FRESHDESK_GUARD_DISABLE=1`), `mcp__plugin_bc-dev_businesscentral__*`
+  to `bc-guard` (only `List_` actions run on DSC's Business Central; kill switch
+  `ALDC_BC_GUARD_DISABLE=1`), Task/Agent to `issue/run_guard.sh` (a conductor run starts
+  only once the Business Central Issue was asked; kill switch
+  `ALDC_ISSUE_RUN_GUARD_DISABLE=1`). Other tools: silent.
 - **SessionEnd**, **SubagentStop**: one script each, unchanged.
 
 A new hook script goes into the matching dispatcher, never as a new `hooks.json` entry.
@@ -193,6 +199,64 @@ Self-test: `bash tools/hooks/test_dispatchers.sh`.
   `<!-- aldc-refreshed: … -->` stamp, was edited 30+ days after it, or exceeds 150 lines.
 - Self-test: `bash tools/git/test_git.sh`.
 
+## DSC Business Central and the Issue link
+
+`.mcp.json` carries a `businesscentral` server: DSC's **own** production Business Central
+(company `DSC GROUP SRL`, configuration `OPERATIONS`), the same one `dsc-timesheet` uses. Its
+purpose is to tie a piece of work to the **Issue** DSC plans and bills it on, so estimates,
+telemetry and the prediction model join on one key.
+
+- **The URL ends in `?c=bc-dev` on purpose.** Claude Code drops MCP servers that share a URL,
+  and every Business Central connection has the same one. Without the suffix this entry and
+  `dsc-timesheet`'s would fight and one plugin would lose its tools. The server ignores the
+  query string. Each connection signs in separately. Don't "clean it up".
+- **Read-only, structurally.** `OPERATIONS` also exposes writes (Issues, Tasks, the timesheet
+  insert API). `tools/bc-guard/pretooluse_hook.sh` allows search, describe and `List_`
+  invokes and denies the rest. It only matches bc-dev's own server name, so `dsc-timesheet`
+  keeps writing timesheet lines on its connection.
+- **The link.** `skill-bc-issue` derives the likely Issue once — the repo's `customer`
+  (and `product`) property plus the open Issues assigned to the developer, whose employee
+  record is found from the company e-mail (`tools/issue/whoami.sh`: gh account, then
+  `git config user.email`, then the Claude account) — **proposes it and the user confirms**
+  (yes / another one / no Issue; never linked without a yes), then writes
+  `**BC Issue:** <entryNo>` in the spec header. An Issue without an estimate is normal. From there it is **scripts, not the model's memory**:
+  `tools/issue/link_hook.sh` (SessionStart, AL workspaces) runs
+  `emit.py AldcIssue --from-branch`, which finds the in-progress spec whose `**Branch:**` is
+  the checked-out branch and links the session; `AldcRunStart` / `AldcEstimate` read the same
+  line by `req`, and `AldcEstimate` also takes `estP50Min`/`estP80Min` from the spec's
+  `**Agent estimate:** P50 <n> min · P80 <n> min (<source>)` line. `ident.py` keeps the link in
+  `<live dir>/<session>.issue` and adds `issueNo` to **every** event of the session. Digits
+  only — `ident.RE_ISSUE` — so the no-free-text rule below holds; the scripts read the spec's
+  header block and nothing else. A spec without the line, or a feature branch without a spec,
+  gets a one-line nudge at session start; `none` is silent. Kill switch
+  `ALDC_ISSUE_LINK_DISABLE=1`; self-test `bash tools/issue/test_link.sh`.
+  **A run asks first:** `tools/issue/run_guard.sh` (PreToolUse on Task/Agent) denies launching
+  `al-conductor` until the brief or the branch's spec says `BC Issue: <number|none>`; the deny
+  tells the main thread to ask the user with `AskUserQuestion`. "None" passes, so it never
+  blocks for good. Kill switch `ALDC_ISSUE_RUN_GUARD_DISABLE=1`.
+  Why structural: before 8.20 the telemetry had 72 conductor runs and 0 with an Issue or an
+  estimate, and two thirds of all measured tokens sat in sessions tied to no task.
+- **Who uses it.** The main thread (routing hook) and `/bc-dev:al-spec-create` resolve and
+  record the Issue and quote the estimate already on it (estimating itself is `bc-cons`'s
+  `/stima-sviluppo`, not bc-dev's); `al-triage` maps a Freshdesk ticket to its Issue; `al-conductor` only reads the spec line.
+- **Customer tenants are out of scope.** Reaching a customer's Business Central through
+  delegated (GDAP) access needs the Entra app authorized in each customer tenant by someone
+  holding Application Administrator or Cloud Application Administrator there, and tokens from
+  the Azure CLI carry no delegated role. Tested 2026-11 on three customers; parked.
+- Files and notes of an Issue (Teams/SharePoint, Markdown notes) are not in the API yet:
+  DSC-Group-Srl/dscgroup-base#74.
+
+## DSC Code Reader
+
+`skill-code-reader` and the `tools:` lists of `al-architect`, `al-developer`, `al-triage`
+and `al-planning-subagent` use DSC's organisation connector
+(`mcp__claude_ai_Code_Reader_DSC__*`, a read-only subset — never its issue tools). It is **not**
+in `.mcp.json`: a plugin entry on the same URL displaces the working organisation connector
+(verified with a local entry), and Claude Code cannot sign in to it yet — the Entra app
+`dsc-code-reader-claude-connector` has no public-client redirect `http://localhost:<port>/callback`.
+Once IT adds one, add the server here with that `oauth.clientId`/`callbackPort` and list
+`mcp__plugin_bc-dev_code-reader__*` next to the connector names in those agents.
+
 ## VS Code workspace awareness
 
 `tools/vscode/workspace_hook.sh` (SessionStart, any folder): when the session runs inside a VS Code
@@ -203,6 +267,25 @@ file the Claude Code VS Code extension writes per window (`~/.claude/ide/<port>.
 VS Code — by the live lock that contains the session folder. No lock, a single-folder window or
 only nested folders: silent. Pure bash. Kill switch `ALDC_VSCODE_WORKSPACE_DISABLE=1`.
 Self-test: `bash tools/vscode/test_workspace.sh`.
+
+## What the telemetry told us (9.0)
+
+Four findings from the Application Insights data and from local transcripts, and what changed:
+
+- **Session totals were missing for most finished runs** — `session_end.sh` ran in the
+  foreground and was killed when the user exited. It now parks the payload in a temp file and
+  detaches the worker (returns in ~0.2 s).
+- **The conductor's own phase was not joined to its run** — it stops after its `AldcRun`
+  closed the run. `parse_subagent.live_run()` now joins `al-conductor` to a run that finished
+  in the last 15 minutes.
+- **13% of test-lane publishes came back as a bare `failed`.** Mined from real lane output:
+  server-side compile failures, a version block in a wording the regex did not know (so no
+  `nextScratchVersion` was offered), "in use by another tenant", object-ID conflicts, failed
+  upgrades. `lane.py` now names them (`publish-<cause>` in telemetry) and returns a `hint`.
+- **The conductor is the most expensive agent** — a median of 187 turns at ~200k tokens each
+  on the transcripts measured, with `sleep`/polling loops, one Bash call per git command and
+  translation work done by the orchestrator itself. Its definition now says so in numbers,
+  and it no longer has the translation tools.
 
 ## Quality metrics
 
@@ -271,6 +354,14 @@ four files only when the project has not been initialized.
 ## Targeted reads
 
 `agents/al-file-reader.md` (Haiku) returns exact line ranges for a question over large files;
-`tools/read-guard/` (PreToolUse on Read/Bash/PowerShell, routed by `tools/hooks/pretooluse.sh`) denies the first whole-file read of a
-source file over `ALDC_READ_MIN_LINES` (350) in an AL workspace and allows the repeat (Edit needs
-one full read). Modeled on Spotify's "shunt" bulk-reader. Kill switch `ALDC_READ_GUARD_DISABLE=1`.
+`tools/read-guard/` (PreToolUse on Read/Bash/PowerShell, routed by `tools/hooks/pretooluse.sh`) denies a whole-file read of a
+source file over `ALDC_READ_MIN_LINES` (350) in an AL workspace — the first two attempts; a third
+identical one is the escape. Modeled on Spotify's "shunt" bulk-reader. Kill switch
+`ALDC_READ_GUARD_DISABLE=1`.
+
+**Editing does not need a full read.** Claude Code's `Edit` (and `Write` over an existing file)
+only requires that the file was `Read` at all: a 5-line ranged read is enough, also for an edit
+elsewhere in the file (verified 2026-11 in this harness). Up to 8.x the guard, the agent contract
+and this file all said the opposite ("Edit needs one full read — repeat the read"), so every
+denial was answered by reading the whole file again: thousands of whole reads, five
+`al-file-reader` calls. Don't reintroduce that sentence anywhere.

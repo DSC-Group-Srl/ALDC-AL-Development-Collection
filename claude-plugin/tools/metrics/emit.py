@@ -7,6 +7,22 @@
     python emit.py AldcRead action=blocked lines=1840 chars=90211
     python emit.py AldcHook hook=read-guard decision=deny ms=41
     python emit.py AldcHook hook=freshdesk-guard decision=ask tool=createTicketNote calls=2
+    python emit.py AldcIssue issueNo=<entryNo> source=<spec|user|freshdesk|history|branch>
+
+`AldcIssue` links the SESSION to a DSC Business Central Issue (its entryNo): from then on every
+event of the session - runs, phases, the session total - carries `issueNo` (ident.py), so
+effort joins to the Issue's estimated and actual hours. `issueNo=0` clears the link. Digits
+only: no description, customer or project ever travels with it.
+
+The script reads the spec, the model does not have to remember:
+
+    python emit.py AldcIssue --from-branch      (SessionStart hook, tools/issue/link_hook.sh)
+
+finds the in-progress spec whose `**Branch:**` is the checked-out branch, links the session to
+its `**BC Issue:** <entryNo>` and prints `issue=<n>` | `issue=none` (the spec says none) |
+`issue=missing` (a spec without the line) | `issue=nospec`. AldcRunStart and AldcEstimate do
+the same from `req`, and AldcEstimate also takes `estP50Min`/`estP80Min`/`estSource` from the
+spec's `**Agent estimate:** P50 <n> min · P80 <n> min (<source>)` line when the caller passed none.
 
 Live progress (al-conductor), read by the GITCloner control panel:
 
@@ -95,6 +111,8 @@ EVENTS: dict[str, set[str]] = {
     # tool/calls: freshdesk-guard reports the allowlisted Freshdesk tool name (or "other") and
     # the session's call count - never a ticket id, text or tool_input.
     "AldcHook": {"hook", "decision", "ms", "tool", "calls"},
+    # The session's link to a DSC BC Issue: the entryNo (digits) and where the link came from.
+    "AldcIssue": {"issueNo", "source"},
     "AldcRunStart": {"tier", "wpsPlanned", "waves", "lane"} | RUN_KEYS,
     "AldcWave": {"stage", "wave", "waves", "wps", "verdict", "lane", "passed", "failed",
                  "fixLoops", "durationS"} | RUN_KEYS,
@@ -108,9 +126,10 @@ LIVE_EVENTS = {"AldcRunStart", "AldcWave", "AldcWp", "AldcRun", "AldcLane", "Ald
 TICK_EVENTS = LIVE_EVENTS | {"AldcAlive"}
 STRING_KEYS = {"tier", "lane", "outcome", "result", "action", "hook", "decision", "envType",
                "stage", "verdict", "req", "runId", "agent", "tool", "model", "estSource",
-               "issueNo", "gate"}
+               "issueNo", "gate", "source"}
 # String keys whose value must also come from a closed set.
 ENUM_VALUES = {"estSource": {"stima-sviluppo", "manual", "none"},
+               "source": {"spec", "user", "freshdesk", "history", "branch"},
                "gate": {"fixloop", "conflict", "stall", "blocked", "contradiction", "other", "autostop"}}
 RE_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
 RE_NUM = re.compile(r"^-?\d+(?:\.\d+)?$")
@@ -370,6 +389,78 @@ def plan_base(req: str, cwd: str) -> str:
     return ""
 
 
+RE_SPEC_ISSUE = re.compile(r"^\*\*BC Issue:\*\*[ \t]*([1-9][0-9]{0,9}|none)\b", re.M | re.I)
+RE_SPEC_BRANCH = re.compile(r"^\*\*Branch:\*\*[ \t]*`?([A-Za-z0-9._/-]{1,120})`?", re.M)
+RE_SPEC_EST = re.compile(r"^\*\*Agent estimate:\*\*[ \t]*P50[ \t]+(\d{1,5})[ \t]*min\b[^\n]{0,20}?P80[ \t]+(\d{1,5})[ \t]*min"
+                         r"(?:[ \t]*\(([a-z-]{1,20})\))?", re.M | re.I)
+
+
+def _read_spec(path: str) -> dict[str, str]:
+    """The three header facts of one spec: issue ("<digits>" | "none" | ""), branch, estimate."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            head = fh.read(8000)  # the header block only; never the body
+    except OSError:
+        return {}
+    out: dict[str, str] = {}
+    m = RE_SPEC_ISSUE.search(head)
+    if m:
+        out["issue"] = m.group(1).lower()
+    m = RE_SPEC_BRANCH.search(head)
+    if m:
+        out["branch"] = m.group(1)
+    m = RE_SPEC_EST.search(head)
+    if m:
+        out["p50"], out["p80"] = m.group(1), m.group(2)
+        if (m.group(3) or "").lower() in ENUM_VALUES["estSource"]:
+            out["estSource"] = m.group(3).lower()
+    return out
+
+
+def spec_facts(cwd: str, req: str = "", branch: str = "") -> dict[str, str] | None:
+    """Header facts of the requirement's spec: by `req` (the conductor's events) or by the
+    checked-out branch (SessionStart). None when there is no such spec."""
+    import glob
+
+    top = (_git(["rev-parse", "--show-toplevel"], cwd) or "").strip() or cwd
+    roots = list(dict.fromkeys((cwd, top)))
+    if req:
+        if not RE_TOKEN.match(req) or ".." in req:
+            return None
+        for root in roots:
+            for pat in ("requirements/*", "*/requirements/*", ".github/plans"):
+                for path in sorted(glob.glob(os.path.join(root, pat, req, f"{req}.spec.md"))):
+                    return _read_spec(path)
+        return None
+    if not branch:
+        return None
+    for root in roots:
+        for pat in ("requirements/in-progress/*/*.spec.md", "*/requirements/in-progress/*/*.spec.md"):
+            for path in sorted(glob.glob(os.path.join(root, pat))):
+                facts = _read_spec(path)
+                if facts.get("branch") == branch:
+                    return facts
+    return None
+
+
+def link_from_branch(cwd: str, session: str) -> tuple[str, bool]:
+    """(status, newly_linked) for the SessionStart hook; status is the printed token."""
+    import ident
+
+    branch = (_git(["branch", "--show-current"], cwd) or "").strip()
+    facts = spec_facts(cwd, branch=branch) if branch else None
+    if facts is None:
+        return "nospec", False
+    issue = facts.get("issue", "")
+    if not issue:
+        return "missing", False
+    if issue == "none":
+        return "none", False
+    if ident.issue_no(session) == issue:
+        return issue, False
+    return (issue, True) if ident.set_issue(session, issue) else ("nospec", False)
+
+
 RE_INTEGRATION = re.compile(r"\b(integration|integrazione|httpclient|http|web ?services?|soap|odata|"
                             r"rest api|webhook)\b", re.I)
 
@@ -471,7 +562,10 @@ def build(event: str, pairs: list[str], cwd: str, session: str = "") -> tuple[di
     if ph:
         props["projectHash"] = ph
     props["project"] = usage.project_name(cwd)
+    explicit_issue = props.get("issueNo")
     props.update(ident.props(session))
+    if explicit_issue:  # the caller's own issueNo wins over the session's link
+        props["issueNo"] = explicit_issue
     return props, meas
 
 
@@ -825,6 +919,17 @@ def main(argv: list[str]) -> int:
         i = rest.index("--session")
         session = rest[i + 1] if i + 1 < len(rest) else ""
         rest = rest[:i] + rest[i + 2:]
+    if event == "AldcIssue" and "--from-branch" in rest:
+        # SessionStart: link from the spec of the checked-out branch and say what happened.
+        rest = [a for a in rest if a != "--from-branch"]
+        try:
+            status, new = link_from_branch(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd(), session)
+        except Exception:
+            status, new = "nospec", False
+        print(f"issue={status}")
+        if not new:
+            return 0  # nothing new to record (already linked, none, or no spec)
+        rest = [f"issueNo={status}", "source=spec"]
     plan = ""
     if "--plan" in rest:
         i = rest.index("--plan")
@@ -839,6 +944,30 @@ def main(argv: list[str]) -> int:
         if not built:
             return 0
         props, meas = built
+        if event == "AldcIssue":
+            import ident as _ident
+
+            no = props.get("issueNo", "")
+            if no != "0" and not _ident.RE_ISSUE.match(no):
+                return 0  # not an Issue entryNo: nothing linked, nothing sent
+            if not _ident.set_issue(session, no):
+                return 0
+            if no == "0":
+                props.pop("issueNo", None)
+                props["linked"] = "false"
+        if event in ("AldcRunStart", "AldcEstimate") and props.get("req"):
+            # The spec header knows the Issue and the estimate; the conductor need not pass them.
+            import ident as _ident
+
+            facts = spec_facts(cwd, req=props["req"]) or {}
+            no = facts.get("issue", "")
+            if _ident.RE_ISSUE.match(no) and "issueNo" not in props:
+                props["issueNo"] = no
+                if _ident.issue_no(session) != no:
+                    _ident.set_issue(session, no)
+            if event == "AldcEstimate" and "estP50Min" not in meas and facts.get("p50"):
+                meas["estP50Min"], meas["estP80Min"] = float(facts["p50"]), float(facts["p80"])
+                props.setdefault("estSource", facts.get("estSource", "manual"))
         if event == "AldcRun" and not base:
             # The model drops the flag now and then; the plan always carries the commit.
             base = plan_base(props.get("req", ""), cwd)
@@ -964,7 +1093,7 @@ def self_test() -> int:
         ("activeSeconds sums the run's event gaps", rm.get("activeSeconds") == 1200.0),
     ]
     checks += _self_test_duration(cwd) + _self_test_gate_wait(cwd) + _self_test_attempts(cwd) + _self_test_estimate(cwd)
-    checks += _self_test_numstat() + _self_test_privacy(cwd)
+    checks += _self_test_numstat() + _self_test_privacy(cwd) + _self_test_issue(cwd)
     ok = True
     for name, passed in checks:
         print(f"  {'PASS' if passed else 'FAIL'}  {name}")
@@ -1209,6 +1338,113 @@ def _self_test_privacy(cwd: str) -> list[tuple[str, bool]]:
         ("issueNo stays a string", build("AldcEstimate", ["issueNo=0042"], cwd)[0].get("issueNo") == "0042"),
     ]
     return out
+
+
+def _self_test_issue(cwd: str) -> list[tuple[str, bool]]:
+    """The session's BC Issue link: set by AldcIssue, carried by later events, digits only."""
+    import tempfile
+
+    import ident
+
+    keys = ("ALDC_LIVE_DIR", "CLAUDE_PLUGIN_DATA", "ALDC_METRICS_APPINSIGHTS_DISABLE")
+    backup = {k: os.environ.get(k) for k in keys}
+    base = tempfile.mkdtemp(prefix="aldc-issue-")
+    s = "sess-issue-self-test"
+    try:
+        os.environ.update({"ALDC_LIVE_DIR": os.path.join(base, "live"), "CLAUDE_PLUGIN_DATA": base,
+                           "ALDC_METRICS_APPINSIGHTS_DISABLE": "1"})
+        before = build("AldcLane", ["result=ran"], cwd, s)[0]
+        main(["AldcIssue", "issueNo=Customer-X", "source=user", "--session", s])
+        junk = ident.issue_no(s)
+        main(["AldcIssue", "issueNo=4821", "source=spec", "--session", s])
+        after = build("AldcLane", ["result=ran"], cwd, s)[0]
+        est = build("AldcEstimate", ["issueNo=99"], cwd, s)[0]
+        free = build("AldcIssue", ["issueNo=4821", "source=fix the invoice bug"], cwd, s)[0]
+        with open(os.path.join(base, "metrics", "aldc-metrics.jsonl"), encoding="utf-8") as fh:
+            recs = [json.loads(x) for x in fh if x.strip()]
+        main(["AldcIssue", "issueNo=0", "--session", s])
+        gone = build("AldcLane", ["result=ran"], cwd, s)[0]
+        return [
+            ("issue: absent before a link", "issueNo" not in before),
+            ("issue: a non-numeric value links nothing", junk == ""),
+            ("issue: later events of the session carry it", after.get("issueNo") == "4821"),
+            ("issue: an explicit issueNo wins over the link", est.get("issueNo") == "99"),
+            ("issue: free-text source dropped", "source" not in free),
+            ("issue: one AldcIssue record, enum source kept",
+             len(recs) == 1 and recs[0]["event"] == "AldcIssue"
+             and recs[0]["props"].get("issueNo") == "4821" and recs[0]["props"].get("source") == "spec"),
+            ("issue: 0 clears the link", "issueNo" not in gone),
+        ] + _self_test_spec(base)
+    finally:
+        for k, v in backup.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _self_test_spec(base: str) -> list[tuple[str, bool]]:
+    """The spec header is the source: Issue and agent estimate read by the script."""
+    import contextlib
+    import io as _io
+
+    import ident
+
+    proj = os.path.join(base, "proj")
+    spec_dir = os.path.join(proj, "app", "requirements", "in-progress", "0042-ddt")
+    os.makedirs(spec_dir)
+    subprocess.run(["git", "init", "-q", "-b", "feature/0042-ddt", proj], capture_output=True)
+
+    def spec(issue_line: str, est_line: str = "") -> None:
+        with open(os.path.join(spec_dir, "0042-ddt.spec.md"), "w", encoding="utf-8") as fh:
+            fh.write("# 0042-ddt\n\n**Version:** 1.0\n**Branch:** `feature/0042-ddt`\n"
+                     f"{issue_line}\n{est_line}\n\n---\n\nCustomer ACME, **BC Issue:** 999 in the body\n")
+
+    def from_branch(sess: str) -> str:
+        buf = _io.StringIO()
+        old = os.environ.get("CLAUDE_PROJECT_DIR")
+        os.environ["CLAUDE_PROJECT_DIR"] = proj
+        try:
+            with contextlib.redirect_stdout(buf):
+                main(["AldcIssue", "--from-branch", "--session", sess])
+        finally:
+            if old is None:
+                os.environ.pop("CLAUDE_PROJECT_DIR", None)
+            else:
+                os.environ["CLAUDE_PROJECT_DIR"] = old
+        return buf.getvalue().strip()
+
+    spec("**BC Issue:** 4821 (IL-2026-118)", "**Agent estimate:** P50 55 min · P80 106 min (stima-sviluppo)")
+    s1 = "sess-spec-self-test-1"
+    linked = from_branch(s1)
+    again = from_branch(s1)
+    by_req = spec_facts(proj, req="0042-ddt") or {}
+    spec("**BC Issue:** none")
+    none = from_branch("sess-spec-self-test-2")
+    spec("**Complexity:** MEDIUM")
+    missing = from_branch("sess-spec-self-test-3")
+    spec("**BC Issue:** ACME invoices are wrong")
+    text = from_branch("sess-spec-self-test-4")
+    spec("**BC Issue:** 77", "**Agent estimate:** P50 30 min · P80 60 min (guess)")
+    odd = spec_facts(proj, req="0042-ddt") or {}
+    other = spec_facts(proj, branch="feature/other")
+    with open(os.path.join(base, "metrics", "aldc-metrics.jsonl"), encoding="utf-8") as fh:
+        sent = [json.loads(x) for x in fh if x.strip()]
+    spec_events = [r for r in sent if r["event"] == "AldcIssue" and r["props"].get("issueNo") == "4821"
+                   and r["props"].get("session") == s1[:8]]
+    return [
+        ("spec: the branch's spec links the session", linked == "issue=4821" and ident.issue_no(s1) == "4821"),
+        ("spec: a second start does not emit again", again == "issue=4821" and len(spec_events) == 1),
+        ("spec: issue and estimate found by req",
+         by_req.get("issue") == "4821" and by_req.get("p50") == "55" and by_req.get("p80") == "106"
+         and by_req.get("estSource") == "stima-sviluppo"),
+        ("spec: none is reported, nothing linked", none == "issue=none" and not ident.issue_no("sess-spec-self-test-2")),
+        ("spec: a spec without the line is reported missing", missing == "issue=missing"),
+        ("spec: free text on the line links nothing", text == "issue=missing" and not ident.issue_no("sess-spec-self-test-4")),
+        ("spec: an estimate source outside the enum is dropped", odd.get("p50") == "30" and "estSource" not in odd),
+        ("spec: another branch has no spec", other is None),
+        ("spec: only the header is read, never the body", by_req.get("issue") != "999"),
+    ]
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ description: >
   implementers in parallel git worktrees, merge, review and test on the shared environment
   through a locked test lane, commit. Enforces TDD and quality gates for Business Central
   extensions. Use for MEDIUM/HIGH features that already have a spec (or need one).
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*
 model: sonnet
 effort: high
 maxTurns: 1000
@@ -17,6 +17,20 @@ color: purple
 > `app/requirements/**` only; a `PreToolUse` hook denies any `.al` write from you — if you see
 > that denial, delegate, don't work around it. You run git, builds and the test lane via Bash;
 > you do not read `.al` files to form an opinion — trust the subagents' reports.
+
+> 💸 **Every turn you take re-sends your whole context.** Measured on real runs: a conductor
+> run is a median of 187 turns at about 200,000 tokens each — by far the most expensive agent
+> in the plugin, and most of that is turns that did no work. So:
+> - **Never wait in a loop.** No `sleep`, no "waiting…" turns, no polling a file or a lock.
+>   Launch all the implementers of a wave as parallel Task calls **in one message** and take
+>   their results when they return; the test lane waits for its own lock.
+> - **One Bash call per step, not per command.** Chain what belongs together (`git status &&
+>   git add … && git commit …`; several `emit.py` lines) in a single call.
+> - **Read once, in ranges.** Spec and plan once (below). A subagent's report is its Task
+>   result — never re-read files to confirm what it told you. Anything over ~350 lines:
+>   a ranged `Read`, markdown included.
+> - **You do not translate.** XLF and translation work belongs to an implementer's work
+>   package or to `al-developer`; you have no translation tools.
 
 > **Who "the user" is at a gate.** You are usually invoked via Task. A gate is cleared by the
 > human's message **or** the parent conversation relaying the user's approval — the relay is
@@ -90,7 +104,12 @@ Opus (never switch yourself).
    Then announce the run to the control panel (also on a resumed run — same `req`, same run),
    and, only when the plan is new, snapshot its scope (the script counts the plan; you count
    nothing). Pass `issueNo`/`estP50Min`/`estP80Min` only when the spec or brief carries a BC
-   Issue or a `stima-sviluppo` estimate in minutes:
+   Issue or a `stima-sviluppo` estimate in minutes. The Issue is the spec header's
+   `**BC Issue:** <entryNo> (…)` line (the main thread resolved it with `skill-bc-issue`; you
+   do not query Business Central). The script reads that line and the `**Agent estimate:**`
+   line from the spec on its own at `AldcRunStart` / `AldcEstimate`, links the session and
+   fills `issueNo` / `estP50Min` / `estP80Min`: you pass them only when the brief gives values
+   the spec does not have. Show `BC Issue: <entryNo>` (or `none`) on the plan card:
    `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcRunStart req=<req> tier=<tier>
    wpsPlanned=<n> waves=<n> lane=<ran|skipped>`
    `python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcEstimate req=<req> tier=<tier>

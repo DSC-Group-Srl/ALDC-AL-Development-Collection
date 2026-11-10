@@ -22,6 +22,7 @@ export CLAUDE_PLUGIN_DATA="$T/plugin-data" ALDC_LIVE_DIR="$T/live"
 export ALDC_FRESHDESK_DIR="$T/freshdesk"
 unset ALDC_READ_GUARD_DISABLE ALDC_MAIN_THREAD_GUARD_DISABLE ALDC_FAST_PATH_DISABLE ALDC_SESSIONSTART_SCRIPTS
 unset ALDC_FRESHDESK_GUARD_DISABLE ALDC_FRESHDESK_SESSION_LIMIT ALDC_FRESHDESK_GUARD_NO_METRICS
+unset ALDC_BC_GUARD_DISABLE ALDC_ISSUE_RUN_GUARD_DISABLE
 
 FAIL=0
 ok()   { echo "ok   $1"; }
@@ -94,8 +95,13 @@ if [ -n "$PY" ]; then
   pre "read-guard deny (whole Read of a 400-line .al)" DENY \
     "{\"session_id\":\"s9\",\"cwd\":\"$WSW\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"$WSW/app/src/Big.Codeunit.al\"}}" \
     "read-guard:"
-  pre "read-guard allows the repeat (Edit needs one full read)" SILENT \
+  pre "read-guard denies the repeat and says a ranged read is enough to Edit" DENY \
+    "{\"session_id\":\"s9\",\"cwd\":\"$WSW\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"$WSW/app/src/Big.Codeunit.al\"}}" \
+    "ranged Read of the lines you will change is enough"
+  pre "read-guard lets a third identical attempt through" SILENT \
     "{\"session_id\":\"s9\",\"cwd\":\"$WSW\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"$WSW/app/src/Big.Codeunit.al\"}}"
+  pre "read-guard: a ranged Read is never denied" SILENT \
+    "{\"session_id\":\"s9b\",\"cwd\":\"$WSW\",\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"$WSW/app/src/Big.Codeunit.al\",\"offset\":120,\"limit\":40}}"
   pre "read-guard deny via shell cat" DENY \
     "{\"session_id\":\"s10\",\"cwd\":\"$WSW\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cat app/src/Big.Codeunit.al\"}}" \
     "don't dump it through the shell"
@@ -109,6 +115,54 @@ out="$(printf '%s' '{"session_id":"alive-1","tool_name":"Glob","tool_input":{}}'
 for _ in $(seq 1 50); do [ -f "$T/live/.alive-alive-1" ] && break; sleep 0.1; done
 [ -z "$out" ] && [ -f "$T/live/.alive-alive-1" ] && ok "alive.sh ran in the background, printed nothing" \
   || bad "alive.sh (output='${out:0:80}', stamp present: $([ -f "$T/live/.alive-alive-1" ] && echo yes || echo no))"
+
+echo
+echo "=== pretooluse.sh: bc-guard (DSC Business Central is read-only) ==="
+BCT=mcp__plugin_bc-dev_businesscentral__
+bc() { printf '{"session_id":"bc1","tool_name":"%s%s","tool_input":%s}' "$BCT" "$1" "$2"; }
+pre "bc search allowed (silent)" SILENT "$(bc bc_actions_search '{"SearchText":"issue","SearchMode":"keyword","ActionType":["List"]}')"
+pre "bc describe allowed (silent)" SILENT "$(bc bc_actions_describe '{"ActionName":"Create_Issue_PAG75105"}')"
+pre "bc invoke List_ allowed (silent)" SILENT "$(bc bc_actions_invoke '{"ActionName":"List_Issues_PAG75105","RequestParameters":"{\\"top\\":5}"}')"
+pre "bc invoke Create_ denied" DENY "$(bc bc_actions_invoke '{"ActionName":"Create_Issue_PAG75105","RequestParameters":"{}"}')" "never writes"
+pre "bc invoke Modify_ denied" DENY "$(bc bc_actions_invoke '{"ActionName":"Modify_Issue_PAG75105","RequestParameters":"{}"}')" "never writes"
+pre "bc invoke bound action denied" DENY "$(bc bc_actions_invoke '{"ActionName":"Post_SalesInvoice_PAG30012","RequestParameters":"{}"}')" "never writes"
+pre "bc invoke without an action name denied" DENY "$(bc bc_actions_invoke '{"RequestParameters":"{}"}')" "never writes"
+pre "bc invoke List_ only in the parameters denied" DENY "$(bc bc_actions_invoke '{"RequestParameters":"{\\"x\\":\\"List_Issues\\"}","ActionName":"Delete_Issue_PAG75105"}')" "never writes"
+pre "bc unknown tool denied" DENY "$(bc bc_actions_execute '{}')" "not one bc-dev uses"
+pre "dsc-timesheet's own BC connection is not touched" SILENT \
+  '{"session_id":"bc1","tool_name":"mcp__plugin_dsc-timesheet_businesscentral__bc_actions_invoke","tool_input":{"ActionName":"Create_TimesheetLineRequest_PAG52089","RequestParameters":"{}"}}'
+out="$(bc bc_actions_invoke '{"ActionName":"Create_Issue_PAG75105","RequestParameters":"{}"}' | ALDC_BC_GUARD_DISABLE=1 bash "$PRE")"
+[ -z "$out" ] && ok "bc-guard kill switch" || bad "bc-guard kill switch (got: ${out:0:120})"
+
+echo
+echo "=== pretooluse.sh: issue run-guard (ask for the Issue before a conductor run) ==="
+RG="$T/rg"; mkdir -p "$RG/app/requirements/in-progress/0042-ddt"
+echo '{"id":"x","name":"Test App"}' > "$RG/app/app.json"
+git -c init.defaultBranch=main init -q "$RG" && ( cd "$RG" && git checkout -q -b feature/0042-ddt )
+RGSPEC="$RG/app/requirements/in-progress/0042-ddt/0042-ddt.spec.md"
+rgspec() { printf '# 0042-ddt\n\n**Branch:** `feature/0042-ddt`\n%s\n\n---\n' "$1" > "$RGSPEC"; }
+task() { printf '{"session_id":"rg1","tool_name":"%s","tool_input":{"subagent_type":"%s","description":"x","prompt":"%s"}}' "$1" "$2" "$3"; }
+rg() { ( cd "$RG" && pre "$@" ); }
+rm -f "$RGSPEC"
+rg "conductor without an Issue anywhere: denied, told to ask" DENY "$(task Task bc-dev:al-conductor 'Run the plan for 0042-ddt')" "AskUserQuestion"
+rg "bare al-conductor via the Agent tool: denied too" DENY "$(task Agent al-conductor 'Run the plan')" "Business Central Issue"
+rg "brief names the Issue: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run 0042-ddt. BC Issue: 4821 (IL-2026-118)')"
+rg "brief says none: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run it. **BC Issue:** none')"
+rg "free text after BC Issue is not an answer" DENY "$(task Task bc-dev:al-conductor 'BC Issue: ask the customer')" "AskUserQuestion"
+rgspec '**BC Issue:** 4821 (IL-2026-118)'
+rg "spec of the branch names the Issue: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run the plan for 0042-ddt')"
+rgspec '**BC Issue:** none'
+rg "spec says none: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run the plan')"
+rgspec '**Complexity:** MEDIUM'
+rg "spec without the line: denied" DENY "$(task Task bc-dev:al-conductor 'Run the plan')" "AskUserQuestion"
+printf '# other\n\n**Branch:** `feature/other`\n**BC Issue:** 77\n' > "$RGSPEC"
+rg "a spec of another branch does not count" DENY "$(task Task bc-dev:al-conductor 'Run the plan')" "AskUserQuestion"
+rg "other agents are not asked" SILENT "$(task Task bc-dev:al-developer 'Fix the typo')"
+rg "non-bc-dev agents are not asked" SILENT "$(task Agent Explore 'find x')"
+out="$(cd "$RG" && task Task bc-dev:al-conductor 'Run the plan' | ALDC_ISSUE_RUN_GUARD_DISABLE=1 bash "$PRE")"
+[ -z "$out" ] && ok "run-guard kill switch" || bad "run-guard kill switch (got: ${out:0:120})"
+out="$(cd "$T" && task Task bc-dev:al-conductor 'Run the plan' | bash "$PRE")"
+[ -z "$out" ] && ok "outside an AL workspace: not asked" || bad "outside an AL workspace (got: ${out:0:120})"
 
 echo
 echo "=== pretooluse.sh: freshdesk-guard ==="

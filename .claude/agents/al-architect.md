@@ -6,7 +6,7 @@ description: >
   decisions for AL development. Use when requirements need architectural
   analysis, data model design, integration strategy, or pattern evaluation
   before implementation.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*, mcp__claude_ai_Code_Reader_DSC__find_app, mcp__claude_ai_Code_Reader_DSC__search_customer, mcp__claude_ai_Code_Reader_DSC__list_customers, mcp__claude_ai_Code_Reader_DSC__customer_map, mcp__claude_ai_Code_Reader_DSC__app_overview, mcp__claude_ai_Code_Reader_DSC__code_map, mcp__claude_ai_Code_Reader_DSC__search_code, mcp__claude_ai_Code_Reader_DSC__read_file, mcp__claude_ai_Code_Reader_DSC__where_used, mcp__claude_ai_Code_Reader_DSC__find_field, mcp__claude_ai_Code_Reader_DSC__event_hooks, mcp__claude_ai_Code_Reader_DSC__standard_code, mcp__claude_ai_Code_Reader_DSC__caption_of, mcp__claude_ai_Code_Reader_DSC__recent_changes
 model: sonnet
 effort: medium
 color: blue
@@ -41,6 +41,14 @@ Read, if present (reuse — don't re-read):
   `al_getpackagedependencies`,
 - existing `app/requirements/in-progress/**/*.spec.md` / `*.architecture.md` that touch the
   same area.
+
+A design that adds a subscriber, a field or an extension lives next to the customer's **other**
+apps and on top of standard code you cannot see from this workspace. Load
+`bc-dev:skill-code-reader` and check them with the DSC Code Reader before you commit to a
+decision: `customer_map` for the apps the customer runs, `event_hooks` / `where_used` for who
+else touches the same event or table, `standard_code` for what the base application does
+around the hook. Cite repo, path and commit date. Not connected → say so and mark the
+cross-app check as an open risk.
 
 Explore the codebase with `Grep`/`Glob`, **al-mcp** `al_symbolsearch` / `al_symbolrelations`
 (base objects, events, extensions) and the AL LSP server. For files over ~350 lines, ask
@@ -95,7 +103,8 @@ cited articles before you decide.
 subscribers) · `bc-dev:skill-performance` (keys, batch, caching) · `bc-dev:skill-copilot`
 (Copilot / AI) · `bc-dev:skill-pages` (UX, navigation) · `bc-dev:skill-translate`
 (localization strategy) · `bc-dev:skill-permissions` (security model) · `bc-dev:skill-testing`
-(test strategy). Naming a skill is not loading it — invoke `Skill(skill: "bc-dev:skill-x")`.
+(test strategy) · `bc-dev:skill-code-reader` (source of other DSC apps and of standard BC,
+without cloning). Naming a skill is not loading it — invoke `Skill(skill: "bc-dev:skill-x")`.
 
 ## Designing
 

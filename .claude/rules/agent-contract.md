@@ -73,8 +73,11 @@ which drops analyzer diagnostics. Details: `compiler-authority-protocol.md` §0.
 
 Files over ~350 lines (codeunits, pages, XLF, base-app sources): ask `al-file-reader` (Haiku,
 via Task) *"where is X / which lines implement Y"* with the paths, then `Read` only the ranges
-its `READ:` line returns. The read-guard hook denies a first whole-file read of a large file;
-**to Edit a file you need one full Read** — repeat the same full `Read` and it is allowed.
+its `READ:` line returns. The read-guard hook denies whole-file reads of a large file, and
+denies the repeat too. **Editing never needs a full read**: `Edit` only requires that the file
+was `Read` at all — a ranged `Read` of the lines you are about to change is enough (also for a
+`Write` over an existing file). So: locate, read the range, edit. Never answer a denial by
+asking for the whole file again.
 Locate with the reader; judge and edit yourself — never delegate a correctness verdict to it.
 
 ## 5. Tests and the shared environment

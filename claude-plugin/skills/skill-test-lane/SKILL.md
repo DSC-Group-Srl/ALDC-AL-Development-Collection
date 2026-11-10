@@ -97,7 +97,16 @@ installed version" too. The sandbox is left without the app until a later CI run
 | `auth-required` | no cached AAD token | ask the user to run `! al auth login` once, then retry |
 | (run) `UserNotAuthenticatedException` | UserPassword server, no credential in the AL CLI's cache | `tools/testlane/save-onprem-credentials.ps1` (see `skill-al-go-devenv` §3) |
 | `tool-blocked` | TLS/proxy/timeout signature | TOOL_BLOCKED per tool-failure-protocol — stop |
+| `server-compile-failed` | the server could not compile the package against what is installed there | a dependency is missing or older on the environment, or symbols are newer than the environment: check installed dependency versions, refresh symbols from this environment, rebuild, publish again |
+| `in-use-elsewhere` | another tenant on the same server has this exact version installed | bump the scratch revision in both `app.json`, rebuild, publish again |
+| `object-id-conflict` | an object ID is already taken by another installed app | fix the ID in the source; do not retry |
+| `scope-conflict` | already deployed in the other scope (global vs per-tenant) | stop; ask the user which environment to use |
+| `upgrade-failed` | data upgrade or schema synchronization failed | a real defect of the change: read `reason` |
+| `environment-not-found` | the server does not know this environment name | re-check the configuration picked for the lane |
 | `failed` | anything else; `reason` has the server's text | treat as a real defect of the build |
+
+Every named cause comes with a `hint` in the payload — follow it instead of retrying the same
+publish.
 
 `run`: `ok` is true only if at least one test executed and none failed. `notFound: true` on a
 codeunit means the test app is not published (or was rejected) — a failed lane run, never a

@@ -259,6 +259,10 @@ def _al(args: list[str], timeout: int) -> tuple[int, str]:
 
 RE_VER = r"(\d+\.\d+\.\d+\.\d+)"
 RE_HIGHER = re.compile(r"higher version\s+" + RE_VER + r"\s+was previously installed", re.I)
+# The same block in the wording the server uses most (and in Italian): mined from real lane
+# output, where these went unrecognised and came back as a bare "failed" with no next version.
+RE_NEWER = re.compile(r"because a newer version\s+" + RE_VER + r"\s+was already installed", re.I)
+RE_NEWER_IT = re.compile(r"installata la versione\s+" + RE_VER, re.I)
 RE_SAME_VER = re.compile(r"different \.app file with the same app id.*?version\s*\(?\s*" + RE_VER, re.I | re.S)
 
 
@@ -273,7 +277,7 @@ def scratch_version(blocking: str) -> str:
 
 
 def _version_block(text: str) -> tuple[str, str] | None:
-    m = RE_HIGHER.search(text)
+    m = RE_HIGHER.search(text) or RE_NEWER.search(text) or RE_NEWER_IT.search(text)
     if m:
         return "version-below-installed", m.group(1)
     m = RE_SAME_VER.search(text)
@@ -298,7 +302,39 @@ def _classify_publish(code: int, text: str) -> str:
         return "tool-blocked"
     if "aadsts" in t or "interactive" in t and "login" in t:
         return "auth-required"
+    # Named causes of what used to be one "failed" bucket (13% of all publishes).
+    if "extension compilation failed" in t:
+        return "server-compile-failed"
+    if "in use by the following tenants" in t or "cannot be unpublished because it is in use" in t:
+        return "in-use-elsewhere"
+    if "is defined in multiple apps" in t:
+        return "object-id-conflict"
+    if "already deployed as a global application" in t:
+        return "scope-conflict"
+    if ("impossibile aggiornare l'estensione" in t or "could not upgrade the extension" in t
+            or "cannot be synchronized" in t or "schema synchronization" in t):
+        return "upgrade-failed"
+    if re.search(r"reason:\s*not found\s*$", t, re.M):
+        return "environment-not-found"
     return "failed"
+
+
+PUBLISH_HINTS = {
+    "server-compile-failed": "The server could not compile the package against what is installed there: a dependency "
+                             "is missing or older on the environment, or the app was built against newer symbols. "
+                             "Check the environment's installed versions of the app's dependencies, refresh symbols "
+                             "from THIS environment, rebuild, publish again. Not a test failure.",
+    "in-use-elsewhere": "Another tenant on the same server has this exact version installed, so it cannot be replaced. "
+                        "Bump the scratch revision (both app.json), rebuild, publish again.",
+    "object-id-conflict": "An object ID is already taken by another installed app. Fix the ID in the source "
+                          "(idRanges), do not retry.",
+    "scope-conflict": "The app is already deployed in the other scope (global vs per-tenant) on this environment. "
+                      "Stop and ask the user which environment to use.",
+    "upgrade-failed": "The data upgrade or schema synchronization of the new version failed on the environment. "
+                      "Read `reason`: it is a real defect of the change (upgrade code, a destructive table change).",
+    "environment-not-found": "The server does not know this environment name. Re-check the launch.json "
+                             "configuration picked for the lane.",
+}
 
 
 def cmd_publish(scratch: str, app: str) -> int:
@@ -310,6 +346,8 @@ def cmd_publish(scratch: str, app: str) -> int:
                    if "Reason:" in ln and not ln.lstrip().startswith("[")), "")[:400]
     payload = {"ok": res in ("published", "already-current"), "result": res,
                "seconds": round(time.time() - t0, 1), "reason": reason}
+    if res in PUBLISH_HINTS:
+        payload["hint"] = PUBLISH_HINTS[res]
     vb = _version_block(text)
     if vb and res == vb[0]:
         payload["blockingVersion"] = vb[1]
@@ -471,6 +509,27 @@ def self_test() -> int:
         ("blocking version extracted",
          _version_block("a higher version 28.20.80.0 was previously installed") == ("version-below-installed", "28.20.80.0")),
         ("tls = tool-blocked",_classify_publish(1, "unable to verify the first certificate") == "tool-blocked"),
+        ("newer version already installed = version block (EN)",
+         _version_block("Cannot install the extension X by Y 28.3.10.0 because a newer version 28.3.12.0 was already installed.")
+         == ("version-below-installed", "28.3.12.0")),
+        ("newer version already installed = version block (IT)",
+         _classify_publish(1, "Impossibile installare l'estensione X by Y 28.3.10.0 perche e gia installata la versione 28.3.12.0")
+         == "version-below-installed"),
+        ("server compile failure named",
+         _classify_publish(1, 'Pubblicazione non riuscita a causa di "Extension compilation failed"') == "server-compile-failed"),
+        ("in use by another tenant named",
+         _classify_publish(1, "The Extension cannot be unpublished because it is in use by the following tenants: abc")
+         == "in-use-elsewhere"),
+        ("object id conflict named",
+         _classify_publish(1, "The application object of type 'CodeUnit' with the ID '50100' is defined in multiple apps.")
+         == "object-id-conflict"),
+        ("upgrade failure named",
+         _classify_publish(1, "Impossibile aggiornare l'estensione \"X\" a causa dell'errore seguente: Table 50100") == "upgrade-failed"),
+        ("unknown environment named", _classify_publish(1, "Publish failed.\nReason: Not Found\n") == "environment-not-found"),
+        ("anything else is still failed", _classify_publish(1, "something nobody has seen") == "failed"),
+        ("every named cause has a hint", all(k in PUBLISH_HINTS for k in (
+            "server-compile-failed", "in-use-elsewhere", "object-id-conflict", "scope-conflict",
+            "upgrade-failed", "environment-not-found"))),
         ("totals regex", RE_TOTALS.search("Test run completed: 3 passed, 1 failed, 0 skipped.") is not None),
     ]
     ok = True

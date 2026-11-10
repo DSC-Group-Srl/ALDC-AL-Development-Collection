@@ -6,7 +6,7 @@ description: >
   touched, and runs tests through the shared test lane on the environment the user picks;
   publish/deploy stays a human step. Implements features following specifications without
   architectural decisions. Use when you need to implement, code, debug, or fix AL code directly.
-tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*
+tools: Read, Glob, Grep, Write, Edit, Bash, Task, WebSearch, WebFetch, Skill, mcp__plugin_bc-dev_al-mcp__*, mcp__plugin_bc-dev_nab-al-tools__*, mcp__claude_ai_Code_Reader_DSC__find_app, mcp__claude_ai_Code_Reader_DSC__search_customer, mcp__claude_ai_Code_Reader_DSC__list_customers, mcp__claude_ai_Code_Reader_DSC__customer_map, mcp__claude_ai_Code_Reader_DSC__app_overview, mcp__claude_ai_Code_Reader_DSC__code_map, mcp__claude_ai_Code_Reader_DSC__search_code, mcp__claude_ai_Code_Reader_DSC__read_file, mcp__claude_ai_Code_Reader_DSC__where_used, mcp__claude_ai_Code_Reader_DSC__find_field, mcp__claude_ai_Code_Reader_DSC__event_hooks, mcp__claude_ai_Code_Reader_DSC__standard_code, mcp__claude_ai_Code_Reader_DSC__caption_of, mcp__claude_ai_Code_Reader_DSC__recent_changes
 model: sonnet
 effort: medium
 color: green
@@ -27,6 +27,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 
 | Need | Use |
 |---|---|
+| Source of a dependency app, another app of the same customer, or standard BC code | the DSC Code Reader — load `bc-dev:skill-code-reader` (`find_app` → `read_file` / `where_used` / `event_hooks`, `standard_code`). Read-only, no clone needed; the open workspace stays the truth for the app you change. Not connected → `skill-gitcloner`. |
 | Compile / diagnostics | **al-mcp** `al_compile` (no `.app`; the authority for warnings), `al_build` (`scope='current'`, `.app` only — its `al_getdiagnostics` drops analyzer warnings, compiler-authority §0); or `Bash: al compile` |
 | Multi-project workspace (app + test app) | `Bash: al workspace compile <workspaceFile>` — **not** `al_build scope='all'`, which never refreshes a sibling dependent. Load `skill-al-mcp-workspace` before working across projects |
 | Symbols | Whole workspace / several projects / switching IT↔CH: `GITCloner al-symbols … --json` (`skill-gitcloner`; `GITCloner al-projects … --json` first shows what is missing). One project: **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth; environment-scoped needs the human). `al_addproject` (canonical long-form absolute path) |

@@ -24,6 +24,11 @@
 #        mcp__plugin_bc-dev_freshdesk__*
 #                             -> tools/freshdesk-guard/pretooluse_hook.sh (allowlist,
 #                                private-note "ask", per-session budget of the yearly quota)
+#        mcp__plugin_bc-dev_businesscentral__*
+#                             -> tools/bc-guard/pretooluse_hook.sh (DSC's production Business
+#                                Central is read-only for bc-dev: only List_ actions run)
+#        Task|Agent           -> tools/issue/run_guard.sh (a conductor run starts only once
+#                                the user has been asked which Business Central Issue it is)
 #      any other tool         -> exit 0, silent.
 #
 # Contract kept from the guards themselves: a decision is JSON on stdout with exit 0
@@ -36,7 +41,8 @@
 #
 # Each guard keeps its own kill switch (ALDC_READ_GUARD_DISABLE, ALDC_MAIN_THREAD_GUARD_DISABLE,
 # ALDC_ALGO_GUARD_DISABLE,
-# ALDC_FRESHDESK_GUARD_DISABLE, ALDC_METRICS_ALIVE_DISABLE). Self-test: tools/hooks/test_dispatchers.sh.
+# ALDC_FRESHDESK_GUARD_DISABLE, ALDC_BC_GUARD_DISABLE, ALDC_ISSUE_RUN_GUARD_DISABLE,
+# ALDC_METRICS_ALIVE_DISABLE). Self-test: tools/hooks/test_dispatchers.sh.
 
 set -uo pipefail
 
@@ -57,6 +63,8 @@ case "$tool" in
   Bash|PowerShell)      guards=("al-go-guard/pretooluse_hook.sh" "read-guard/pretooluse_hook.sh") ;;
   Write|Edit)           guards=("conductor-guard/pretooluse_hook.sh" "al-go-guard/pretooluse_hook.sh" "main-thread-guard/pretooluse_hook.sh") ;;
   mcp__plugin_bc-dev_freshdesk__*) guards=("freshdesk-guard/pretooluse_hook.sh") ;;
+  mcp__plugin_bc-dev_businesscentral__*) guards=("bc-guard/pretooluse_hook.sh") ;;
+  Task|Agent)           guards=("issue/run_guard.sh") ;;
   *)                    exit 0 ;;
 esac
 

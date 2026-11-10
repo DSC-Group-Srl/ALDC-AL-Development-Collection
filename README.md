@@ -25,7 +25,7 @@ into `.claude/rules/` so they persist and stay editable per project.
 
 | | |
 |---|---|
-| **13 agents** | `al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-triage`, `dredd`, `al-agent-builder`, three TDD subagents, three documentation agents |
+| **14 agents** | `al-architect`, `al-conductor`, `al-developer`, `al-triage`, `dredd`, `al-agent-builder`, three TDD subagents, three documentation agents |
 | **22 skills** | loaded on demand — API, events, performance, permissions, testing, Copilot, translation, docfx, Agent SDK, … |
 | **10 commands** | `/al-spec-create`, `/al-build`, `/al-pr-prepare`, `/al-initialize`, `/al-memory-create`, `/al-context-create`, and the BC-agent pack |
 | **Always-on rules** | AL guidelines, style, naming, performance, error handling, events, testing — plus the compiler-authority and tool-failure protocols |

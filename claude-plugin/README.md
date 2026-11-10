@@ -29,7 +29,7 @@ Verify registration:
 /
 ```
 
-You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-presales`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/bc-dev:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/bc-dev:`.
 
 ## First-Time Setup
 
@@ -52,7 +52,6 @@ This will:
 | AL Architect | `agent "aldc:al-architect"` | Solution design, data modeling, integration strategy |
 | AL Conductor | `agent "aldc:al-conductor"` | TDD orchestration: plan, implement, review, commit |
 | AL Developer | `agent "aldc:al-developer"` | Tactical implementation, debugging, code generation |
-| AL Pre-Sales | `agent "aldc:al-presales"` | PERT estimation, SWOT analysis, cost breakdown |
 | Agent Builder | `agent "aldc:al-agent-builder"` | Create custom agents for BC AI Development Toolkit |
 | AL Documentation Conductor | `agent "aldc:al-documentation-conductor"` | Full app documentation on demand: functional + developer sites, optional client DAF/MAN docx |
 
@@ -64,7 +63,7 @@ New feature (LOW)?          -> /bc-dev:al-spec-create -> aldc:al-developer
 Bug fix / debugging?        -> aldc:al-developer
 Architecture review?        -> aldc:al-architect
 Full TDD cycle?             -> aldc:al-conductor
-Project estimation?         -> aldc:al-presales
+Project estimation?         -> /bc-cons:stima-sviluppo (plugin bc-cons; bc-dev does not estimate)
 ```
 
 ## Workflows (Slash Commands)
@@ -101,7 +100,8 @@ Loaded automatically by agents when needed:
 | `skill-testing` | TDD, AL Test Toolkit |
 | `skill-translate` | XLF translation, NAB AL Tools |
 | `skill-migrate` | BC version migration |
-| `skill-estimation` | PERT estimation, complexity scoring |
+| `skill-bc-issue` | Link the work to its Issue in DSC's Business Central; read the estimate on it |
+| `skill-code-reader` | Source of other DSC apps and standard BC through the DSC Code Reader |
 | `skill-freshdesk` | Freshdesk tickets as symptom/requirement source, private notes |
 
 ## BCQuality (optional, auto-managed)
@@ -187,7 +187,7 @@ claude-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (name, version, MCP servers, hooks ref)
 │   └── marketplace.json   # Marketplace entry (for local / remote distribution)
-├── agents/                # user-facing agents (design, TDD conductor, dev, presales, agent builder,
+├── agents/                # user-facing agents (design, TDD conductor, dev, agent builder,
 │                          #   docs conductor, triage, dredd) + internal subagents (TDD + docs)
 ├── commands/              # 10 slash commands (/bc-dev:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)

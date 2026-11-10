@@ -27,11 +27,14 @@ Reasoning and history: [`.github/plans/bcquality-proactive-integration.md`](.git
 ```
 claude-plugin/              # THE PRODUCT — everything below ships to the marketplace
   .claude-plugin/           #   plugin.json (manifest, MCP servers, version)
-  agents/                   #   15 agents: architect, conductor, developer, presales,
+  .mcp.json                 #   al-mcp, nab-al-tools, ms-learn, freshdesk, businesscentral (DSC's
+                            #   own BC, read-only: links work to its Issue)
+  agents/                   #   14 agents: architect, conductor, developer,
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
   commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
-  skills/                   #   31 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
+  skills/                   #   32 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
+                            #   skill-bc-issue, skill-code-reader,
                             #   skill-al-go-workflows, skill-plugin-feedback, skill-gitcloner,
                             #   skill-dyna-license, skill-al-go-backport, skill-freshdesk)
   rules-templates/          #   AL rules. /al-initialize copies the floor (cheat sheet, 2
@@ -39,9 +42,9 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
                             #   the al-*.md domain files to .claude/aldc-rules/ (on demand)
   hooks/hooks.json          #   SessionStart, PreToolUse, SubagentStop, SessionEnd wiring
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
-                            #   conductor-guard, freshdesk-guard, al-go-guard, git (branch
+                            #   conductor-guard, freshdesk-guard, bc-guard, al-go-guard, git (branch
                             #   policy, post-merge cleanup, main/test sync), claudemd, vscode (workspace folders
-                            #   nudge), metrics; testlane/ (shared test env + lock)
+                            #   nudge), issue (links a session to its BC Issue from the spec), metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 
@@ -96,7 +99,7 @@ An external, citable BC knowledge base ([`microsoft/BCQuality`](https://github.c
 | Planned feature: plan once → parallel work packages → review + test lane per wave | `al-conductor` |
 | Diagnose an existing bug from a symptom | `al-triage` |
 | Independent quality audit | `dredd` |
-| Estimate, size, propose | `al-presales` |
+| Estimate, size, propose | not here — `/bc-cons:stima-sviluppo` in the `bc-cons` plugin |
 | Build a BC agent with the Agent SDK | `al-agent-builder` |
 
 ```

@@ -28,6 +28,20 @@
       "headers": {
         "Authorization": "${FRESHDESK_API_KEY:-}"
       }
+    },
+    "businesscentral": {
+      "type": "http",
+      "url": "https://mcp.businesscentral.dynamics.com/?c=bc-dev",
+      "headers": {
+        "TenantId": "644d96ee-d024-41e3-b591-5471e14b5c4b",
+        "EnvironmentName": "Production",
+        "Company": "DSC GROUP SRL",
+        "ConfigurationName": "OPERATIONS"
+      },
+      "oauth": {
+        "clientId": "e79ef7b3-6f90-4d6b-928f-787fea640570",
+        "callbackPort": 33418
+      }
     }
   }
 }

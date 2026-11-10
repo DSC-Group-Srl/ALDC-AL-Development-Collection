@@ -103,10 +103,17 @@ def transcript_path(payload: dict) -> str:
     return ""
 
 
-def live_run(session_id: str) -> dict:
+JUST_FINISHED_S = 900.0  # the conductor stops minutes after its own AldcRun closed the run
+
+
+def live_run(session_id: str, agent: str = "") -> dict:
     """req/runId/attempt of the conductor run live in this session, from emit.py's snapshot —
     keyed by the FULL session id (the record itself keeps only 8 chars). Tokens of a phase can
-    then be summed per task. Empty when no run is live; never raises."""
+    then be summed per task. Empty when no run is live; never raises.
+
+    The conductor's own stop comes AFTER it emitted AldcRun (which closes the run), so for
+    al-conductor a run that finished in the last JUST_FINISHED_S still counts: its phase is the
+    most expensive one of the run and was the one left out."""
     try:
         import emit
         import ident
@@ -116,8 +123,15 @@ def live_run(session_id: str) -> dict:
         snap = emit.load_live(sid) if sid else {}
     except Exception:
         return {}
-    if not snap.get("runId") or snap.get("outcome"):
+    if not snap.get("runId"):
         return {}
+    if snap.get("outcome"):
+        import time
+
+        ended = snap.get("endedAt")
+        recent = isinstance(ended, (int, float)) and 0 <= time.time() - ended <= JUST_FINISHED_S
+        if not (agent == "al-conductor" and recent):
+            return {}
     out = {k: str(snap[k]) for k in ("req", "runId")
            if snap.get(k) and emit.RE_TOKEN.match(str(snap[k]))}
     if "runId" in out and isinstance(snap.get("attempt"), int):
@@ -164,7 +178,7 @@ def build_record(payload: dict) -> dict | None:
     v = plugin_version()
     if v:
         rec["pluginVersion"] = v
-    rec.update(live_run(str(payload.get("session_id", ""))))
+    rec.update(live_run(str(payload.get("session_id", "")), agent or usage_agent or ""))
 
     if not agent:  # not one of the semantically-parsed agents: usage only
         return rec if u else None

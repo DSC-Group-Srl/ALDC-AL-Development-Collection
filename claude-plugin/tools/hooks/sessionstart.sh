@@ -44,6 +44,7 @@ default_scripts="15 bcquality/precondition_hook.sh $EVENT
 20 git/branch_policy.sh $EVENT
 10 claudemd/staleness_hook.sh $EVENT
 10 vscode/workspace_hook.sh $EVENT
+15 issue/link_hook.sh $EVENT
 10 metrics/heartbeat.sh"
 scripts="${ALDC_SESSIONSTART_SCRIPTS:-$default_scripts}"
 

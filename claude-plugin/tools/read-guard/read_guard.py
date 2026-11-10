@@ -3,10 +3,17 @@
 
 Modeled on Spotify's "shunt" plugin (bulk reads of big files routed to a cheap model): in an
 AL workspace, a `Read` with no offset/limit of a source file longer than ALDC_READ_MIN_LINES
-(default 350) is denied ONCE with a message pointing at `al-file-reader` (Haiku: returns
-exact line ranges) or a ranged Read. The same full Read repeated within 30 minutes is
-allowed — Claude Code's Edit tool requires one full Read of a file, so an agent that needs to
-edit the file simply asks again.
+(default 350) is denied with a message pointing at `al-file-reader` (Haiku: returns exact
+line ranges) or a ranged Read.
+
+Up to bc-dev 8.x the same full Read repeated once was allowed, on the belief that Claude Code's
+Edit tool needs one FULL Read of the file. It does not: Edit (and Write over an existing file)
+only needs the file to have been Read at all — a 5-line ranged Read is enough, also for an
+edit outside those lines (verified 2026-11). The belief was written into the denial and into
+the agent contract, so agents answered every denial by repeating the read: telemetry showed
+thousands of whole-file reads and five al-file-reader calls. Now the first TWO full reads of a
+file are denied and the denial says what Edit really needs; a third identical attempt within
+30 minutes is let through, as the escape for the rare case that truly needs the whole file.
 
 Also catches whole-file `cat`/`type`/`Get-Content` of a large file through Bash/PowerShell.
 
@@ -90,7 +97,12 @@ def state_file(session: str) -> str:
     return os.path.join(d, f"{safe}.json")
 
 
-def seen_recently(session: str, path: str, record: bool) -> bool:
+DENIALS_BEFORE_ALLOW = 2
+
+
+def attempt_no(session: str, path: str) -> int:
+    """How many full reads of this file the session has now asked for (this one included),
+    within the window. State: {key: [first_seen, count]}; an old bare timestamp counts as 1."""
     key = hashlib.sha256(os.path.abspath(path).lower().encode()).hexdigest()[:20]
     f = state_file(session)
     try:
@@ -99,16 +111,19 @@ def seen_recently(session: str, path: str, record: bool) -> bool:
     except (OSError, ValueError):
         st = {}
     now = time.time()
-    st = {k: v for k, v in st.items() if now - v < REPEAT_WINDOW_S}
-    hit = key in st
-    if record and not hit:
-        st[key] = now
+    clean = {}
+    for k, v in (st.items() if isinstance(st, dict) else []):
+        first, count = (v[0], v[1]) if isinstance(v, list) and len(v) == 2 else (v, 1)
+        if isinstance(first, (int, float)) and now - first < REPEAT_WINDOW_S:
+            clean[k] = [first, int(count)]
+    first, count = clean.get(key, [now, 0])
+    clean[key] = [first, count + 1]
     try:
         with open(f, "w", encoding="utf-8") as fh:
-            json.dump(st, fh)
+            json.dump(clean, fh)
     except OSError:
         pass
-    return hit
+    return count + 1
 
 
 def metric(event: str, pairs: list[str]) -> None:
@@ -155,7 +170,7 @@ def decide(payload: dict) -> dict | None:
     if lines <= limit:
         return None
     session = str(payload.get("session_id", ""))
-    if tool == "Read" and seen_recently(session, path, record=True):
+    if tool == "Read" and attempt_no(session, path) > DENIALS_BEFORE_ALLOW:
         metric("AldcRead", ["action=allowed-repeat", f"lines={lines}", f"chars={size}"])
         return None
     metric("AldcRead", ["action=blocked", f"lines={lines}", f"chars={size}", f"threshold={limit}"])
@@ -165,8 +180,10 @@ def decide(payload: dict) -> dict | None:
         f"(1) ask the al-file-reader agent via Task (question + this path) for the exact line "
         f"ranges you need, then Read with offset/limit; or (2) Read with offset/limit directly "
         f"if you already know where to look (Grep for `procedure `/`trigger `/`field(` first). "
-        f"If you must EDIT this file, repeat this exact full Read - it will be allowed "
-        f"(Edit needs one full read). Disable: ALDC_READ_GUARD_DISABLE=1."
+f"To EDIT this file you do NOT need a full read: Edit only requires that the file was "
+        f"Read at all, and a ranged Read of the lines you will change is enough - read those "
+        f"lines with offset/limit, then Edit. Repeating this full Read is denied again; only "
+        f"a third identical attempt is let through, for the rare case that needs every line."
     )
     if tool != "Read":
         reason = (f"read-guard: {name} has {lines} lines - don't dump it through the shell. "
@@ -213,10 +230,14 @@ def self_test() -> int:
 
     first = rd(big)
     second = rd(big)
+    third = rd(big)
     checks = [
         ("large whole read denied", first is not None and first["hookSpecificOutput"]["permissionDecision"] == "deny"),
         ("denial names the reader", first and "al-file-reader" in first["hookSpecificOutput"]["permissionDecisionReason"]),
-        ("repeat allowed (edit path)", second is None),
+        ("denial says a ranged read is enough to Edit",
+         first and "ranged Read of the lines you will change is enough" in first["hookSpecificOutput"]["permissionDecisionReason"]),
+        ("repeat is denied too (Edit never needed a full read)", second is not None),
+        ("third identical attempt is the escape", third is None),
         ("ranged read allowed", rd(big, offset=10, limit=50) is None),
         ("small file allowed", rd(small) is None),
         ("file-reader exempt", decide({"tool_name": "Read", "tool_input": {"file_path": big}, "cwd": ws,

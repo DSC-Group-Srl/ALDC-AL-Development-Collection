@@ -10,6 +10,10 @@ to tell "my sessions" from the team's, and this machine from another one or from
     where        "cloud" in a Claude Code cloud session (CLAUDE_CODE_REMOTE=true), else "local"
     session      the first 8 chars of the Claude Code session id — the same prefix
                  `claude agents` shows, so a local panel can join events to its sessions.
+    issueNo      the DSC Business Central Issue (its entryNo, digits only) this session's work
+                 is linked to, once `emit.py AldcIssue issueNo=<n>` has set it. Kept in
+                 `<live dir>/<session>.issue`; every later event of the session carries it, so
+                 tokens, time and outcome join to the Issue's estimated and actual hours.
 
 The e-mail is read from, in order: ALDC_USER_EMAIL, the signed-in Claude account
 (~/.claude.json oauthAccount.emailAddress), `git config user.email`. Nothing else about the
@@ -29,6 +33,7 @@ import subprocess
 
 RE_LOCAL = re.compile(r"^[A-Za-z0-9._+-]{1,64}$")
 RE_SESSION = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
+RE_ISSUE = re.compile(r"^[1-9][0-9]{0,9}$")  # an Issue entryNo: a positive integer, nothing else
 
 _email_cache: list[str] = []
 
@@ -81,6 +86,47 @@ def session_id(explicit: str = "") -> str:
     return s if RE_SESSION.match(s or "") else ""
 
 
+def _live_dir() -> str:
+    # Same place as emit.live_dir(); repeated here because emit imports this module.
+    return os.environ.get("ALDC_LIVE_DIR") or os.path.join(
+        os.path.expanduser("~"), ".claude", "aldc-plugin-data", "live")
+
+
+def issue_no(session: str = "") -> str:
+    """The BC Issue linked to this session, or "" — never anything but digits."""
+    s = session_id(session)
+    if not s:
+        return ""
+    try:
+        with open(os.path.join(_live_dir(), f"{s}.issue"), encoding="utf-8") as fh:
+            v = fh.read(32).strip()
+    except OSError:
+        return ""
+    return v if RE_ISSUE.match(v) else ""
+
+
+def set_issue(session: str, no: str) -> bool:
+    """Link the session to Issue `no` (digits), or clear the link with "0". False when the
+    session id or the number is not usable; never raises."""
+    s = session_id(session)
+    if not s:
+        return False
+    p = os.path.join(_live_dir(), f"{s}.issue")
+    try:
+        if no == "0":
+            if os.path.isfile(p):
+                os.remove(p)
+            return True
+        if not RE_ISSUE.match(no or ""):
+            return False
+        os.makedirs(_live_dir(), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(no)
+        return True
+    except OSError:
+        return False
+
+
 def props(session: str = "") -> dict[str, str]:
     """The identity dimensions for one event. Empty values are dropped."""
     out: dict[str, str] = {"where": "cloud" if is_cloud() else "local"}
@@ -99,6 +145,9 @@ def props(session: str = "") -> dict[str, str]:
     b = os.environ.get("CLAUDE_CODE_BRIDGE_SESSION_ID", "")
     if re.match(r"^session_[A-Za-z0-9]{8,64}$", b):
         out["bridgeSession"] = b  # claude.ai/code/<id> — lets the panel open the session
+    i = issue_no(session)
+    if i:
+        out["issueNo"] = i
     if excluded():
         out["exclude"] = "true"
     return out
@@ -111,16 +160,30 @@ def excluded() -> bool:
 
 
 def self_test() -> int:
+    import tempfile
+
     env_keys = ("ALDC_USER_EMAIL", "ALDC_METRICS_ANONYMOUS", "CLAUDE_CODE_REMOTE",
-                "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_BRIDGE_SESSION_ID", "ALDC_METRICS_EXCLUDE")
+                "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_BRIDGE_SESSION_ID", "ALDC_METRICS_EXCLUDE",
+                "ALDC_LIVE_DIR")
     backup = {k: os.environ.get(k) for k in env_keys}
     try:
         for k in env_keys:
             os.environ.pop(k, None)
         os.environ["ALDC_USER_EMAIL"] = "Mario.Rossi@Example.com"
         os.environ["CLAUDE_CODE_SESSION_ID"] = "20a903ef-52d2-48d7-b681-990ce2056020"
+        os.environ["ALDC_LIVE_DIR"] = tempfile.mkdtemp(prefix="aldc-ident-")
         _email_cache.clear()
         p = props()
+        bad_set = [set_issue("", v) for v in ("12a", "-4", "1 2", "../x", "", "00")]
+        linked_ok = set_issue("", "4821")
+        linked = props()
+        other = props("ffffffff-0000-4000-8000-000000000000")
+        with open(os.path.join(_live_dir(), "20a903ef-52d2-48d7-b681-990ce2056020.issue"), "w") as fh:
+            fh.write("Customer X: invoice wrong")
+        tampered = props()
+        set_issue("", "77")
+        cleared_ok = set_issue("", "0")
+        cleared = props()
         os.environ["ALDC_METRICS_ANONYMOUS"] = "1"
         os.environ["CLAUDE_CODE_REMOTE"] = "true"
         os.environ["CLAUDE_CODE_BRIDGE_SESSION_ID"] = "session_014FJYLCSBFaxWgN2eaq4eCB"
@@ -129,6 +192,12 @@ def self_test() -> int:
         excl = props()
         checks = [
             ("not excluded by default", "exclude" not in p),
+            ("no issue until one is linked", "issueNo" not in p),
+            ("issue link: only a positive integer is accepted", not any(bad_set) and linked_ok),
+            ("issue link: carried by the session's events", linked.get("issueNo") == "4821"),
+            ("issue link: another session does not see it", "issueNo" not in other),
+            ("issue link: a tampered file is ignored", "issueNo" not in tampered),
+            ("issue link: 0 clears it", cleared_ok and "issueNo" not in cleared),
             ("ALDC_METRICS_EXCLUDE marks the event", excl.get("exclude") == "true"),
             ("hash is case-insensitive", p.get("userHash") == user_hash("mario.rossi@example.com")),
             ("hash length", len(p.get("userHash", "")) == 16),

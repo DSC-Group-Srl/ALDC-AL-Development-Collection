@@ -5,7 +5,8 @@ description: >
   XLF, base-app sources, JSON), returns structured bullets with EXACT line ranges and a READ:
   line of offset/limit ranges, so the calling agent loads only what it needs instead of the
   whole file. Locates and describes — never judges, reviews or proposes fixes. Use from any
-  agent before reading a file over ~350 lines, or when the read-guard hook denies a full read.
+  agent before reading a file over ~350 lines, or when the read-guard hook denies a full read
+  (editing a file never needs a full read: a ranged Read of the lines to change is enough).
 tools: Read, Grep, Glob, mcp__plugin_bc-dev_al-mcp__al_symbolsearch, mcp__plugin_bc-dev_al-mcp__al_symbolrelations
 model: haiku
 effort: low
