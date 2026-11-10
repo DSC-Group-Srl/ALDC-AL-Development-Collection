@@ -286,6 +286,33 @@ def _version_block(text: str) -> tuple[str, str] | None:
     return None
 
 
+# The server's own compile errors. `Reason:` only says "Extension compilation failed"; the cause
+# is in the `error ALnnnn:` lines, which the agent otherwise fetches with a bare `al publishapp`
+# outside the lock.
+RE_AL_ERROR = re.compile(r"error (AL\d{4}):\s*(.+)")
+RE_DEP_MISSING = re.compile(
+    r"publisher '([^']+)', name '([^']+)', and a version compatible with '([^']+)' could not be loaded", re.I)
+
+
+def _compile_errors(text: str, limit: int = 12) -> list:
+    seen, res = set(), []
+    for m in RE_AL_ERROR.finditer(text):
+        line = f"{m.group(1)}: {m.group(2).strip()}"[:300]
+        if line not in seen:
+            seen.add(line)
+            res.append(line)
+    return res[:limit]
+
+
+def _missing_dependencies(text: str) -> list:
+    seen, res = set(), []
+    for pub, name, ver in RE_DEP_MISSING.findall(text):
+        if (pub, name) not in seen:
+            seen.add((pub, name))
+            res.append({"publisher": pub, "name": name, "minVersion": ver})
+    return res
+
+
 def _classify_publish(code: int, text: str) -> str:
     if code == 0 and "failed" not in text.lower():
         return "published"
@@ -295,16 +322,22 @@ def _classify_publish(code: int, text: str) -> str:
     vb = _version_block(text)
     if vb:
         return vb[0]                   # bump the revision, never the build (#89)
-    if "destinazione di compilazione" in t or "target" in t and "allowed" in t:
+    if RE_DEP_MISSING.search(text) or "could not be found among this tenant's installed apps" in t:
+        return "dependency-missing"    # AL1024: a dependency app is not installed on the environment
+    if "destinazione di compilazione" in t:
         return "target-not-allowed"    # OnPrem/Internal app on a SaaS sandbox
+    if "extension compilation failed" in t:
+        # Before the loose English target test below: a server compile failure whose output
+        # happened to contain "target" and "allowed" was reported as target-not-allowed.
+        return "server-compile-failed"
+    if "target" in t and "allowed" in t:
+        return "target-not-allowed"
     if any(s in t for s in ("certificate", "econnreset", "timed out", "timeout", "unable to connect",
                             "handshake", "name or service not known")):
         return "tool-blocked"
     if "aadsts" in t or "interactive" in t and "login" in t:
         return "auth-required"
     # Named causes of what used to be one "failed" bucket (13% of all publishes).
-    if "extension compilation failed" in t:
-        return "server-compile-failed"
     if "in use by the following tenants" in t or "cannot be unpublished because it is in use" in t:
         return "in-use-elsewhere"
     if "is defined in multiple apps" in t:
@@ -320,16 +353,22 @@ def _classify_publish(code: int, text: str) -> str:
 
 
 PUBLISH_HINTS = {
-    "server-compile-failed": "The server could not compile the package against what is installed there: a dependency "
-                             "is missing or older on the environment, or the app was built against newer symbols. "
-                             "Check the environment's installed versions of the app's dependencies, refresh symbols "
-                             "from THIS environment, rebuild, publish again. Not a test failure.",
+    "dependency-missing": "An app this package depends on is not installed on the environment (`missingDependencies`). "
+                          "Publish it yourself, under this same lock, before this package: skill-test-lane, "
+                          "section 'Dependencies missing on the environment'. Do not stop to ask.",
+    "server-compile-failed": "The server could not compile the package against what is installed there; `errors` has "
+                             "its compile errors. Unknown namespaces/objects of another DSC app mean that dependency "
+                             "is missing or older on the environment: publish it yourself under this same lock "
+                             "(skill-test-lane, section 'Dependencies missing on the environment'), then publish "
+                             "again. Otherwise the app was built against newer symbols: refresh symbols from THIS "
+                             "environment and rebuild. Not a test failure.",
     "in-use-elsewhere": "Another tenant on the same server has this exact version installed, so it cannot be replaced. "
                         "Bump the scratch revision (both app.json), rebuild, publish again.",
     "object-id-conflict": "An object ID is already taken by another installed app. Fix the ID in the source "
                           "(idRanges), do not retry.",
     "scope-conflict": "The app is already deployed in the other scope (global vs per-tenant) on this environment. "
-                      "Stop and ask the user which environment to use.",
+                      "A dependency: it is installed, go on. The app under test: stop and ask the user "
+                      "which environment to use.",
     "upgrade-failed": "The data upgrade or schema synchronization of the new version failed on the environment. "
                       "Read `reason`: it is a real defect of the change (upgrade code, a destructive table change).",
     "environment-not-found": "The server does not know this environment name. Re-check the launch.json "
@@ -348,12 +387,19 @@ def cmd_publish(scratch: str, app: str) -> int:
                "seconds": round(time.time() - t0, 1), "reason": reason}
     if res in PUBLISH_HINTS:
         payload["hint"] = PUBLISH_HINTS[res]
+    if res in ("server-compile-failed", "dependency-missing"):
+        payload["errors"] = _compile_errors(text)
+        payload["missingDependencies"] = _missing_dependencies(text)
     vb = _version_block(text)
     if vb and res == vb[0]:
         payload["blockingVersion"] = vb[1]
         payload["nextScratchVersion"] = scratch_version(vb[1])
     return out(payload)
 
+
+_AL1024 = ("error AL1024: A package with publisher 'DSC Group Srl', name 'Dyna License Test Library', and a version "
+           "compatible with '2.2.0.0' could not be loaded. Symbols for the requested app Dyna License Test Library by "
+           "DSC Group Srl 2.2.0.0 could not be found among this tenant's installed apps.")   # self-test fixture
 
 RE_TOTALS = re.compile(r"Test run completed:\s*(\d+)\s+passed,\s*(\d+)\s+failed,\s*(\d+)\s+skipped", re.I)
 RE_LINE = re.compile(r"^\s*(PASS|FAIL|SKIP|ERROR)\s+(\S.*?)\s*\((\d+)ms\)", re.M)
@@ -517,6 +563,17 @@ def self_test() -> int:
          == "version-below-installed"),
         ("server compile failure named",
          _classify_publish(1, 'Pubblicazione non riuscita a causa di "Extension compilation failed"') == "server-compile-failed"),
+        ("compile failure with target/allowed noise is still a compile failure",
+         _classify_publish(1, '[msal] target scopes allowed\nReason: Pubblicazione non riuscita a causa di "Extension compilation failed"')
+         == "server-compile-failed"),
+        ("missing dependency named",
+         _classify_publish(1, "Extension compilation failed\n" + _AL1024) == "dependency-missing"),
+        ("missing dependency extracted",
+         _missing_dependencies(_AL1024 + "\n" + _AL1024)
+         == [{"publisher": "DSC Group Srl", "name": "Dyna License Test Library", "minVersion": "2.2.0.0"}]),
+        ("server compile errors extracted once each",
+         _compile_errors("x error AL0185: Table 'DSC HR Dyna HR Setup' is missing\n" * 2)
+         == ["AL0185: Table 'DSC HR Dyna HR Setup' is missing"]),
         ("in use by another tenant named",
          _classify_publish(1, "The Extension cannot be unpublished because it is in use by the following tenants: abc")
          == "in-use-elsewhere"),
@@ -528,7 +585,7 @@ def self_test() -> int:
         ("unknown environment named", _classify_publish(1, "Publish failed.\nReason: Not Found\n") == "environment-not-found"),
         ("anything else is still failed", _classify_publish(1, "something nobody has seen") == "failed"),
         ("every named cause has a hint", all(k in PUBLISH_HINTS for k in (
-            "server-compile-failed", "in-use-elsewhere", "object-id-conflict", "scope-conflict",
+            "server-compile-failed", "dependency-missing", "in-use-elsewhere", "object-id-conflict", "scope-conflict",
             "upgrade-failed", "environment-not-found"))),
         ("totals regex", RE_TOTALS.search("Test run completed: 3 passed, 1 failed, 0 skipped.") is not None),
     ]

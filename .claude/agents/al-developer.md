@@ -36,7 +36,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 | Translations | `skill-translate` (nab-al-tools MCP) |
 | Docs | **microsoft-docs**, **context7**, `WebSearch`/`WebFetch` |
 | Run tests | **only** the test lane — `Skill(bc-dev:skill-test-lane)` (contract §5) |
-| Publish / deploy | **HITL** — `al_publish` / `al publishapp` / `GITCloner al-publish` (whole workspace, dependency order; `skill-gitcloner`) exist but deploy to a live tenant; only when the human explicitly asks, otherwise VS Code or CI |
+| Publish / deploy | **HITL** — `al_publish` / `al publishapp` / `GITCloner al-publish` (whole workspace, dependency order; `skill-gitcloner`) exist but deploy to a live tenant; only when the human explicitly asks, otherwise VS Code or CI. Not HITL: the lane's own publishes on the chosen test environment, missing DSC dependencies included |
 | Debug / snapshot / CPU profile | VS Code only — ask the human, then interpret with `skill-debug` |
 
 ### Analyzers — every compile, every time (repeated here on purpose)
@@ -96,7 +96,11 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    create a local container with the repo's AL-Go script (`skill-al-go-devenv`, when the lane
    reports `devEnv.suggest`), to add a configuration, or to accept that no tests will run. Run the codeunits you created or
    affected. Publish refused for the version → use the lane's `nextScratchVersion` (revision
-   bump, never build + 1, never committed — `skill-test-lane` §2 Scratch version). Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
+   bump, never build + 1, never committed — `skill-test-lane` §2 Scratch version). Publish refused
+   because a DSC dependency is missing or older on the environment (`dependency-missing`,
+   `server-compile-failed`) → publish the dependency yourself through the lane and continue:
+   it is part of running the tests, not a reason to stop and ask (`skill-test-lane` §2
+   *Dependencies missing*). Failures → fix → recompile → re-run. Accepted no-tests → report **tests not
    executed**; never report PASS for a test that did not run. Told not to run tests (by the
    user or your delegator, however softly) → contract §5: answer the concurrency fear once
    with the lane lock; if the ban holds, the report says **tests NOT executed**, how many new

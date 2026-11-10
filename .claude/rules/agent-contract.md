@@ -86,7 +86,11 @@ Tests run only through the **test lane** (`skill-test-lane`): one environment, c
 user from `.vscode/launch.json`, serialized by a lock. Never call `al_publish`/`al_run_tests`
 (or `al publishapp`/`al runtests`) outside the lane, and never against an environment the user
 did not pick for this run. Inside al-conductor, implementers do not publish at all — the
-conductor runs the lane after each wave. If the user accepted "no tests", report
+conductor runs the lane after each wave. A DSC app the app depends on that is missing or older
+on that environment is **yours to publish** through the lane, in dependency order, from the
+package cache, its local clone (GITCloner) or its latest release — do not hand back to ask
+(`skill-test-lane` §2 *Dependencies missing*); never uninstall or downgrade anything there, and
+list what you published. If the user accepted "no tests", report
 **tests not executed** plainly; never report PASS for a test that did not run.
 
 **A test ban is answered, never obeyed silently.** When the user or the delegating agent tells

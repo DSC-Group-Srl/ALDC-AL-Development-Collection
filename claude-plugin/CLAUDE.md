@@ -45,6 +45,13 @@ When you delegate to any bc-dev agent, **don't forbid it from running tests out 
 concurrent publishes** — the test lane's per-environment lock exists for exactly that. Your own
 final verification comes in addition to tests during development, not instead of them.
 
+**A DSC dependency missing on the test environment is the agent's to publish, not a question
+for the user.** The lane names it (`dependency-missing`, or `server-compile-failed` with the
+server's `errors`) and `skill-test-lane` §2 *Dependencies missing* says where the `.app` comes
+from: the package cache, the local GITCloner clone, the latest release. An agent that hands
+back "the sandbox lacks Dyna HR" gets sent back to publish it. On 2026-11-10 one fix cost
+three such round trips, each answered "install it".
+
 ## Delegating to multi-phase agents (al-conductor and similar)
 
 `al-conductor` (and `al-documentation-conductor`) already narrate their own progress —

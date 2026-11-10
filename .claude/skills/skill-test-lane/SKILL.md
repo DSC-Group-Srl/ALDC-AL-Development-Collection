@@ -34,7 +34,8 @@ python "$L" configs <test-project-dir>      # e.g. app-test
   will be run**. If they accept, the run
   records `lane=skipped` and every report says **tests not executed** — never PASS.
 - The chosen name is the authorization for publish + run against that environment for this
-  run only. al-conductor writes it into `{req}.plan.md` (`**Test environment:**`) so a resumed
+  run only — the app, its test app, and the DSC apps they depend on when the environment lacks
+  them (§2 Dependencies missing). al-conductor writes it into `{req}.plan.md` (`**Test environment:**`) so a resumed
   run does not ask again.
 
 ## 2. One lane cycle
@@ -43,6 +44,7 @@ python "$L" configs <test-project-dir>      # e.g. app-test
 python "$L" prepare <test-project-dir> "<config name>"   # -> scratch, envKey
 python "$L" acquire <envKey> --wait 900                  # blocks while another run holds it
 python "$L" publish <scratch> <base-app .app>            # dependency order: base app first
+                                                          # (missing DSC dependencies before it, see below)
 python "$L" publish <scratch> <test-app .app>
 python "$L" run     <scratch> <codeunit-id> [<id> ...]   # the wave's test codeunits
 python "$L" release <envKey>                              # ALWAYS — also after any failure
@@ -83,6 +85,49 @@ installed version" too. The sandbox is left without the app until a later CI run
   scratch versions in **Extension Management** (test app first, then the app), and list the
   versions the lane published this run.
 
+### Dependencies missing on the environment — publish them yourself
+
+The app often depends on other DSC apps (Dyna License, Dyna HR, a test library…), and the test
+environment does not always have them, or has an older version. The publish then fails with
+`dependency-missing` (`missingDependencies` names the apps) or `server-compile-failed` whose
+`errors` name namespaces, tables or codeunits of another app. **Do not stop and do not ask:**
+the environment the user picked for the lane covers the app, its test app and the DSC apps they
+need. Publish them, then go on with the cycle. (Before 9.1 an agent came back three times to ask
+"how do we test?" for one fix; every answer was "install it".)
+
+1. **What is needed.** The `dependencies` of both `app.json` files (app and test app), DSC
+   publisher only — Microsoft apps are never yours to publish. Dependencies are transitive: a
+   dependency that is "already installed" but still cannot be loaded lacks one of **its** own
+   dependencies, so read its `app.json` too. `GITCloner al-projects "<repo folder>" --json`
+   gives the list in dependency order.
+2. **Where each `.app` comes from** — the first that exists:
+   1. **The project's package cache** (`.alpackages`): the file the app was compiled against,
+      so it matches by construction. A symbols-only package is refused by the server → next.
+   2. **The local clone of its repo.** `GITCloner al-projects --tracked --json` finds it by app
+      `id` or `name`; `GITCloner repos "<name>" --json` gives `localPath`/`cloned`, and
+      `GITCloner clone-repo <repo> --json` clones it when it is not there (`skill-gitcloner`
+      §1, §4). Build it into the lane scratch folder, never into its repo:
+      `al compile /project:"<clone>/app" /packagecachepath:"<clone>/.alpackages" /out:"<scratch>/<name>.app"`.
+      Never edit, commit or push in that repo; a version change goes in a scratch copy.
+   3. **Its latest GitHub release** (`gh release download <tag> -R DSC-Group-Srl/<repo> -D <scratch>`),
+      when that version satisfies the minimum in `app.json` and the app compiles against it.
+3. **Publish in dependency order, under the lock you already hold**, with the same command:
+   `python "$L" publish <scratch> <dependency .app>` — dependencies first, a test library after
+   the app it tests, then the base app and the test app as in the cycle above.
+4. **Read the result as "is it there now?"** `published` / `already-current` → yes.
+   `version-below-installed` → a newer one is installed: it is there, do **not** bump a
+   dependency's version to push yours in. `scope-conflict` → it is installed as a Global app:
+   it is there; only when the version you need is **higher** than the Global one, publish that
+   higher build (the server accepts it per tenant).
+5. **Never** uninstall, unpublish, downgrade, or force a schema sync (`ForceSync`) to get a
+   dependency in, and never do any of this on a Production environment.
+6. **Report it.** The environment is shared: the final report lists every dependency you
+   published, with version and source (cache / clone / release).
+
+Stop and hand back only when a dependency's `.app` cannot be obtained from any of the three
+sources, it is not a DSC app, or the permission system denies the publish (a denial is a no —
+report the exact command so the user can allow it; don't route around it).
+
 ## 3. Read the results — classifications, not log scraping
 
 `publish.result`:
@@ -97,10 +142,11 @@ installed version" too. The sandbox is left without the app until a later CI run
 | `auth-required` | no cached AAD token | ask the user to run `! al auth login` once, then retry |
 | (run) `UserNotAuthenticatedException` | UserPassword server, no credential in the AL CLI's cache | `tools/testlane/save-onprem-credentials.ps1` (see `skill-al-go-devenv` §3) |
 | `tool-blocked` | TLS/proxy/timeout signature | TOOL_BLOCKED per tool-failure-protocol — stop |
-| `server-compile-failed` | the server could not compile the package against what is installed there | a dependency is missing or older on the environment, or symbols are newer than the environment: check installed dependency versions, refresh symbols from this environment, rebuild, publish again |
+| `dependency-missing` | an app this package depends on is not installed there (`missingDependencies`) | publish the dependency yourself under the same lock, then this package again (§2 Dependencies missing) — no question to the user |
+| `server-compile-failed` | the server could not compile the package against what is installed there; `errors` has its compile errors | objects/namespaces of another DSC app unknown → that dependency is missing or older: publish it yourself (§2 Dependencies missing). Otherwise symbols are newer than the environment: refresh symbols from this environment, rebuild, publish again |
 | `in-use-elsewhere` | another tenant on the same server has this exact version installed | bump the scratch revision in both `app.json`, rebuild, publish again |
 | `object-id-conflict` | an object ID is already taken by another installed app | fix the ID in the source; do not retry |
-| `scope-conflict` | already deployed in the other scope (global vs per-tenant) | stop; ask the user which environment to use |
+| `scope-conflict` | already deployed in the other scope (global vs per-tenant) | a **dependency**: it is installed, go on (§2 Dependencies missing). The app under test: stop; ask the user which environment to use |
 | `upgrade-failed` | data upgrade or schema synchronization failed | a real defect of the change: read `reason` |
 | `environment-not-found` | the server does not know this environment name | re-check the configuration picked for the lane |
 | `failed` | anything else; `reason` has the server's text | treat as a real defect of the build |

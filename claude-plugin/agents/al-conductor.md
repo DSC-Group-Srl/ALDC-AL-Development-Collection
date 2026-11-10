@@ -169,6 +169,9 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
      **release, always**. Skipped when the user accepted no tests. A version rejection →
      `nextScratchVersion` from the lane (revision bump, **never build + 1** — that collides
      with the next AL-Go CI build, #89), restored before the wave commit (`skill-test-lane` §2).
+     A DSC dependency missing or older on the environment (`dependency-missing`,
+     `server-compile-failed`) → publish it yourself under the same lock and go on; it is not
+     a stop condition (`skill-test-lane` §2 *Dependencies missing*).
 
    Trust the verdict field; don't re-derive it. A report that contradicts itself (APPROVED with
    a CRITICAL) → stop and ask.
