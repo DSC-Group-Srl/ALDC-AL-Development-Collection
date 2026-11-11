@@ -1,6 +1,6 @@
 ---
 name: skill-bc-issue
-description: "Link a piece of bc-dev work to its Issue in DSC's own Business Central (Customer > Project > Task > Issue) through the read-only `businesscentral` MCP connection, and read the estimate and booked hours already recorded on it. Use at the start of any activity (spec, conductor run, LOW change, triage of a ticket) to find and record the Issue, when a spec or a conductor run needs the Issue's estimate, and whenever the user gives an Issue number or reference (issueListRef, 'IL 1234', 'la issue di ...'). The link makes telemetry, estimates and DSC's prediction model join on the Issue."
+description: "Link a piece of bc-dev work to its Issue in DSC's own Business Central (Customer > Project > Task > Issue) through the read-only `businesscentral` MCP connection, and read the estimate, booked hours, Markdown notes and attached Teams/SharePoint files already recorded on it. Use at the start of any activity (spec, conductor run, LOW change, triage of a ticket) to find and record the Issue, when a spec or a conductor run needs the Issue's estimate, when the analysis or the requirements of the work are on the Issue rather than in the repo (its notes, the documents attached to it), and whenever the user gives an Issue number or reference (issueListRef, 'IL 1234', 'la issue di ...'). The link makes telemetry, estimates and DSC's prediction model join on the Issue."
 ---
 
 # Skill: link the work to its Business Central Issue
@@ -10,7 +10,8 @@ what the same activity costs an agent (tokens, minutes, fix loops). The two only
 session knows **which Issue it is working on**. This skill is how it finds out, records it, and
 reads the Issue's numbers back.
 
-Everything here is **read-only**. The connection is DSC's production company.
+Everything here is **read-only**. The connection is DSC's production company. (The one write
+bc-dev makes on it, claiming an AppSource object ID range, is `skill-app-id-range`.)
 
 ## The connection
 
@@ -20,7 +21,7 @@ Everything here is **read-only**. The connection is DSC's production company.
 | Target | DSC tenant, environment `Production`, company `DSC GROUP SRL`, configuration `OPERATIONS` |
 | Sign-in | the developer's own DSC account: `/mcp` → `businesscentral` → authenticate (once) |
 | Tools | `bc_actions_search` → `bc_actions_describe` → `bc_actions_invoke` |
-| Guard | `tools/bc-guard/`: only `List_*` actions run; every write is denied |
+| Guard | `tools/bc-guard/`: only `List_*` actions run; every write is denied (bar the range claim of `skill-app-id-range`, which asks the user) |
 
 It is the same Business Central the `dsc-timesheet` plugin uses, on a separate connection, so
 the two never get in each other's way. If the tools are **not connected** (not signed in, a
@@ -37,6 +38,9 @@ Customer (customerCode)
   └─ Project   List_Projects_PAG75102  (projectID)
       └─ Task  List_Tasks_PAG75103     (taskCode)   the billable job
           └─ Issue  List_Issues_PAG75105 (entryNo)  the activity — the thing to link
+
+Notes  List_MarkdownNotes_PAG75113   )  hang off an Issue, a Task or a Project:
+Files  List_AttachedFiles_PAG75112   )  parentId = that record's `id`   (§4)
 ```
 
 Issue fields that matter here:
@@ -55,6 +59,10 @@ Issue fields that matter here:
 | `ticketRef` | Freshdesk ticket, when the Issue came from one |
 | `employeeID` | last assignee |
 | `issueChildrenCount`, `issueParentEntryNo` | hierarchy — link the **leaf** |
+| `id` | the record's GUID — what notes and files point at (`parentId`) |
+| `markdownNotesCount`, `attachedFilesCount` | how many notes and files it has (§4) |
+| `teamsTeamName`, `teamsChannelName` | the Teams team and channel of the work |
+| `teamsFolderId`, `taskTeamsFolderId` | the Issue's and its Task's folder (drive item ids). `teamsFolderUrl` / `taskTeamsFolderUrl` exist but are always empty |
 
 Action names can change with the app version: when one is missing, rediscover it with
 `bc_actions_search` (keyword `issue, task, project`) instead of guessing.
@@ -212,14 +220,78 @@ Use them like this:
 Hours in BC are **human** hours. Agent effort (tokens, wall-clock) is a different unit — keep
 them in separate lines, never add them.
 
+## 4. Read the notes and files on the Issue
+
+Consultants write the analysis of an activity **on the Issue**: Markdown notes, and documents
+(the functional analysis, an architecture, a customer's sample file) attached from the Teams
+channel of the work. When the Issue has them, they are the requirements — read them before
+writing a spec or a diagnosis, instead of asking the user for "the document".
+
+**a. Is there anything?** Add four fields to the query that verifies the Issue:
+
+```text
+List_Issues_PAG75105
+  filter: entryNo eq 23712
+  select: id,entryNo,issueListRef,taskCode,projectID,markdownNotesCount,attachedFilesCount,
+          teamsTeamName,teamsChannelName
+```
+
+Both counts 0 → nothing to read; stop here. (The counts cannot be used in a `filter`.)
+
+**b. The notes** — the full text comes back in the call:
+
+```text
+List_MarkdownNotes_PAG75113
+  filter: parentId eq <the Issue's id>          a GUID, no quotes
+  select: noteText,isMarkdown,createdAt,createdByUserName,lastModifiedAt
+  orderby: createdAt asc   top: 20
+```
+
+`previewText` is the first 250 characters or so: select it instead of `noteText` when you only
+need to see what the notes are about. A note can be a whole analysis document (several
+thousand words) — read it once, don't list it twice.
+
+**c. The files** — the list, not the content:
+
+```text
+List_AttachedFiles_PAG75112
+  filter: parentId eq <the Issue's id>
+  select: title,fileName,webUrl,attachedAt,attachedByUserName
+  orderby: attachedAt asc   top: 20
+```
+
+`webUrl` is the SharePoint link of the file. Business Central does not hand out the content:
+- the session has a Microsoft 365 / SharePoint connector → read the file through it;
+- otherwise give the user the file name and link in one line and ask for the part you need
+  (a `.md` or `.txt` pasted in, a `.docx` saved into the requirement's folder).
+Never fetch the link with `curl` or `WebFetch`: it needs the user's sign-in.
+
+**d. One level up.** Notes and files can also sit on the **Task** or the **Project** (a
+document shared by every Issue of the job). Nothing on the Issue, or the user says "it's on the
+task" → get the Task's `id` (`List_Tasks_PAG75103`, `filter: taskCode eq '<taskCode>'`,
+`select: id,taskCode`) and repeat b and c with it; same for the Project
+(`List_Projects_PAG75102`). `parentType` in the answer says which level a row belongs to
+(`issue`, `task`, `project`). `parentId` is the only useful filter: `issueEntryNo` and
+`parentType` cannot be filtered on.
+
+What to do with them:
+
+- **Spec** — the notes and documents are input like the user's request: fold what they
+  require into the spec and name the source (`Source: note of 2026-08-31 on Issue FMA26-013`,
+  `Source: "FMA - Documento di Analisi.docx"`). A document that belongs to the requirement is
+  saved by the user into `app/requirements/in-progress/{req_name}/`.
+- **Triage** — a note often says what was agreed with the customer; quote the relevant line
+  in the diagnosis.
+- **They disagree with the request** → say so and ask; don't pick one silently.
+
 ## Rules
 
 - **Read-only.** No `Create_`, `Modify_`, `Delete_` or bound action, ever — the guard denies
   them, and working around it is not an option. What should be written, a person writes in BC.
+  You read notes and files; you never add, change or attach one.
 - **Timesheet lines are not yours.** That is the `dsc-timesheet` plugin.
-- **Few calls.** One or two queries find an Issue. Don't page through the list.
-- **Nothing customer-specific leaves the session.** Issue descriptions, customer names and
-  hours stay in the conversation and the spec; telemetry gets the number only.
-- **Files and notes of an Issue** (Teams channel, SharePoint folder, Markdown notes) are not
-  exposed by the API yet — DSC-Group-Srl/dscgroup-base#74. Until then ask the user for the
-  document.
+- **Few calls.** One or two queries find an Issue, two more read its notes and file list.
+  Don't page through the lists.
+- **Nothing customer-specific leaves the session.** Issue descriptions, customer names, hours,
+  note text and file names stay in the conversation and the spec; telemetry gets the number
+  only. Never paste a note into a GitHub issue, a commit message or a plugin-feedback report.

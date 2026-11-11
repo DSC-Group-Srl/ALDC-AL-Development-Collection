@@ -28,13 +28,14 @@ Reasoning and history: [`.github/plans/bcquality-proactive-integration.md`](.git
 claude-plugin/              # THE PRODUCT — everything below ships to the marketplace
   .claude-plugin/           #   plugin.json (manifest, MCP servers, version)
   .mcp.json                 #   al-mcp, nab-al-tools, ms-learn, freshdesk, businesscentral (DSC's
-                            #   own BC, read-only: links work to its Issue)
+                            #   own BC, read-only: links work to its Issue, reads its notes and
+                            #   files; one confirmed write, the AppSource object ID range claim)
   agents/                   #   14 agents: architect, conductor, developer,
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
   commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
-  skills/                   #   32 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
-                            #   skill-bc-issue, skill-code-reader,
+  skills/                   #   33 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
+                            #   skill-bc-issue, skill-app-id-range, skill-code-reader,
                             #   skill-al-go-workflows, skill-plugin-feedback, skill-gitcloner,
                             #   skill-dyna-license, skill-al-go-backport, skill-freshdesk)
   rules-templates/          #   AL rules. /al-initialize copies the floor (cheat sheet, 2

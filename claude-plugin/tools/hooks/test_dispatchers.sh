@@ -129,6 +129,10 @@ pre "bc invoke bound action denied" DENY "$(bc bc_actions_invoke '{"ActionName":
 pre "bc invoke without an action name denied" DENY "$(bc bc_actions_invoke '{"RequestParameters":"{}"}')" "never writes"
 pre "bc invoke List_ only in the parameters denied" DENY "$(bc bc_actions_invoke '{"RequestParameters":"{\\"x\\":\\"List_Issues\\"}","ActionName":"Delete_Issue_PAG75105"}')" "never writes"
 pre "bc unknown tool denied" DENY "$(bc bc_actions_execute '{}')" "not one bc-dev uses"
+pre "bc notes and files are List_ actions (silent)" SILENT "$(bc bc_actions_invoke '{"ActionName":"List_MarkdownNotes_PAG75113","RequestParameters":"{}"}')"
+pre "bc claim a product range -> ask" ASK "$(bc bc_actions_invoke '{"ActionName":"Create_ProductRangeClaim_PAG75115","RequestParameters":"{\\"idsNeeded\\":50}"}')" "not idempotent"
+pre "bc free a product range denied" DENY "$(bc bc_actions_invoke '{"ActionName":"MarkAsFree_ProductRanges_PAG75114","RequestParameters":"{}"}')" "never writes"
+pre "bc claim only in the parameters denied" DENY "$(bc bc_actions_invoke '{"RequestParameters":"{\\"x\\":\\"Create_ProductRangeClaim_PAG75115\\"}","ActionName":"Create_Issue_PAG75105"}')" "never writes"
 pre "dsc-timesheet's own BC connection is not touched" SILENT \
   '{"session_id":"bc1","tool_name":"mcp__plugin_dsc-timesheet_businesscentral__bc_actions_invoke","tool_input":{"ActionName":"Create_TimesheetLineRequest_PAG52089","RequestParameters":"{}"}}'
 out="$(bc bc_actions_invoke '{"ActionName":"Create_Issue_PAG75105","RequestParameters":"{}"}' | ALDC_BC_GUARD_DISABLE=1 bash "$PRE")"

@@ -158,6 +158,8 @@ Verify all base application dependencies are available. For a multi-project work
 
 `app.json` **is** the manifest — write it directly with `Write` (id, name, publisher, version, idRanges, dependencies, platform/application).
 
+**`idRanges` of a DSC AppSource app are claimed, not invented.** For a new AppSource app (and its test app) load `bc-dev:skill-app-id-range`: it reads DSC's Product Ranges register in Business Central and claims the range, with the user's confirmation. A per-tenant app uses the customer's 50000-99999 range and claims nothing.
+
 **Human Review:** Validate manifest contents before proceeding.
 
 ## Phase 3: Launch Configuration

@@ -31,6 +31,9 @@ Invoke `Skill(skill: "bc-dev:skill-debug")` first — it owns the method (debugg
    DSC Business Central Issue (`Skill(skill: "bc-dev:skill-bc-issue")`: `ticketRef eq '<ticket>'`)
    and put `BC Issue: <entryNo> (<issueListRef>)` in the diagnosis header, so the fix and its
    effort land on the right Issue. Read-only; not connected or nothing found → `BC Issue: not found`.
+   When the Issue has Markdown notes or attached files (`markdownNotesCount`,
+   `attachedFilesCount`), read the notes and list the files (the skill's §4): what was agreed
+   with the customer is often written there, not in the ticket.
 
 1. **Reproduce — HARD GATE.** Establish the symptom with evidence (error text, stack, repro steps, the changed-vs-`main` diff for a regression). Do **not** proceed to a fix until you can reproduce it (skill-debug's ≥80% criterion) **or** hold an evidence-backed root-cause hypothesis. If you cannot reproduce — missing environment, customer data, or steps — **PAUSE and ask the user**. Never guess a fix.
 2. **Localize.** Narrow to suspect objects with `Grep`/search and AL symbol navigation. In files over ~350 lines ask `al-file-reader` (Task) where the suspect procedure/trigger lives and `Read` only those ranges (contract §4) — it locates, you diagnose. For a regression, read the diff (`git diff main...HEAD`, read-only) to see what changed. When the suspect code lives in a dependency (another DSC app in `app.json` → `dependencies`), find its repo and local clone with `GITCloner repos "<name>" --json` (`skill-gitcloner`) and read the source there instead of guessing from symbols. No local clone, or the suspect is another app of the same customer or the standard base application: the DSC Code Reader answers without cloning (`Skill(skill: "bc-dev:skill-code-reader")` — `standard_code`, `where_used`, `event_hooks`, `recent_changes` on the apps the customer runs).

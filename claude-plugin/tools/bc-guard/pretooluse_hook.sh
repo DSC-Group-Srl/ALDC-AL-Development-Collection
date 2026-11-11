@@ -8,14 +8,20 @@
 # DSC GROUP SRL, configuration OPERATIONS) with the developer's own permissions, and that
 # configuration also exposes write actions (Create_/Modify_ on Issues and Tasks, the timesheet
 # insert API). bc-dev uses it to LOOK THINGS UP - which Issue a piece of work belongs to, what
-# similar work was estimated at and what it took - never to change the company's books. A
-# prompt-level "read only" does not survive a long session, so it is enforced here:
+# similar work was estimated at and what it took, the notes and files on it - never to change
+# the company's books. A prompt-level "read only" does not survive a long session, so it is
+# enforced here:
 #
 #   bc_actions_search / bc_actions_describe / list_companies / list_environments -> allowed
 #   bc_actions_invoke with an ActionName starting with List_                      -> allowed
+#   bc_actions_invoke Create_ProductRangeClaim_*                                  -> "ask"
 #   bc_actions_invoke with any other ActionName (Create_, Modify_, Delete_, bound and unbound
 #   actions) or without a readable ActionName                                    -> denied
 #   any other tool of the server                                                 -> denied
+#
+# The one write: claiming the object ID range of an AppSource app (skill-app-id-range). It
+# assigns IDs at once and is not idempotent, so a person confirms every call - "ask" prompts
+# also in auto and bypass modes. Releasing a range (MarkAsFree_) stays denied.
 #
 # Writing timesheet lines is dsc-timesheet's job, on its own connection; creating Issues and
 # Tasks is a human step in Business Central.
@@ -51,10 +57,14 @@ case "$name" in
     action="$(field ActionName | tr -cd 'A-Za-z0-9_')"
     case "$action" in
       List_*) exit 0 ;;
+      Create_ProductRangeClaim_*)
+        printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' \
+          "bc-guard: this claims object IDs for an AppSource app in DSC's Business Central (production). The IDs are assigned at once and the call is not idempotent: approve it once, and only when the product, app, prefix and number of IDs shown are right. A range claimed by mistake has to be freed by a person on the Product Ranges page."
+        exit 0 ;;
     esac
-    deny "bc-guard: bc-dev reads DSC's Business Central, it never writes to it. The action '${action:-unknown}' is not a List_ action, so it is blocked. This connection is DSC's production company: Issues, Tasks and timesheet lines are created by a person in Business Central, or by the dsc-timesheet plugin for timesheet lines. Tell the user what you would have written and let them do it. Do not retry."
+    deny "bc-guard: bc-dev reads DSC's Business Central, it never writes to it. The action '${action:-unknown}' is not a List_ action, so it is blocked (the one exception is Create_ProductRangeClaim, which asks the user). This connection is DSC's production company: Issues, Tasks and timesheet lines are created by a person in Business Central, or by the dsc-timesheet plugin for timesheet lines; a product range is freed by a person on the Product Ranges page. Tell the user what you would have written and let them do it. Do not retry."
     exit 0 ;;
   *)
-    deny "bc-guard: the tool '$(printf '%s' "$name" | tr -cd 'A-Za-z0-9_')' is not one bc-dev uses on DSC's Business Central. Allowed: bc_actions_search, bc_actions_describe, and bc_actions_invoke with a List_ action. Do not retry."
+    deny "bc-guard: the tool '$(printf '%s' "$name" | tr -cd 'A-Za-z0-9_')' is not one bc-dev uses on DSC's Business Central. Allowed: bc_actions_search, bc_actions_describe, and bc_actions_invoke with a List_ action (or Create_ProductRangeClaim, which asks the user). Do not retry."
     exit 0 ;;
 esac

@@ -26,7 +26,9 @@
 #                                private-note "ask", per-session budget of the yearly quota)
 #        mcp__plugin_bc-dev_businesscentral__*
 #                             -> tools/bc-guard/pretooluse_hook.sh (DSC's production Business
-#                                Central is read-only for bc-dev: only List_ actions run)
+#                                Central is read-only for bc-dev: only List_ actions run;
+#                                the one write, claiming an AppSource object ID range,
+#                                asks the user)
 #        Task|Agent           -> tools/issue/run_guard.sh (a conductor run starts only once
 #                                the user has been asked which Business Central Issue it is)
 #      any other tool         -> exit 0, silent.

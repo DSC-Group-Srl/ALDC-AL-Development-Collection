@@ -140,7 +140,7 @@ The AL toolchain is the **AL command-line tool (ALTool / `al`)**, installable as
 | **Run tests** | Only through the **test lane** (`bc-dev:skill-test-lane`, `tools/testlane/lane.py`): the user picks the environment from `.vscode/launch.json` (none usable → add one, or accept *tests not executed*); a lock serializes the one shared environment across parallel work packages and sessions. The AL CLI lower-cases its options, so the lane targets an environment via a single-configuration scratch `launch.json` + `--project`. No usable environment and the repo has `.AL-Go/localDevEnv.ps1` → `bc-dev:skill-al-go-devenv` creates a local container non-interactively (one UAC click) and registers its credentials where the AL CLI reads them (`tools/testlane/save-onprem-credentials.ps1`). |
 | **Auth (cloud/AAD)** | **al-mcp** `al_auth_login`/`al_auth_logout`, or `Bash: al auth login`/`logout`. Usually unnecessary — `al_downloadsymbols`/`al_publish`/`al_run_tests` default to `useInteractiveLogin=true` and handle it inline. |
 | **Freshdesk tickets** (dsc-group.freshdesk.com) | **freshdesk** MCP (`mcp__plugin_bc-dev_freshdesk__*`), opt-in via the developer's own `FRESHDESK_API_KEY` — load `bc-dev:skill-freshdesk` first (setup, call budget, read/note templates). Read one ticket by number, once; write only confirmed private notes, never a reply. `tools/freshdesk-guard/` enforces the allowlist and the per-session cap. |
-| **DSC's own Business Central** (Issues, Tasks, Projects, booked hours) | **businesscentral** MCP (`mcp__plugin_bc-dev_businesscentral__*`): DSC tenant, `Production`, company `DSC GROUP SRL`, configuration `OPERATIONS`, the developer's own sign-in. **Read-only** (`tools/bc-guard/` denies everything but `List_` actions). Load `bc-dev:skill-bc-issue` first: it finds the Issue a piece of work belongs to, links the session to it (`emit.py AldcIssue`) and reads the estimate and booked hours on it. Never a customer's Business Central. |
+| **DSC's own Business Central** (Issues, Tasks, Projects, booked hours, an Issue's Markdown notes and attached files, AppSource object ID ranges) | **businesscentral** MCP (`mcp__plugin_bc-dev_businesscentral__*`): DSC tenant, `Production`, company `DSC GROUP SRL`, configuration `OPERATIONS`, the developer's own sign-in. **Read-only** (`tools/bc-guard/` denies everything but `List_` actions), with one confirmed write. Load `bc-dev:skill-bc-issue` first: it finds the Issue a piece of work belongs to, links the session to it (`emit.py AldcIssue`) and reads the estimate, booked hours, Markdown notes and attached Teams/SharePoint files on it (file list and link; the content needs a Microsoft 365 connector or the user). `bc-dev:skill-app-id-range` claims the object ID range of an AppSource app from the Product Ranges register — the guard turns that one call into a user prompt. Never a customer's Business Central. |
 | **Code outside the workspace** (a dependency app, the customer's other apps, standard BC) | **DSC Code Reader** — DSC's organisation connector (`mcp__claude_ai_Code_Reader_DSC__*`), not a plugin server: load `bc-dev:skill-code-reader`. Read-only by rule; its issue tools are never used. Not connected → `skill-gitcloner`. |
 | **Debug / snapshot / CPU profile** | **VS Code only** (AL debugger, snapshot debugging, CPU profiler) — a human step, not an agent tool on this surface. |
 
@@ -174,7 +174,8 @@ guards included (issue #77). So `hooks/hooks.json` has **one bash entry per even
   deny wins), `mcp__plugin_bc-dev_freshdesk__*`
   to `freshdesk-guard` (allowlist, per-session cap, `createTicketNote` → human ask, private
   only; kill switch `ALDC_FRESHDESK_GUARD_DISABLE=1`), `mcp__plugin_bc-dev_businesscentral__*`
-  to `bc-guard` (only `List_` actions run on DSC's Business Central; kill switch
+  to `bc-guard` (only `List_` actions run on DSC's Business Central; `Create_ProductRangeClaim`
+  → human ask; kill switch
   `ALDC_BC_GUARD_DISABLE=1`), Task/Agent to `issue/run_guard.sh` (a conductor run starts
   only once the Business Central Issue was asked; kill switch
   `ALDC_ISSUE_RUN_GUARD_DISABLE=1`). Other tools: silent.
@@ -221,6 +222,13 @@ telemetry and the prediction model join on one key.
   insert API). `tools/bc-guard/pretooluse_hook.sh` allows search, describe and `List_`
   invokes and denies the rest. It only matches bc-dev's own server name, so `dsc-timesheet`
   keeps writing timesheet lines on its connection.
+- **One write, always confirmed: the object ID range of an AppSource app.** DSC keeps the
+  register of its AppSource object IDs in Business Central (Product Ranges, API pages 75114
+  and 75115 of DSC Group PowerAutomate). `skill-app-id-range` reads it and claims a range with
+  `Create_ProductRangeClaim`; the guard answers that action with `ask`, so the user approves
+  every claim, also in auto mode. The claim assigns IDs at once and is **not idempotent**, which
+  is why it is not simply allowed. `MarkAsFree` (release a range) stays denied: a person does
+  it. Don't widen the exception to other `Create_` actions.
 - **The link.** `skill-bc-issue` derives the likely Issue once — the repo's `customer`
   (and `product`) property plus the open Issues assigned to the developer, whose employee
   record is found from the company e-mail (`tools/issue/whoami.sh`: gh account, then
@@ -250,8 +258,12 @@ telemetry and the prediction model join on one key.
   delegated (GDAP) access needs the Entra app authorized in each customer tenant by someone
   holding Application Administrator or Cloud Application Administrator there, and tokens from
   the Azure CLI carry no delegated role. Tested 2026-11 on three customers; parked.
-- Files and notes of an Issue (Teams/SharePoint, Markdown notes) are not in the API yet:
-  DSC-Group-Srl/dscgroup-base#74.
+- **Notes and files of an Issue** are in the API since DSC Group Base 28.26 / PowerAutomate
+  28.1 (DSC-Group-Srl/dscgroup-base#74): `List_MarkdownNotes_PAG75113` returns the full note
+  text, `List_AttachedFiles_PAG75112` the file list with its SharePoint `webUrl`, both filtered
+  by `parentId` = the `id` of the Issue, Task or Project; the Issue itself carries the counts
+  and its Teams team, channel and folder ids. `skill-bc-issue` §4. The file **content** is not
+  served by Business Central, and the `…FolderUrl` fields are always empty.
 
 ## DSC Code Reader
 

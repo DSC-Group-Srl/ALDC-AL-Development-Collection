@@ -80,7 +80,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    `SetLoadFields` per the floor. Load the domain skill when you enter its domain:
    `skill-api`, `skill-events`, `skill-permissions`, `skill-performance`, `skill-pages`,
    `skill-testing`, `skill-copilot`, `skill-translate`, `skill-debug`, `skill-demo-data`,
-   `skill-dyna-license` (licensing an AppSource app + its Dyna License portal product)
+   `skill-dyna-license` (licensing an AppSource app + its Dyna License portal product), `skill-app-id-range` (an AppSource app out of object IDs: the main thread claims a range — say so in your result, never pick IDs yourself)
    (invoke `Skill(skill: "bc-dev:skill-x")` — naming it is not loading it).
    **New entry point → prove it first.** When the change adds an entry point (page action,
    subscriber, public procedure/call) that several new tests go through, write the *first*

@@ -100,7 +100,8 @@ Loaded automatically by agents when needed:
 | `skill-testing` | TDD, AL Test Toolkit |
 | `skill-translate` | XLF translation, NAB AL Tools |
 | `skill-migrate` | BC version migration |
-| `skill-bc-issue` | Link the work to its Issue in DSC's Business Central; read the estimate on it |
+| `skill-bc-issue` | Link the work to its Issue in DSC's Business Central; read the estimate, notes and attached files on it |
+| `skill-app-id-range` | Claim the object ID range of an AppSource app from DSC's Product Ranges register |
 | `skill-code-reader` | Source of other DSC apps and standard BC through the DSC Code Reader |
 | `skill-freshdesk` | Freshdesk tickets as symptom/requirement source, private notes |
 

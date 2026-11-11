@@ -40,6 +40,9 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
   then link the session (`emit.py AldcIssue`) and write
   `**BC Issue:** <entryNo> (<issueListRef>)`. A number the user already gave is verified, not
   asked again.
+  **The Issue's notes and files are input to the spec.** When the linked Issue (or its Task)
+  has Markdown notes or attached documents, read the notes and list the files (the skill's
+  §4) before writing: the analysis is often there. Name them as sources in the spec.
   No Issue exists, or the `businesscentral` connection is not signed in and the user has no
   number → write `**BC Issue:** none` and move on; never block the spec on it, never create an
   Issue. Many Issues carry no estimate, and that is fine. When the Issue carries `estimatedHours`, quote it in the spec's effort section; when
