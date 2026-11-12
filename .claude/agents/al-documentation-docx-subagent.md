@@ -48,9 +48,13 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
    applicable. Produce the section outline yourself — don't pause for confirmation.
 3. **Fase 2** — write the content following the skill's writing rules (plain language, BC UI
    captions in bold, no technical identifiers, prose vs. lists per the skill's own guidance).
-4. **Fase 3** — generate the `.docx` per the skill's exact template (colors, fonts, header/
-   footer, cover page, TOC), reading `/mnt/skills/public/docx/SKILL.md` first as instructed, and
-   validate with `scripts/office/validate.py`.
+4. **Fase 3** — generate the `.docx` on the official DSC template through the **dsc-docs** plugin:
+   load `dsc-docs:skill-brand-dsc` and `dsc-docs:skill-documento-analisi` (DAF) or
+   `dsc-docs:skill-manuale` (MAN), write the content as their Markdown and build it with
+   `dscdoc.py`. Fonts, logo, header, footer, cover and TOC come from the template; never style the
+   document yourself. If dsc-docs is not installed, stop and report it (`/plugin install
+   dsc-docs@dscgroup-bc-nav-agentic-development`) instead of producing an off-template file.
+   On Windows with Office, run its `aggiorna-e-pdf.ps1` and read the PDF to check the pages.
 5. **Fase 4** — run the skill's own pre-delivery checklist before reporting done.
 
 ## Output Format
@@ -61,16 +65,16 @@ Invoke `Skill(skill: "bc-dev:skill-functional-docx")`. Apply its phases:
 **Output file:** {guides/word/{DAF|Manuals|Release Notes}/…, per the skill's "Dove salvare il file" and naming convention}
 **Checklist:** {✅ all items passed | ⚠️ list failing items}
 **[DA CHIARIRE] flags:** {None | list, each with its section}
-**Validation:** {✅ scripts/office/validate.py passed | ⚠️ issue}
+**Validation:** {✅ dscdoc.py reported no issues, PDF checked | ⚠️ issue}
 ```
 
 ## Tool Boundaries
 
 **CAN:**
 - Read AL source and existing documentation (functional site content, if present) for context
-- Write/Edit the `.docx` output only, under `guides/word/` (plus the `.gitignore` exception the
-  skill prescribes when the repo ignores `*.docx`)
-- Run `scripts/office/validate.py` via Bash
+- Write/Edit the `.docx` output and its `.md` source only, under `guides/word/` (plus the
+  `.gitignore` exception the skill prescribes when the repo ignores `*.docx`)
+- Run dsc-docs' `dscdoc.py` (and `aggiorna-e-pdf.ps1` on Windows with Office) via Bash
 
 **CANNOT:**
 - Modify AL source code

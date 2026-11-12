@@ -1,189 +1,87 @@
 ---
 name: skill-functional-docx
 description: >
-  Genera documenti funzionali italiani in formato .docx con il template ufficiale DSC Group Srl,
-  per estensioni Business Central e workflow di software gestionale.
-  Usa questa skill quando l'utente vuole creare un documento di analisi funzionale, un manuale
-  utente, una guida operativa, o specifiche di personalizzazione BC da consegnare a un cliente.
-  Attiva anche quando l'utente menziona: "documento di analisi", "analisi funzionale", "manuale
-  utente", "doc cliente", "specifiche per il cliente", "documento BC", "scrivi il doc", oppure
-  fornisce materiale grezzo (email, appunti, AL source, ticket) chiedendo di ricavarne documentazione.
-  Non usare per documentazione tecnica sviluppatore (usa aldoc-docfx) né per siti docfx
-  (usa functional-doc-docfx).
+  Genera documenti funzionali italiani in formato .docx sul modello ufficiale DSC Group, per
+  estensioni Business Central e workflow di software gestionale: documento di analisi funzionale
+  (DAF) o manuale utente / guida operativa (MAN) da consegnare al cliente. Questa skill porta le
+  regole sul CONTENUTO Business Central; struttura, modello, font e impaginazione vengono dal
+  plugin dsc-docs (skill-brand-dsc, skill-documento-analisi, skill-manuale). Attiva anche quando
+  l'utente menziona: "documento di analisi", "analisi funzionale", "manuale utente", "doc
+  cliente", "specifiche per il cliente", "documento BC", "scrivi il doc", oppure fornisce
+  materiale grezzo (email, appunti, AL source, ticket) chiedendo di ricavarne documentazione.
+  Non usare per documentazione tecnica sviluppatore (skill-aldoc) né per siti docfx
+  (skill-functional-docfx).
 ---
 
-# Italian Functional Document — DSC Group Template (.docx)
+# Documento funzionale BC per il cliente (.docx)
 
-**Template bundled:** `assets/template_DSC.docx`
-**Docx skill:** `/mnt/skills/public/docx/SKILL.md` — leggilo prima di generare il file.
+## Chi fa cosa
 
----
+| Cosa | Dove |
+|---|---|
+| Contenuto Business Central (cosa leggere nell'AL, come nominare campi e pagine, cosa non esporre) | **questa skill** |
+| Struttura delle sezioni DAF / MAN, dati di copertina, regole di scrittura generali | `dsc-docs:skill-documento-analisi`, `dsc-docs:skill-manuale` |
+| Modello, font, logo, intestazione, piè di pagina, generazione e verifica del .docx | `dsc-docs:skill-brand-dsc` |
 
-## Tipi di documento supportati
+La formattazione DSC vive **solo** nel plugin **dsc-docs** (modelli ufficiali della cartella
+MODELLI DOCUMENTI su Teams). Questa skill non la ripete e non porta modelli propri.
 
-| Tipo | Sigla | Struttura sezioni |
+**Se dsc-docs non è installato** (le sue skill non compaiono): fermati prima di generare il file
+e dillo all'utente — "serve il plugin dsc-docs del marketplace DSC: `/plugin install
+dsc-docs@dscgroup-bc-nav-agentic-development`". Non improvvisare un modello o uno stile: è così
+che nascevano i DAF in Verdana con l'intestazione di un altro progetto.
+
+## Tipi di documento
+
+| Tipo | Sigla | Skill dsc-docs |
 |---|---|---|
-| Documento di Analisi Funzionale | DAF | Vedi `references/struttura_DAF.md` |
-| Manuale Utente / Guida Operativa | MAN | Vedi `references/struttura_MAN.md` |
+| Documento di Analisi Funzionale | DAF | `dsc-docs:skill-documento-analisi` |
+| Manuale Utente / Guida Operativa | MAN | `dsc-docs:skill-manuale` |
 
 Se il tipo non è chiaro dal contesto, chiedi all'utente prima di procedere.
 
----
+## Fase 0 — Dati
 
-## Fase 0 — Raccolta parametri obbligatori
+Carica `dsc-docs:skill-brand-dsc` e la skill del tipo: elencano i dati di copertina (cliente,
+titolo, autore, supervisore, versione, data, note) e il loro formato. Raccoglili in un solo
+messaggio, deducendo dal contesto quello che puoi (cliente e app da `app.json`, dal repository o
+dall'Issue Business Central collegata).
 
-Prima di scrivere qualsiasi contenuto, raccogli questi dati (deducili dal contesto se possibile,
-altrimenti chiedi in un unico messaggio):
+## Fase 1 — Analisi dell'input Business Central
 
-| Campo | Dove finisce nel documento | Note |
-|---|---|---|
-| **Nome Cliente** | Header (titolo documento) + copertina | es. "Vasconi Srl", "CEC Milano" |
-| **Titolo Documento** | Header e H1 body | es. "Analisi gestione lotti – Modulo produzione" |
-| **Autore** | Campo AUTORE: nella copertina | Nome consulente DSC |
-| **Supervisore Progetto** | Campo SUPERVISORE PROGETTO: | BU Manager o PM |
-| **Versione** | Campo VERSIONE: | default "1.0" |
-| **Data** | Campo DATA: | default data odierna |
-| **Note e Commenti** | Campo NOTE E COMMENTI: | opzionale, può essere vuoto |
-| **Tipo documento** | Determina la struttura | DAF o MAN |
+Se l'utente ha fornito materiale grezzo (email, appunti, sorgente AL, ticket, screenshot):
 
----
+1. Individua i **workflow utente** (operazioni, passi, condizioni).
+2. Individua le **entità BC** coinvolte — tabelle, pagine, report, codeunit — e traducile in
+   termini funzionali: il cliente vede "la scheda **Articolo**", non `Table 27 Item`.
+3. Dal sorgente AL ricava le **caption** a schermo (`Caption`, XLIFF it-IT) dei campi e delle
+   azioni, non i nomi AL; i messaggi d'errore dalle `Label` usate in `Error()` / `Message()`.
+4. Separa **AS-IS** (comportamento attuale) e **TO-BE** (comportamento richiesto).
+5. Segnala le ambiguità prima di scrivere.
 
-## Fase 1 — Analisi input
+Proponi l'indice (struttura della skill dsc-docs del tipo) e fallo confermare.
 
-Se l'utente ha fornito materiale grezzo (email, appunti, AL source, spec ticket, screenshot),
-analizzalo prima di proporre la struttura:
+## Fase 2 — Regole di contenuto BC
 
-1. Identifica i **workflow utente** presenti nell'input (operazioni, passi, condizioni).
-2. Identifica le **entità BC** coinvolte (tabelle, pagine, report, codeunit — tradotte in termini
-   funzionali, mai nomi tecnici).
-3. Identifica **AS-IS** (comportamento attuale, se descritto) e **TO-BE** (comportamento richiesto).
-4. Segnala eventuali ambiguità che richiedono chiarimento prima di scrivere.
+Valgono in aggiunta alle regole di scrittura della skill dsc-docs del tipo:
 
-Proponi all'utente un **indice bozza** (titoli di sezione) da confermare o modificare prima di
-procedere con la stesura completa.
+- Pubblico: utenti BC non sviluppatori e project manager del cliente.
+- Nomi di campi, pagine e azioni BC in **grassetto**, **esattamente** come appaiono
+  nell'interfaccia in italiano (caption it-IT).
+- **Mai** nel testo per il cliente: ID o nomi di oggetti AL, nomi di tabelle/codeunit, nomi di
+  variabili, eventi, permission set tecniche. Le autorizzazioni si descrivono come ruoli.
+- Funzionalità standard BC non modificate: solo quando servono a dare contesto al workflow
+  personalizzato.
+- Personalizzazione vs standard: dillo chiaramente quando un comportamento è una personalizzazione
+  DSC per quel cliente.
 
----
+## Fase 3 — Generazione
 
-## Fase 2 — Stesura contenuto
+Scrivi il contenuto nel Markdown di `dsc-docs:skill-brand-dsc` (`references/markdown-dsc.md`) e
+genera con il suo `dscdoc.py` (`--tipo analisi` per il DAF, `--tipo manuale` per il MAN). Poi
+segui la verifica di `skill-brand-dsc` (PDF e lettura delle pagine quando c'è Office).
 
-### Regole di scrittura
-
-- Lingua: **italiano corretto**, tono professionale ma diretto.
-- Pubblico: utenti BC non sviluppatori + project manager cliente.
-- Nomi campi BC: in **grassetto**, esattamente come appaiono nell'interfaccia.
-- Nomi azioni/pulsanti: in **grassetto**.
-- Nomi tecnici (tabelle, codeunit, object ID): **mai** nel testo visibile al cliente.
-- Note importanti: `> **Nota:** ...`
-- Avvertenze: `> **Attenzione:** ...`
-- Ogni sezione deve essere autocontenuta (non presupporre che il lettore abbia letto le altre).
-
-### Elenchi e struttura del testo
-
-**Regola principale: segui il materiale di input, non imporre una struttura.**
-
-Se l'input dell'utente (appunti, email, spec, documento esistente) usa prosa → scrivi prosa.
-Se usa elenchi puntati → usa elenchi puntati.
-Se usa elenchi numerati → usa elenchi numerati.
-Se mescola → valuta sezione per sezione quale forma serve davvero.
-
-Usa elenchi numerati **solo quando l'ordine dei passi è vincolante** (procedure step-by-step
-dove sbagliare la sequenza produce un errore). Non numerare liste di requisiti, caratteristiche,
-o considerazioni: l'ordine non è vincolante e la numerazione crea una falsa impressione di
-sequenzialità.
-
-Usa elenchi puntati per insiemi di elementi omogenei senza ordine obbligato (es. lista di
-requisiti, lista di campi fuori dalla tabella, caratteristiche di un modulo).
-
-Usa **prosa continua** per: contesto, premessa, spiegazioni causali, ragionamenti. La prosa
-fluisce meglio per il lettore non tecnico e non spezza il filo logico.
-
-Usa **tabelle** per campi BC con descrizione, confronti, stime attività — qualsiasi cosa con
-struttura righe/colonne ripetuta.
-
-Non trasformare automaticamente in elenco numerato tutto ciò che è "una sequenza di cose":
-valuta se il lettore deve eseguire i passi in ordine o solo capirli.
-
-### Struttura heading
-
-- `# Titolo documento` — H1, solo sulla prima riga del body
-- `## Nome sezione` — H2 per le macro-sezioni
-- `### Nome sottosezione` — H3 per workflow/procedure singole
-
-Per le strutture di sezione specifiche per tipo di documento, leggi il file references corrispondente.
-
----
-
-## Fase 3 — Generazione .docx
-
-**Leggi `/mnt/skills/public/docx/SKILL.md` prima di scrivere qualsiasi codice.**
-
-Il template di riferimento (stile Orthoservice) è in `assets/template_DSC.docx`.
-Il generatore di riferimento completo (docx-js) è in `assets/gen_template_reference.js` —
-leggilo per capire la struttura esatta prima di generare un documento reale.
-
-### Palette colori DSC
-
-```
-BLUE_H1        = '365F91'   // H1 testo + bordo bottom
-BLUE_H2        = '4F81BD'   // H2 bordo bottom, header tabelle
-BLUE_H3        = '95B3D7'   // H3 bordo bottom
-TABLE_DARK_ROW = 'A7BFDE'   // righe alternate scure (Supervisore, Data)
-TABLE_LITE_ROW = 'D3DFEE'   // righe alternate chiare (Autore, Versione, Note)
-```
-
-### Font e dimensioni
-
-```
-Font globale:  Verdana
-Body:          size 22 (11pt), line spacing 360 (auto), indent left 357 DXA, GIUSTIFICATO
-H1:            size 22, bold, color BLUE_H1, border bottom sz 12
-H2:            size 22, color BLUE_H1, border bottom sz 8 color BLUE_H2
-H3:            size 24, color BLUE_H2, border bottom sz 4 color BLUE_H3
-H spacing:     H1 before 600 after 80 / H2+H3 before 200 after 80
-```
-
-### Pagina
-
-```
-Formato:    A4 (width 11906, height 16838 DXA)
-Margini:    top 567, right 992, bottom 1418, left 1418, header 340
-Content W:  9496 DXA
-```
-
-### Header (tutte le pagine)
-
-Riga 1: logo DSC (cx 1195214, cy 409575 EMU) allineato a sinistra.
-Riga 2: centrato — `[NOME CLIENTE] – [TITOLO]` bold size 18, poi spazi,
-poi `pag. X/Y` in corsivo size 18 (PAGE + NUMPAGES field).
-Logo: `assets/dsc_logo.png`
-
-### Copertina (body, prima sezione)
-
-Titolo grande centrato (size 52 bold): nome cliente su riga 1, titolo su riga 2.
-Poi tabella metadati 2 colonne (col1=2957, col2=6436 DXA), righe alternate
-TABLE_LITE_ROW / TABLE_DARK_ROW, bordi bianchi, label in grassetto, valori normali.
-Righe: Autore / Supervisore progetto / Versione / Data / Note e commenti.
-Poi **page break** — la copertina resta sola a pagina 1.
-Poi `Sommario` H1 + campo TOC (`TOC \o "1-9" \z \u \h`).
-Poi **un secondo page break** — il Sommario resta solo a pagina 2.
-
-### Impaginazione DSC — regole di casa
-
-Ogni regola qui sotto si vede a colpo d'occhio sul documento aperto ma non leggendo il codice:
-per questo la Fase 4 le verifica una per una sul file prodotto.
-
-| Elemento | Regola |
-|---|---|
-| Pagina 1 | **Solo** la copertina: titolo grande, nome cliente, tabella metadati |
-| Pagina 2 | **Solo** il Sommario (intestazione + campo TOC) |
-| Pagina 3 | Primo capitolo |
-| Interruzioni prima del primo capitolo | **Esattamente due** `<w:br w:type="page"/>`: dopo la tabella metadati e dopo il TOC |
-| Paragrafi di prosa | **Giustificati** (`AlignmentType.JUSTIFIED` → `<w:jc w:val="both"/>`) |
-| Voci di elenco puntato / numerato | **Giustificate** anche loro (helper `listItem` del generatore) |
-| Heading, celle di tabella, copertina | Allineamento invariato (heading e celle a sinistra, copertina centrata) |
-| Spaziatura body | before 0, after 160, interlinea 360 auto; elenchi after 80 |
-
-### Dove salvare il file
+### Dove salvare il file (repository)
 
 Mai una cartella inventata sul momento. Il percorso canonico, relativo alla radice del repo, è:
 
@@ -192,6 +90,10 @@ Mai una cartella inventata sul momento. Il percorso canonico, relativo alla radi
 | DAF — Analisi funzionale | `guides/word/DAF/` |
 | MAN — Manuale utente / guida operativa | `guides/word/Manuals/` |
 | Note di rilascio | `guides/word/Release Notes/` |
+
+Nome del file: la convenzione di `dsc-docs:skill-brand-dsc` (`DAF_<Cliente>_<Argomento>_v<versione>.docx`).
+Il Markdown sorgente resta accanto al .docx con lo stesso nome (`.md`): è da lì che si rigenera
+la versione successiva.
 
 Crea la cartella se non esiste. I `.docx` sotto `guides/word/` **sono versionati**: lo standard
 di repository DSC ha `*.docx` nel `.gitignore`, quindi se il `.gitignore` del repo ignora i
@@ -208,57 +110,17 @@ Poi verifica con `git check-ignore -v "guides/word/<cartella>/<file>.docx"`: nes
 il file è tracciabile. Se il repo non ha `guides/` (fuori standard), chiedi all'utente dove
 salvare invece di scegliere tu.
 
-### Footer (tutte le pagine)
-
-Bordo top sulla prima riga, centrato:
-- `DSC Group Srl` bold
-- indirizzi in Verdana size 14
-- link http://www.dsc-group.net/ + email amministrazione@dsc-group.net
-
-### Tabelle campi (stile documento)
-
-Header row: shd BLUE_H2, testo bianco bold.
-Righe dati: alternare TABLE_LITE_ROW / bianco, bordi FFFFFF interni.
-
-### Naming del file output
-
-```
-[NomeCliente]_[TipoDoc]_[Titolo-kebab]_v[Versione].docx
-```
-Esempio: `VasconiSrl_DAF_Gestione-Lotti-Produzione_v1.0.docx`
-
-### Note sul consulente nell'header
-
-Il nome del consulente **non** appare più nell'header (rimosso rispetto al vecchio template).
-Appare solo nel campo **Autore** della tabella di copertina.
-
----
-
 ## Fase 4 — Checklist pre-consegna
 
-- [ ] Tutti i campi copertina compilati (AUTORE, SUPERVISORE, VERSIONE, DATA)
-- [ ] Nome cliente corretto nel titolo header
-- [ ] Nessun termine tecnico BC esposto al cliente (no object ID, no codeunit name)
-- [ ] Struttura del testo coerente con l'input (prosa dove c'è prosa, elenchi dove servono)
-- [ ] Campi BC in **grassetto** con caption UI esatta
-- [ ] File validato con `scripts/office/validate.py`
-- [ ] Nome file rispetta la convenzione di naming
-- [ ] File salvato in `guides/word/{DAF,Manuals,Release Notes}/` e non ignorato da git
-      (`git check-ignore` senza output)
-- [ ] Impaginazione verificata sul `word/document.xml` prodotto (unzip), regola per regola
-      dalla sezione *Impaginazione DSC*:
-  - [ ] esattamente **due** `w:type="page"` prima del primo paragrafo `Heading1` che segue la
-        fine del campo TOC (copertina sola a pag. 1, Sommario solo a pag. 2, contenuto da pag. 3).
-        Non cercare il testo del primo titolo: il TOC lo contiene già e falsa il conteggio
-  - [ ] ogni paragrafo di prosa e ogni voce di elenco ha `<w:jc w:val="both"/>`
-
----
+- [ ] Checklist della skill dsc-docs del tipo e verifica di `skill-brand-dsc` superate
+      (`dscdoc.py` non segnala problemi, PDF guardato)
+- [ ] Nessun termine tecnico BC esposto al cliente (object ID, nomi AL, codeunit)
+- [ ] Campi e azioni BC in **grassetto** con la caption it-IT esatta
+- [ ] File in `guides/word/{DAF,Manuals,Release Notes}/`, non ignorato da git, con il `.md` accanto
 
 ## Note operative
 
-- Se l'utente chiede una **revisione** di un documento esistente: unpacka il .docx caricato,
-  modifica i paragrafi pertinenti, ripacca. Non rigenerare da zero.
-- Se mancano informazioni essenziali (workflow incompleti, ambiguità funzionale): segnalale
-  come `[DA CHIARIRE: ...]` nel documento e avvisa l'utente.
-- Per documenti molto lunghi (>20 sezioni): genera prima l'indice e fatti confermare prima
-  di scrivere tutto.
+- **Revisione** di un documento esistente: modifica quel file (o il suo `.md` e rigenera), non
+  ricominciare da zero.
+- Informazioni mancanti: `[DA CHIARIRE: ...]` nel punto esatto, e avvisa l'utente.
+- Documenti molto lunghi (>20 sezioni): fai confermare l'indice prima di scrivere tutto.
