@@ -53,7 +53,7 @@ This will:
 | AL Conductor | `agent "aldc:al-conductor"` | TDD orchestration: plan, implement, review, commit |
 | AL Developer | `agent "aldc:al-developer"` | Tactical implementation, debugging, code generation |
 | Agent Builder | `agent "aldc:al-agent-builder"` | Create custom agents for BC AI Development Toolkit |
-| AL Documentation Conductor | `agent "aldc:al-documentation-conductor"` | Full app documentation on demand: functional + developer sites, optional client DAF/MAN docx |
+| AL Documentation Conductor | `agent "aldc:al-documentation-conductor"` | Full app documentation on demand: functional + developer sites, optional client DAF/MAN docx (needs the `dsc-docs` plugin for the DSC template) |
 
 ### Agent Routing
 

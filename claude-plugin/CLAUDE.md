@@ -23,7 +23,7 @@ Route user requests to the appropriate agent:
 | Build BC agents | `bc-dev:al-agent-builder` | AI Development Toolkit agent creation |
 | Diagnose a bug / incident (existing code, or a Freshdesk ticket number) | `bc-dev:al-triage` | Reproduce -> localize -> root-cause -> minimal-fix recommendation (read-only on code) |
 | Independent code audit | `bc-dev:dredd` | On-demand static audit vs BCQuality + native checks; advisory verdict (read-only on code) |
-| Document an app end-to-end (on demand) | `bc-dev:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx; not tied to an implementation plan |
+| Document an app end-to-end (on demand) | `bc-dev:al-documentation-conductor` | Full functional + developer sites, optional client DAF/MAN docx (DSC template via the `dsc-docs` plugin); not tied to an implementation plan |
 | Extract user stories/use cases + generate or customize demo data | `bc-dev:al-demo-architect` | Analyzes an app, produces reviewable user-stories/use-cases/demo-data-plan docs, then delegates the Contoso Demo Tool integration (harness, then data content) to `al-developer` — read-only on AL code itself; bootstrap and incremental (diff-based) modes |
 
 ## Complexity Routing
