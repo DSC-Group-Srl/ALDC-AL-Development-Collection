@@ -72,6 +72,7 @@ the cheat sheet, cite `file:line`:
 | Area | Check |
 |---|---|
 | Extension model | no base-object modification (CRITICAL); table/page extensions; subscribers bind (publisher's param names verbatim) |
+| Object economy | a new object the spec/plan did not list, or a new codeunit an existing one of the feature could hold (`al-code-style.md` Rule 9) → MINOR, naming the existing codeunit; an ID outside `idRanges` → CRITICAL |
 | Naming & layout | ≤26 chars, PascalCase, feature folders, namespace mirrors folder (runtime ≥13), `<Name>.<Type>.al` |
 | Performance | filter before processing; `SetLoadFields` per the floor's exemptions; no FlowField/CalcFields in loops; set-based ops |
 | Errors | user text in `Label`s; `[TryFunction]` only for read-only/validation risk; writes needing rollback in their own codeunit; no telemetry unless requested |

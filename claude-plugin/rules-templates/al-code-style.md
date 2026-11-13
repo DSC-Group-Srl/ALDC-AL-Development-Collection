@@ -230,7 +230,7 @@ codeunit 50100 "Sales Invoice Posting"
 ## Rule 6: Enum-Linked Interfaces Replace Case-Statement Dispatch
 
 ### Intent
-When a procedure branches on an enum value to decide which of several distinct behaviors to run (one branch per action/type/mode), do not write a `case` statement that inlines each behavior. Instead, declare an `interface` with one procedure (e.g. `Execute`), have the enum `implements` that interface, and bind each enum value to its own implementing codeunit via that value's `Implementation` property. Adding a new value is then adding a new codeunit and one `Implementation` line — never touching the dispatch site or any other value's code. This app already establishes the pattern for period calculation (`"DSC NOT Default Period"` enum + interface + one codeunit per period type in `Source/Period/`); reuse it for any new one-of-N dispatch rather than reinventing a `case` statement.
+When a procedure branches on an enum value to decide which of several distinct behaviors to run (one branch per action/type/mode), do not write a `case` statement that inlines each behavior. Instead, declare an `interface` with one procedure (e.g. `Execute`), have the enum `implements` that interface, and bind each enum value to its own implementing codeunit via that value's `Implementation` property. Adding a new value is then adding a new codeunit and one `Implementation` line — never touching the dispatch site or any other value's code. This app already establishes the pattern for period calculation (`"DSC NOT Default Period"` enum + interface + one codeunit per period type in `Source/Period/`); reuse it for any new one-of-N dispatch rather than reinventing a `case` statement. Use it when there are **three or more** behaviors, or when other apps must be able to add values (`Extensible = true`); for two fixed branches a `case` or an `if` in the existing codeunit costs no object IDs (Rule 9).
 
 Resolve the concrete implementation by assigning the enum value to an interface-typed variable (`IMyAction := MyEnumValue;`), then call its procedure — do not hand-roll a lookup.
 
@@ -375,4 +375,46 @@ foreach K in Dict1.Keys do begin
     if not Dict2.ContainsKey(K) then
         exit(false);
 end;
+```
+
+## Rule 9: Object IDs Are Finite — Extend an Existing Object Before Creating One
+
+### Intent
+An app's `idRanges` is a fixed budget: a PTE range rarely has more than a few hundred IDs, an AppSource range is bought or claimed (`skill-app-id-range`) and never grows by itself, and the test app shares the same constraint. Every new object spends one ID for the lifetime of the app. So the default for new logic is a **procedure in an existing object of the same feature**, not a new object.
+
+Before adding a codeunit (or any other object), look in the feature's folder for one that already owns that responsibility — a `… Mgt`, a subscriber codeunit for the same publisher area, the feature's test codeunit — and add procedures there. A new codeunit is justified only when:
+
+- it implements an interface (one implementation per enum value, Rule 6);
+- it isolates a write that needs its own transaction (`Codeunit.Run()` for rollback);
+- it needs its own `Subtype`, `SingleInstance`, `TableNo`, `Permissions` or `EventSubscriberInstance` that the existing codeunit must not have;
+- no existing codeunit in the feature fits, or the one that does is already large (≈1,000+ lines) and the new logic is a separate responsibility;
+- it is a test codeunit for a feature that has none, or the existing one would mix unrelated scenarios.
+
+"Smaller files", "separation for its own sake" or "it was easier than editing a shared file" are not reasons. Every new object in a spec or plan states which of the reasons above applies, and the spec shows how many IDs the app and the test app have left.
+
+When the free IDs are exhausted, stop and say so: the fix is a range decision (a new range in `app.json`, a claim through `skill-app-id-range`, or merging objects), never an ID outside `idRanges`.
+
+### Examples
+
+```al
+// Good example - new logic goes into the feature's existing management codeunit
+codeunit 50110 "Contoso Order Mgt"
+{
+    procedure ConfirmOrder(var SalesHeader: Record "Sales Header")
+    begin
+        // existing
+    end;
+
+    procedure RecalculateDeliveryDate(var SalesHeader: Record "Sales Header")  // new procedure, no new ID
+    begin
+        // new logic
+    end;
+}
+```
+
+```al
+// Bad example (avoid one codeunit per small piece of logic)
+codeunit 50110 "Contoso Order Mgt" { ... }
+codeunit 50111 "Contoso Order Delivery Date" { procedure Recalculate(...) ... }   // one procedure, one ID spent
+codeunit 50112 "Contoso Order Validation Helper" { procedure Validate(...) ... }  // could live in Order Mgt
 ```

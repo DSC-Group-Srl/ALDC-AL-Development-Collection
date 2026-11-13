@@ -79,6 +79,9 @@ symbol-verified events, and the test plan. At MEDIUM it also carries the design 
 2. `{req_name}.architecture.md` if present.
 3. The codebase: similar objects (`Grep`/`Glob`, al-mcp `al_symbolsearch`), naming, free IDs in
    `app.json` `idRanges` (app **and** test app), existing publishers/API pages in the area.
+   Count the IDs used and free in each range (the §2 **ID budget** line), and list the existing
+   codeunits of the feature area with their procedures: they are where new logic goes first
+   (`al-code-style.md` Rule 9, Ext before New).
    Files over ~350 lines: ask `al-file-reader` for locations, then read ranges.
 
 > **Verify every base-app event you subscribe to against symbols — here, once, at the
@@ -106,7 +109,10 @@ truth for the structure. Fill every placeholder with real values and apply its `
 - `{Complexity}` controls depth inside applicable sections. MEDIUM fills §Decisions (the
   architecture replacement); LOW may skip it.
 - §2 must list every object **including test codeunits** with real free IDs — al-conductor
-  builds its work packages directly from this table.
+  builds its work packages directly from this table. Prefer `Ext` rows (new procedures in an
+  existing object of the feature); each `New` row gives its Rule 9 reason. Not enough free IDs
+  for the `New` rows → stop and ask the user (a new range, an AppSource claim via
+  `skill-app-id-range`, or fewer objects); never invent an ID outside `idRanges`.
 - §7 assigns every Given/When/Then scenario to a test codeunit from §2.
 
 End the file with:
@@ -134,7 +140,7 @@ Spec approval is the **one** human gate before implementation starts.
 
 - Spec file created at `app/requirements/in-progress/{req_name}/{req_name}.spec.md`
 - Spec header names the requirement's own branch (`**Branch:**`), never `main` or `test`
-- Object IDs (app and test) verified free within `idRanges`
+- Object IDs (app and test) verified free within `idRanges`; §2 shows the ID budget and a Rule 9 reason on every `New` row
 - Architecture document consulted and referenced (HIGH)
 - §Decisions filled (MEDIUM)
 - The feature's own public procedure signatures complete (no "TBD"); base-app events recorded

@@ -56,6 +56,10 @@ implemented without:
   unresolved → an uncertainty, not a guess;
 - App/Test project layout and `app.json` dependencies (test project has Library Assert?);
 - conventions already in use (prefix, ID ranges in use, feature folders, test patterns);
+- free IDs left in the app's and the test app's `idRanges`, and the **existing codeunits of the
+  touched feature** with their main procedures — candidates for new logic before any new
+  object (`al-code-style.md` Rule 9). A `New` codeunit in the WP draft that an existing one
+  could hold → say so in Open Questions;
 - performance hot spots (large tables, FlowFields) in the touched area;
 - **file:line anchors** for every existing procedure/trigger a WP will change — implementers
   use these to read ranges instead of whole files.

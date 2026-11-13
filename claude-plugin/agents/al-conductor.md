@@ -70,6 +70,15 @@ Opus (never switch yourself).
 1. **Draft the WP graph from spec §2/§5/§7.** A WP = a coherent slice one implementer can finish:
    - `owns`: file globs, **disjoint** from every other WP (the parallel-safety guarantee);
    - objects with **IDs you allocate now** from `app.json` idRanges (never let workers pick);
+     take the spec's `Ext` rows as they are (new procedures in an existing object: no ID), and
+     don't turn one into a `New` object to make a WP's globs disjoint: give the existing file to
+     exactly one WP instead (`owns` may name a single file). A `New` codeunit the spec did not
+     justify (`al-code-style.md` Rule 9) goes back into an existing one of the feature;
+   - **ID budget:** count the free IDs in both ranges and put the line in the plan and the
+     approval question (`app 37 free → 33 after`). Not a gate — only when the plan needs more
+     IDs than are free do you stop and ask the user for a range decision (a new range in
+     `app.json`, an AppSource claim via `skill-app-id-range`, or fewer objects); never an ID
+     outside `idRanges`;
    - test codeunit(s) + IDs from the test app's range, and the spec scenarios they cover;
    - `dependsOn`, `domains` (events, pages, api, performance, permissions, …), review depth.
 
@@ -89,7 +98,7 @@ Opus (never switch yourself).
    ~20–40 min unattended — start it right after plan approval and run wave 1 while it builds;
    the lane only needs it after the first merge), add one by hand, or accept **no tests** (then
    the run is `lane=skipped` and every report says *tests not executed*).
-4. **Ask once** (plan approval): WPs × waves, IDs, open questions, environment. Revise on
+4. **Ask once** (plan approval): WPs × waves, IDs and the ID budget, open questions, environment. Revise on
    feedback without another planning call unless new gaps appear. Write each open question
    for a developer who has not read the plan: the question in plain words, what it changes,
    2–4 options with a one-line trade-off, your recommendation first. A WP/§/D-/Q- code goes in

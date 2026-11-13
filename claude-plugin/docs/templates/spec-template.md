@@ -34,14 +34,20 @@ reference the architecture document's TD-ids instead of repeating them.)*
 
 ## 2. AL Object Inventory
 
-| Object Type | Object ID | Name | Extends / Source | Purpose |
-|-------------|----------:|------|------------------|---------|
-| TableExtension | {ID from range} | {Prefix} {BaseName} Ext | {Base Table} | {Why} |
-| Codeunit       | {ID} | {Prefix} {Name} Mgt | — | {Core business logic} |
-| Codeunit (Test)| {ID from test range} | {Prefix} {Feature} Tests | — | {Scenarios in §7} |
+**ID budget:** app {used}/{total} used, {free} free → {free after this spec} after · test app {used}/{total}, {free} free → {free after}
+
+| Object Type | New / Ext | Object ID | Name | Extends / Source | Purpose | Why not Ext *(New only)* |
+|-------------|-----------|----------:|------|------------------|---------|--------------------------|
+| TableExtension | New | {ID from range} | {Prefix} {BaseName} Ext | {Base Table} | {Why} | {No extension of this table yet} |
+| Codeunit       | Ext | {existing ID} | {Prefix} {Name} Mgt | — | {New procedures: …} | — |
+| Codeunit (Test)| New | {ID from test range} | {Prefix} {Feature} Tests | — | {Scenarios in §7} | {Feature has no test codeunit} |
 
 > IDs MUST be real, free values within `app.json` `idRanges` (test objects: the test app's
 > range) — verified by a codebase search. al-conductor builds its work packages from this table.
+> **Ext first** (`al-code-style.md` Rule 9): new logic goes into an existing object of the feature.
+> A `New` row names the Rule 9 reason (interface implementation, isolated `Codeunit.Run()` write,
+> own Subtype/SingleInstance/TableNo/Permissions, no fitting object, feature has no test codeunit).
+> Free IDs too few for the `New` rows → stop and ask the user for a range decision; never an ID outside `idRanges`.
 
 ---
 
@@ -120,7 +126,7 @@ each assigned to the test codeunit it will live in (IDs from §2).
 
 ## 10. AL-Go / CI Considerations
 
-- [ ] New IDs inside `app.json` `idRanges`
+- [ ] New IDs inside `app.json` `idRanges`; every `New` row in §2 has its Rule 9 reason
 - [ ] No new BC version dependency introduced (or listed here)
 - [ ] All new Captions/Labels in XLF
 

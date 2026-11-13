@@ -33,7 +33,8 @@ no other structure. No code blocks in findings — describe and link to files.
 
 ### Project Layout & Conventions
 - App: {path, key deps} · Test: {path, deps; Library Assert present y/n}
-- Prefix {x} · IDs in use {ranges} · folders {feature-based path} · test pattern {…}
+- Prefix {x} · IDs in use {ranges} · free {app n · test n} · folders {feature-based path} · test pattern {…}
+- Existing codeunits in the feature (Ext candidates): {ID "Name" → path — main procedures}
 
 ### Performance Considerations
 - {table/area} — {SetLoadFields / filter-early / FlowField note}

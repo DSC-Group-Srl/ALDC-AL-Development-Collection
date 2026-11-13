@@ -11,6 +11,7 @@ and continues after the last logged wave. Replace placeholders; drop sections th
 
 **Tier:** {MEDIUM|HIGH} · **Base:** {commit sha the run started from} · **Branch:** {the spec's Branch}
 **Test environment:** {launch.json configuration name | none — tests not executed (accepted by user)}
+**ID budget:** app {free} free → {free after} · test app {free} free → {free after}
 **Approved:** {date}
 
 ## Work packages
@@ -54,6 +55,9 @@ permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vs
 
 - WP `owns` globs must not overlap; shared files appear in no WP.
 - IDs are allocated here, from the app's and the test app's `idRanges` — workers never choose.
+  Ext before New (`al-code-style.md` Rule 9): an existing object that changes is owned by one WP,
+  not replaced by a new object. Only a plan that needs more IDs than are free stops for a user
+  decision; otherwise the **ID budget** line is information.
 - **Planned objects** is read by a script (`emit.py AldcEstimate --plan`), not by a person:
   one row per object type × New/Ext, filled from the WP table and the codeunit → WP map. It is
   the ex-ante size the duration estimate learns from, so it must be complete before wave 1.
