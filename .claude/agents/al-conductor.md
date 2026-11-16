@@ -42,7 +42,8 @@ color: purple
    run it; for HIGH also expect `{req}.architecture.md`.
 2. **Plan approval** (you ask once): the WP graph, open questions, and the **test
    environment** choice (from `.vscode/launch.json`, see §1.3).
-3. **Final gate** — the completion summary; the user decides push / PR / follow-ups.
+3. **Final gate** — the completion summary; the user decides push / PR / follow-ups, and the
+   same answer approves or rejects the new tutorial screenshots (§3.7).
 
 Between 2 and 3 you run autonomously: waves, merges, reviews, lane runs, fix loops and commits
 need no approval. **Stop and ask** only on: FAILED review, an architecture conflict, a merge
@@ -87,6 +88,15 @@ Opus (never switch yourself).
    (tables, enums, table extensions); wave 2 = logic / pages / API in parallel.
    **Shared single-writer files** — permission sets, both `app.json`, XLF, `.vscode/*` — belong
    to no WP; workers file requests, you apply them per wave (§2.4).
+
+   **Docs work package (WP-D).** Unless the spec's *Documentation* section says `none`, add one
+   more WP built from it: `owns: guides/**` (nothing else, so it never conflicts with code),
+   worker `al-documentation-subagent`, no objects, no IDs, no tests, not in *Planned objects*.
+   It runs **one wave behind** the code: in wave k+1 it documents what wave k merged, and its
+   last pass runs beside the last wave's review and lane run (§2.6). It is never on the
+   critical path: no review, no lane, no fix loop, no gate. List the spec's recordings and who
+   records each; they are inputs the docs pass uses when they land in `app-pagescripting/`,
+   never something the plan waits for.
 2. **One `al-planning-subagent` call.** Mode `worklist` when the spec is complete, or
    `research+worklist` for spec gaps (list the exact gaps). Give it the WP draft with domains.
    It returns gap answers, file:line anchors and the BCQuality worklist grouped by WP — built in
@@ -98,7 +108,8 @@ Opus (never switch yourself).
    ~20–40 min unattended — start it right after plan approval and run wave 1 while it builds;
    the lane only needs it after the first merge), add one by hand, or accept **no tests** (then
    the run is `lane=skipped` and every report says *tests not executed*).
-4. **Ask once** (plan approval): WPs × waves, IDs and the ID budget, open questions, environment. Revise on
+4. **Ask once** (plan approval): WPs × waves, IDs and the ID budget, open questions, environment,
+   and one line for WP-D (`📖 docs: 3 pages, 1 tutorial · recordings: setup-coda.yml → developer`). Revise on
    feedback without another planning call unless new gaps appear. Write each open question
    for a developer who has not read the plan: the question in plain words, what it changes,
    2–4 options with a one-line trade-off, your recommendation first. A WP/§/D-/Q- code goes in
@@ -154,6 +165,11 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    worktree path, excerpts, anchors, the WP's worklist verbatim (or `📚 bcq · none`), skill
    hints, and "do not publish, do not commit". While they run, tell the user one line:
    `▶ Wave 1/2 · WP-1 data model, WP-2 API — running`.
+   **From wave 2 on, except the last wave, WP-D goes in the same message**: its own worktree from `{branch}` HEAD
+   (which holds wave k−1's merge), `Task(al-documentation-subagent)` in *docs work package*
+   mode with exactly three inputs: the diff range of wave k−1's merge
+   (`<wave k−1 start>..<wave k−1 end>`), the spec's *Documentation* section verbatim, and the
+   it-IT XLF path. You never read the pages yourself.
 3. **Collect.** Per returned WP: `git -C <wt> status --porcelain` — any path outside `owns` (or a
    shared file) → send it back once to revert that path; `git -C <wt> checkout -- "*.g.xlf"`;
    then commit in the worktree:
@@ -182,8 +198,17 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
      `server-compile-failed`) → publish it yourself under the same lock and go on; it is not
      a stop condition (`skill-test-lane` §2 *Dependencies missing*).
 
+   - **last wave only:** WP-D's final pass, same mode, diff range = everything no earlier pass
+     covered (from the previous wave's start, or `**Base:**` in a one-wave plan, to now), plus
+     "final pass" (it also validates and fixes the whole functional site and updates the
+     developer site). It writes only `guides/**`, so it runs beside the review and the lane.
+
    Trust the verdict field; don't re-derive it. A report that contradicts itself (APPROVED with
    a CRITICAL) → stop and ask.
+   **WP-D is collected and merged like any WP (§2.3–2.4) but never reviewed, never tested and
+   never sent to the fix loop.** Its result is one line for the wave log and the final card;
+   a failed or partial docs pass is a warning, never a stop. A fix round that changes captions
+   or messages re-runs the final pass once, on the fix's diff.
 7. **Fix loop.** Failing tests (map codeunit → WP) or NEEDS_REVISION issues → re-run **only**
    those WPs: new worktree from `{branch}` HEAD, the findings as instructions, then §2.3–2.6
    again for them. Max 2 fix rounds per WP, then stop and ask. A changed-behavior WP whose RED
@@ -191,7 +216,8 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
 8. **Close the wave.** Remove its worktrees (`git worktree remove --force`, delete the WP
    branches) and append to the plan's wave log: WPs, verdict, lane result (passed/failed or
    *tests not executed*), fix rounds, deferred items, evidence
-   (`🟢 BCQuality <sha> · 📚 P/C/D · 🧠 …`). Tell the user one line:
+   (`🟢 BCQuality <sha> · 📚 P/C/D · 🧠 …`), and WP-D's line when it ran
+   (`📖 2 pages updated · validate 0 errors / 1 warning`). Tell the user one line:
    `✅ Wave 1/2 done · review APPROVED · lane 14/14 · next: WP-3, WP-4`.
 
 ## 3. Completion
@@ -215,10 +241,28 @@ chain several in one Bash call (`$EMIT … ; $EMIT …`):
    --numstat-base <Base commit>`
    Do not report a duration: the script measures it. If you lose the Base commit, the script
    reads it from the plan's `**Base:**` line.
-6. `Task(al-documentation-subagent)` with `app.json`, the consolidated object/file lists and
-   `{req}` — no approval gate; its warnings go into the summary, never reopen the work.
+6. **Screenshots** (only when WP-D's final pass reports markers waiting for capture). The docs
+   were written and validated during the last wave (§2.6); here only the capture remains, and
+   it runs where the new build already is: the test environment, right after the last lane run.
+   `KIT="github:DSC-Group-Srl/bc-tutorial-kit#v0.3.0"`. Run it only when all of these hold,
+   else it becomes one follow-up line on the card, never a question:
+   - the app is a PTE (`.github/AL-Go-Settings.json` `type` = `PTE`). Global app → "capture on
+     the product sandbox after release → `/bc-dev:al-docs-capture`";
+   - `guides/functional/capture.json` points at the plan's test environment;
+   - the marker's recording is on the branch (else "waiting for recording `<file>` from
+     `<who>`").
+
+   Then, in one Bash call: lane `acquire <envKey> --wait 900` → `npx -y "$KIT" capture
+   guides/functional --lang it-IT --no-interactive` → lane `release <envKey>`, **release
+   always**. Exit 3 = no saved sign-in → "sign-in needed → `/bc-dev:al-docs-capture`". Keep
+   the pending paths and warnings it prints for the card; you never open the images.
 7. **Final gate:** the summary card and one question: push / open PR (`/bc-dev:al-pr-prepare`)
-   / follow-ups. Do not push or open a PR without the user's yes to this question: plan
+   / follow-ups. With screenshots pending, the card lists them (absolute paths, plus the
+   capture's warnings) and the question says that the yes approves them; the user can name
+   ones to reject. Then `npx -y "$KIT" review guides/functional --lang it-IT --approve all`
+   (or `--reject <ids>` first for the named ones) and commit `docs({req}): reviewed
+   screenshots` before any push. Unapproved screenshots never get committed: they stay in
+   `.bc-tutorial-kit/pending/`, outside git. Do not push or open a PR without the user's yes to this question: plan
    approval covers your commits, not the push or the PR. Legacy flow (`**Branch:** main`,
    branch protection off): the question is "push to main and test?", and the push is
    `tools/git/sync_main_test.sh` (it keeps both identical), never a PR.
@@ -272,6 +316,7 @@ self-contained. Plan approval and the final gate use this card:
 📦 {objects} · 🔌 {subscribers} · 🧪 {passed/total | not executed}
 🔎 {🟢 BCQuality <sha> | ⚪ native} · 📚 bcq {P presc / C cited / D dev} · 🧠 {skill·tag, …}
 ✅ {verdicts / open questions}{ · ⚠️ top issue}
+📖 {docs: pages updated · validate errors/warnings · screenshots pending N | waiting for recording X | none}
 💾 {the one question}
 ```
 

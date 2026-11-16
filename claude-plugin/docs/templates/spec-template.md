@@ -132,6 +132,20 @@ each assigned to the test codeunit it will live in (IDs from §2).
 
 ---
 
+## Documentation
+
+{One line "none — no user-facing change" when nothing a user sees changes; otherwise:}
+
+| Page (`guides/functional/<lang>/`) | Add/Change | What it must cover | Tutorial |
+|------------------------------------|------------|--------------------|----------|
+| `{workflow}.md` | {Add\|Change} | {fields, actions, messages the user meets} | {Tutorial: come … \| none} |
+
+| Recording (`app-pagescripting/`) | Scenario | Starts from | Must show | Recorded by |
+|----------------------------------|----------|-------------|-----------|-------------|
+| `{scenario}.yml` | {Tutorial: come …} | {role centre} | {pages, actions, dialogs} | {developer \| consultant: name} |
+
+---
+
 ## 11. Acceptance Criteria
 
 - [ ] {Business outcome 1}
@@ -156,6 +170,9 @@ each assigned to the test codeunit it will live in (IDs from §2).
   that object type — at every complexity tier. Most features touch 2-4 of the 5.
 - Complexity controls depth **within** applicable sections: LOW may condense §§4-8 to bullets
   and omit §Decisions and §12.
+- **Documentation** is never omitted: it is one line when nothing user-facing changes. It is
+  what al-conductor's docs work package writes from; a recording listed here is an input the
+  plan waits for, not a gate.
 - IDs and field numbers are real values, never `TBD`.
 - Every new field has a `DataClassification`; every Caption a translator `Comment`.
 - Tables, not code: AL sketches only for complex algorithms. Implementation lives in the app,

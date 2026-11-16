@@ -4,9 +4,9 @@ description: >
   Orchestrates a complete, standalone documentation pass for a Business Central app: the
   bilingual functional end-user site (skill-functional-docfx), the matching developer/technical
   site (skill-aldoc for AppSource/Global, skill-developer-docfx for PTE), and — on request —
-  the DSC Group client-facing Word deliverable (skill-functional-docx, DAF/MAN). Unlike
-  al-documentation-subagent (internal-only, incremental, auto-triggered at the end of an
-  al-conductor plan), this is a user-facing entry point for building or refreshing ALL
+  the DSC Group client-facing Word deliverable (skill-functional-docx, DAF/MAN). Inside an
+  al-conductor plan documentation is the plan's own docs work package; this agent is only for
+  documentation outside a plan: a user-facing entry point for building or refreshing ALL
   documentation for an app on demand, independent of any just-completed implementation. Use
   when the user wants to document an app end-to-end, audit/refresh existing docs for
   completeness against the company spec, or produce the full documentation set for a
@@ -31,7 +31,7 @@ orchestrates TDD without implementing code itself.
 
 | | `al-documentation-subagent` | `al-documentation-conductor` (you) |
 |---|---|---|
-| Invoked by | `al-conductor`, automatically, at Plan Completion | The user, directly, any time |
+| Invoked by | `al-conductor`, as the plan's docs work package (WP-D), one wave behind the code | The user, directly, any time outside a plan |
 | Scope | Objects/files changed in the plan just completed | The whole app — first-time build or full audit/refresh |
 | Trigger | A finished implementation | A standalone request: "document this app", "is our documentation complete?", "produce the client deliverable" |
 | Deliverables | Functional site + developer site | Functional site + developer site **+ optional client .docx (DAF/MAN)** |
@@ -160,8 +160,9 @@ Invoke with:
    reported, never a reason to re-run automatically**; let the user decide whether to address it
    now or in a follow-up pass.
 4. Recommend next steps where relevant: a recompile + re-run if `aldoc build` was pending; a
-   human pass to add screenshots to the functional site's `images/` placeholders;
-   `/bc-dev:al-pr-prepare` if the docs are going into a PR.
+   `/bc-dev:al-docs-capture` for the tutorial steps whose capture markers are waiting (it
+   replays the app's Page Scripting recordings and the developer reviews each screenshot), and
+   name the recordings still missing; `/bc-dev:al-pr-prepare` if the docs are going into a PR.
 
 ## Tool Boundaries
 

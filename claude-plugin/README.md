@@ -29,7 +29,7 @@ Verify registration:
 /
 ```
 
-You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 11 slash commands prefixed with `/bc-dev:`.
+You should see the user-facing agents (`al-architect`, `al-conductor`, `al-developer`, `al-agent-builder`, `al-documentation-conductor`, plus the on-demand `al-triage`/`dredd`) and 12 slash commands prefixed with `/bc-dev:`.
 
 ## First-Time Setup
 
@@ -82,6 +82,7 @@ Invoked explicitly from the chat input. Implemented as plugin slash commands und
 | Agent Task | `/bc-dev:al-agent-task` | Generate agent task integration code |
 | Agent Test | `/bc-dev:al-agent-test` | Generate test codeunits for agents |
 | Agent Instructions | `/bc-dev:al-agent-instructions-create` | Generate agent NL instructions |
+| Docs Capture | `/bc-dev:al-docs-capture` | Capture and review the functional guide's tutorial screenshots from Page Scripting recordings (bc-tutorial-kit) |
 | Quality Metrics | `/bc-dev:al-metrics` | Report independence-ratio, deviation rate, undeclared deviations and prescribed-vs-cited |
 
 ## Knowledge Skills
@@ -190,7 +191,7 @@ claude-plugin/
 │   └── marketplace.json   # Marketplace entry (for local / remote distribution)
 ├── agents/                # user-facing agents (design, TDD conductor, dev, agent builder,
 │                          #   docs conductor, triage, dredd) + internal subagents (TDD + docs)
-├── commands/              # 10 slash commands (/bc-dev:*)
+├── commands/              # 12 slash commands (/bc-dev:*)
 ├── skills/                # 15 knowledge skills (auto-loaded by agents)
 ├── rules-templates/       # AL coding rules copied by /bc-dev:al-initialize
 ├── hooks/hooks.json       # one dispatcher per event: SessionStart preconditions (rules, BCQuality, AL CLI,

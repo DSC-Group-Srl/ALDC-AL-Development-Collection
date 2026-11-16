@@ -33,7 +33,7 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   agents/                   #   14 agents: architect, conductor, developer,
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
-  commands/                 #   11 slash commands (/al-spec-create, /al-build, /al-metrics, …)
+  commands/                 #   12 slash commands (/al-spec-create, /al-build, /al-metrics, /al-docs-capture, …)
   skills/                   #   33 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
                             #   skill-bc-issue, skill-app-id-range, skill-code-reader,
                             #   skill-al-go-workflows, skill-plugin-feedback, skill-gitcloner,

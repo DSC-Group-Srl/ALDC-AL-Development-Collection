@@ -114,6 +114,12 @@ truth for the structure. Fill every placeholder with real values and apply its `
   for the `New` rows → stop and ask the user (a new range, an AppSource claim via
   `skill-app-id-range`, or fewer objects); never invent an ID outside `idRanges`.
 - §7 assigns every Given/When/Then scenario to a test codeunit from §2.
+- **Documentation** lists the functional-guide pages to add or change (one per user-facing
+  workflow the feature adds or alters, `guides/functional/<lang>/`, see
+  `bc-dev:skill-functional-docfx`), the tutorials they need, and the Page Scripting recordings
+  those tutorials need: scenario, start page (the role centre), what it must show, and who
+  records it. Default the recorder to `developer`; the user changes it to a consultant at spec
+  approval. Nothing user-facing changes → the one line `none — no user-facing change`.
 
 End the file with:
 
@@ -147,3 +153,4 @@ Spec approval is the **one** human gate before implementation starts.
   as verified publisher + event name + consumed fields
 - Every subscribed base-app event symbol-verified (unverifiable ones in §12)
 - §7 test scenarios in Given/When/Then, each assigned to a test codeunit
+- Documentation section filled: pages, tutorials, recordings and who records each (or `none`)

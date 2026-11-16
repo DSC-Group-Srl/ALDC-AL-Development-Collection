@@ -8,6 +8,8 @@ description: >
   documentation, workflow documentation, or building the functional reference for a BC extension.
   Also trigger when the user asks how to structure the toc.yml, what pages to write, how to
   document a setup table for non-technical users, or how to build and preview the functional site.
+  Also covers tutorial screenshots: capture markers, Page Scripting recordings, bc-tutorial-kit
+  capture and review ('aggiorna il tutorial', 'screenshot del tutorial', 'cattura le schermate').
 ---
 
 # Functional Documentation — docfx (Bilingual)
@@ -27,11 +29,12 @@ Every app gets **two parallel sites**, built independently:
 
 ```
 guides/functional/
+├── capture.json    ← where screenshots are captured (Phase 7); one per repo
 ├── it-IT/          ← Italian site (primary)
 │   ├── docfx.json
 │   ├── toc.yml
 │   ├── index.md
-│   ├── images/     ← placeholder folder (humans add screenshots later)
+│   ├── images/     ← reviewed screenshots, written only by the capture (Phase 7)
 │   ├── public/     ← main.css, icon
 │   └── *.md        ← one .md per workflow + standard pages
 └── en-US/          ← English site (same structure)
@@ -341,8 +344,12 @@ Tutorial rules:
   path has no user-facing errors.
 - **No overlap** — the tutorial replaces the old bare "Procedura" list; fields and actions it
   doesn't touch stay in the **Campi** / **Azioni disponibili** tables, not in the steps.
-- **Screenshots** — where a step needs one, leave `<!-- screenshot: [cosa mostrare] -->`; humans
-  add the image into `images/` later.
+- **Screenshots** — where a step needs one, put a **capture marker** on its own line under the
+  step (Phase 7), never an image you made up and never a bare `<!-- screenshot: … -->`
+  placeholder. The marker names the Page Scripting recording and the step after which the
+  screen is right; the capture writes the image line under it once the developer has reviewed
+  it. A marker whose recording does not exist yet is fine: the plan or the spec says who
+  records it.
 
 English site: `## Tutorial: how to …`, **Scenario:**, **Example data:**, **Expected result:**,
 **How to check:**, **If something goes wrong:** (columns *Message* / *What to do*), and
@@ -497,6 +504,100 @@ Use different ports if previewing both simultaneously.
 
 ---
 
+## Phase 7 — Capture screenshots (bc-tutorial-kit)
+
+Tutorial screenshots are not drawn or pasted by hand: **bc-tutorial-kit** replays the app's
+Page Scripting recordings in Business Central, shoots the screen after the chosen step, draws
+the numbered dots into the PNG and, after the developer's review, puts it in `images/`. All the
+mechanics are in the kit; never reimplement them.
+
+```bash
+KIT="github:DSC-Group-Srl/bc-tutorial-kit#v0.3.0"     # pinned; bump only when told to
+npx -y "$KIT" <command> …                             # the binary is `bc-tutorial`
+```
+
+| Command | Use |
+|---|---|
+| `recording app-pagescripting/<file>.yml` | numbered steps of a recording with their screen captions: pick `after` from here |
+| `validate guides/functional [--lang it-IT] --json` | markers, recordings, image links, unreviewed screenshots; errors exit 1 |
+| `capture guides/functional --lang it-IT [--page <page>.md] [--id <id>] [--no-interactive]` | replays and shoots into `.bc-tutorial-kit/pending/` (never into `images/`) |
+| `review guides/functional --lang it-IT --approve <ids\|all>` / `--reject <ids\|all>` | approved shots move into `images/`, the image line is written, `reviewed=true` |
+
+`capture` drives Microsoft Edge with Playwright; if npx cannot resolve `playwright`, ask the
+developer to run `! npm i -g playwright@1.55.1` once. The first run on an environment opens a
+sign-in window: tell the developer before launching it. The session is kept in
+`~/.bc-tutorial-kit/auth/`, outside the repo. `--no-interactive` (for agents running in the
+background) exits with code 3 instead of opening the window.
+
+### Capture markers
+
+One HTML comment on its own line under the step, indented like the step text. docfx ignores
+it, so the page reads as plain Markdown until the image arrives:
+
+```markdown
+3. Scegli **Crea code processo**.
+   <!-- capture: recording=setup-code-processo.yml after=7 pins="Crea code processo" reviewed=false -->
+```
+
+| Key | Meaning |
+|---|---|
+| `recording` | file in `app-pagescripting/` (saved as `.yml`: AL-Go runs `*.yml`) |
+| `after` | the recording step after which the screen is right (from `recording`). Two markers may share it, e.g. the action bar, then the same bar with a group menu open |
+| `pins` | comma-separated **on-screen captions** to mark with numbered dots, in order. An action pin uses the caption shown on the action bar (read the promoted `actionref` and its `group(...)`), which can differ from the action's own caption |
+| `menu` | the action group to open first, when the pinned action sits inside it |
+| `focus` | framing: absent = derived from the pins (their field group, the action bar up to the button, the dialog, the list up to the column); `full` = whole screen; or comma-separated captions |
+| `id` | image name; default `<page>-NN` in marker order. Set it when steps may be reordered later |
+| `reviewed` | always written `false`; only the kit's `review` flips it |
+
+Steps that only open a page need no marker. Never write the image line, `reviewed=true`, crop
+rectangles or coordinates yourself: the capture owns them.
+
+### Recordings
+
+A recording is made **by a developer or a consultant** in Business Central (Page Scripting),
+never by an agent. Two rules, enforced by `recording`:
+
+- it **starts from the role centre** (first step `navigate`); one started with the page already
+  open fails at step 1;
+- it is **re-runnable**: it undoes what it changes, or handles the confirmation a second run
+  meets (e.g. answers "Sì" to "sovrascriverli con i valori di default?"). The capture replays it
+  once in full before shooting and stops if that fails.
+
+A recording that is not there yet is a warning, not an error: write the tutorial and its
+markers anyway; the screenshot follows when the file lands in `app-pagescripting/`.
+
+### capture.json
+
+`guides/functional/capture.json`: `environment` (`{type: sandbox, tenant, name}` or
+`{type: container, url}`), `company`, optional `profile`, `viewport`, `mask` (captions of fields
+to hide). **No credentials**, ever.
+
+- **Global app**: the product sandbox and its demo company (e.g. Dyna B2B v2 →
+  `Products-Demo`, CRONUS IT), never a developer's own sandbox. Nothing personal may remain on
+  a screenshot.
+- **PTE**: the test environment from `.vscode/launch.json`; customer data will appear, so the
+  review decides what to mask.
+- When the environment is the **shared test environment**, take the test-lane lock around the
+  capture (`bc-dev:skill-test-lane` §2: `acquire --wait`, then `release`, always).
+- The version published there must be the version being documented: screenshots of an older
+  build are wrong.
+
+### Review (human gate)
+
+Show the developer every pending screenshot (the capture prints the absolute paths) and every
+warning it printed, then wait for an explicit answer:
+
+- `testo sensibile visibile` → add the field caption to `mask` and capture again;
+- `controllo … non trovato` → wrong caption or missing `menu` in the marker; fix and capture again;
+- the developer's yes → `review --approve` those ids; a no on one → `review --reject` it (the
+  marker stays `reviewed=false`, the page publishes with its text).
+
+Unreviewed screenshots never reach a commit: they stay in `.bc-tutorial-kit/pending/`, which
+the kit keeps out of git. Commit `guides/functional/**` and `app-pagescripting/*.yml` on the
+current branch, with the change they document.
+
+---
+
 ## What gets overwritten
 
 | Path | Overwritten by docfx build? | Safe to edit manually? |
@@ -508,8 +609,11 @@ Use different ports if previewing both simultaneously.
 | `*/docfx.json` | Never | Yes |
 | `*/toc.yml` | Never | Yes |
 | `*/public\**` | Never | Yes |
+| `*/images\**` | Never | No — written by `bc-tutorial review` (Phase 7) |
 
-All markdown source files are hand-authored and never touched by docfx. Only `_site\` is generated.
+All markdown source files are hand-authored and never touched by docfx. Only `_site\` is
+generated. The only edits the kit makes to a page are the image line under a marker and its
+`reviewed` flag.
 
 ---
 
@@ -530,7 +634,9 @@ All markdown source files are hand-authored and never touched by docfx. Only `_s
 - [ ] Icon found and copied to `public\` in both language folders
 - [ ] `main.css` copied and colour variables adapted for this app's palette
 - [ ] `docfx.json` metadata updated (app name, title, footer, logo path) for both variants
-- [ ] `images\` folder exists in both sites (placeholder for human-added screenshots)
+- [ ] `images\` folder exists in both sites
+- [ ] Tutorial steps that need a screenshot carry a capture marker (Phase 7), and
+  `bc-tutorial validate guides/functional` shows 0 errors
 
 ---
 

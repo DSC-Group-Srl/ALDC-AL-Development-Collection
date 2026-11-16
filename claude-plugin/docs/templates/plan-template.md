@@ -20,6 +20,9 @@ and continues after the last logged wave. Replace placeholders; drop sections th
 |----|-------|------|-----------|--------------|---------------|----------------------|---------|--------|
 | WP-1 | Data model | 1 | — | `app/src/Feature/Tables/**` | Table 50100 "…", Enum 50101 "…" | 50200 "… Tests" | tables | light |
 | WP-2 | Posting logic | 2 | WP-1 | `app/src/Feature/Posting/**`, `app-test/src/Feature/Posting/**` | Codeunit 50110 "…" | 50210 "…" | events, performance | full |
+| WP-D | Docs | one wave behind | — | `guides/**` | — | — | docs | none |
+
+**Docs (WP-D):** {pages to add/change · tutorials} · **Recordings:** {`file.yml` → developer | consultant: name; … | none}
 
 **Shared single-writer files** (applied by the conductor per wave, never by a WP):
 permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vscode/*`.
@@ -53,7 +56,8 @@ permission sets, `app/app.json`, `app-test/app.json`, `Translations/*.xlf`, `.vs
 
 ## Rules
 
-- WP `owns` globs must not overlap; shared files appear in no WP.
+- WP `owns` globs must not overlap; shared files appear in no WP. WP-D owns `guides/**` only and
+  is left out of *Planned objects*; drop its row when the spec's Documentation says `none`.
 - IDs are allocated here, from the app's and the test app's `idRanges` — workers never choose.
   Ext before New (`al-code-style.md` Rule 9): an existing object that changes is owned by one WP,
   not replaced by a new object. Only a plan that needs more IDs than are free stops for a user

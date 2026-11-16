@@ -24,6 +24,11 @@ holds the per-wave detail — reference it, don't copy it.
 ## Deferred
 - {… | none}
 
+## Documentation
+- Pages: {added/changed in guides/functional | none}
+- Validate: {0 errors · N warnings}
+- Screenshots: {N approved · N rejected | waiting for recording `<file>` from <who> | capture after release on the product sandbox | sign-in needed} {→ /bc-dev:al-docs-capture when something is left}
+
 ## Skills & knowledge
 | Skill | WPs | Patterns |
 |-------|-----|----------|
