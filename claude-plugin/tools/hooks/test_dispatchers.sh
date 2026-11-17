@@ -29,7 +29,7 @@ ok()   { echo "ok   $1"; }
 bad()  { echo "FAIL $1"; FAIL=1; }
 
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1 && { PY="$c"; break; }; done
 NODE=""; command -v node >/dev/null 2>&1 && NODE=node
 
 # winpath <posix path> -> a path python/node on this OS can open (C:/x/y on Git Bash).
@@ -145,13 +145,25 @@ echo '{"id":"x","name":"Test App"}' > "$RG/app/app.json"
 git -c init.defaultBranch=main init -q "$RG" && ( cd "$RG" && git checkout -q -b feature/0042-ddt )
 RGSPEC="$RG/app/requirements/in-progress/0042-ddt/0042-ddt.spec.md"
 rgspec() { printf '# 0042-ddt\n\n**Branch:** `feature/0042-ddt`\n%s\n\n---\n' "$1" > "$RGSPEC"; }
-task() { printf '{"session_id":"rg1","tool_name":"%s","tool_input":{"subagent_type":"%s","description":"x","prompt":"%s"}}' "$1" "$2" "$3"; }
+RGSID=rg-session-0
+task() { printf '{"session_id":"%s","tool_name":"%s","tool_input":{"subagent_type":"%s","description":"x","prompt":"%s"}}' "$RGSID" "$1" "$2" "$3"; }
 rg() { ( cd "$RG" && pre "$@" ); }
 rm -f "$RGSPEC"
 rg "conductor without an Issue anywhere: denied, told to ask" DENY "$(task Task bc-dev:al-conductor 'Run the plan for 0042-ddt')" "AskUserQuestion"
 rg "bare al-conductor via the Agent tool: denied too" DENY "$(task Agent al-conductor 'Run the plan')" "Business Central Issue"
+RGSID=rg-session-1
 rg "brief names the Issue: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run 0042-ddt. BC Issue: 4821 (IL-2026-118)')"
-rg "brief says none: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run it. **BC Issue:** none')"
+[ "$(cat "$ALDC_LIVE_DIR/rg-session-1.issue" 2>/dev/null)" = 4821 ] && ok "brief number is recorded for the session"   || { [ -z "$PY" ] && ok "brief number recorded (skipped: no python)" || bad "brief number not recorded for the session"; }
+RGSID=rg-session-2
+if [ -n "$PY" ]; then
+  rg "brief says none, nothing recorded: denied" DENY "$(task Task bc-dev:al-conductor 'Run it. **BC Issue:** none')" "issueNo=none"
+  "$PY" "$TOOLS/metrics/emit.py" AldcIssue issueNo=none source=user --session rg-session-2 >/dev/null 2>&1
+  rg "none recorded for the session: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run it. **BC Issue:** none')"
+  rg "recorded none also passes a brief without the line" SILENT "$(task Task bc-dev:al-conductor 'Run the plan')"
+else
+  rg "brief says none, no python: allowed (old rule)" SILENT "$(task Task bc-dev:al-conductor 'Run it. **BC Issue:** none')"
+fi
+RGSID=rg-session-3
 rg "free text after BC Issue is not an answer" DENY "$(task Task bc-dev:al-conductor 'BC Issue: ask the customer')" "AskUserQuestion"
 rgspec '**BC Issue:** 4821 (IL-2026-118)'
 rg "spec of the branch names the Issue: allowed" SILENT "$(task Task bc-dev:al-conductor 'Run the plan for 0042-ddt')"

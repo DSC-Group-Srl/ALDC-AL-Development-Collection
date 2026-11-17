@@ -246,9 +246,13 @@ telemetry and the prediction model join on one key.
   gets a one-line nudge at session start; `none` is silent. Kill switch
   `ALDC_ISSUE_LINK_DISABLE=1`; self-test `bash tools/issue/test_link.sh`.
   **A run asks first:** `tools/issue/run_guard.sh` (PreToolUse on Task/Agent) denies launching
-  `al-conductor` until the brief or the branch's spec says `BC Issue: <number|none>`; the deny
-  tells the main thread to ask the user with `AskUserQuestion`. "None" passes, so it never
-  blocks for good. Kill switch `ALDC_ISSUE_RUN_GUARD_DISABLE=1`.
+  `al-conductor` until the answer is on record: the branch's spec says `BC Issue: <number|none>`,
+  or the session holds it (`emit.py AldcIssue issueNo=<n|none>`). A number in the brief passes
+  and the guard links the session to it itself (`source=brief`); `none` in the brief alone does
+  not (since 10.1: on 9.x most runs started that way with no Issue and no trace of an answer).
+  The deny tells the main thread to ask the user with `AskUserQuestion`. "None" is a valid,
+  recorded answer, so it never blocks for good. AldcRunStart and AldcEstimate carry
+  `issueState` = `linked` | `none` | `unanswered`. Kill switch `ALDC_ISSUE_RUN_GUARD_DISABLE=1`.
   Why structural: before 8.20 the telemetry had 72 conductor runs and 0 with an Issue or an
   estimate, and two thirds of all measured tokens sat in sessions tied to no task.
 - **Who uses it.** The main thread (routing hook) and `/bc-dev:al-spec-create` resolve and

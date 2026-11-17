@@ -42,7 +42,7 @@ if grep -q 'IL-2026-118\|0042-ddt.spec' "$T/data/metrics/aldc-metrics.jsonl"; th
 
 spec '**BC Issue:** none'
 o="$(run sess-link-0002)"; empty "spec says none: silent" "$o"
-[ -z "$(linked sess-link-0002)" ] && ok "spec says none: nothing linked" || bad "linked on none"
+[ "$(linked sess-link-0002)" = none ] && ok "spec says none: no number linked, the answer none recorded" || bad "spec none: expected the answer none, got '$(linked sess-link-0002)'"
 
 spec '**Complexity:** MEDIUM'
 o="$(run sess-link-0003)"; check "spec without the line: asks to resolve" "$o" "has no '**BC Issue:**' line"

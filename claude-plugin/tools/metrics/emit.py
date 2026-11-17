@@ -7,12 +7,15 @@
     python emit.py AldcRead action=blocked lines=1840 chars=90211
     python emit.py AldcHook hook=read-guard decision=deny ms=41
     python emit.py AldcHook hook=freshdesk-guard decision=ask tool=createTicketNote calls=2
-    python emit.py AldcIssue issueNo=<entryNo> source=<spec|user|freshdesk|history|branch>
+    python emit.py AldcIssue issueNo=<entryNo|none> source=<spec|user|freshdesk|history|branch|brief>
 
 `AldcIssue` links the SESSION to a DSC Business Central Issue (its entryNo): from then on every
 event of the session - runs, phases, the session total - carries `issueNo` (ident.py), so
 effort joins to the Issue's estimated and actual hours. `issueNo=0` clears the link. Digits
-only: no description, customer or project ever travels with it.
+only: no description, customer or project ever travels with it. `issueNo=none` records the
+user's answer "no Issue for this work": nothing is linked, but the run guard and the
+`issueState` dimension of AldcRunStart/AldcEstimate (linked | none | unanswered) know the
+question was asked.
 
 The script reads the spec, the model does not have to remember:
 
@@ -129,7 +132,7 @@ STRING_KEYS = {"tier", "lane", "outcome", "result", "action", "hook", "decision"
                "issueNo", "gate", "source"}
 # String keys whose value must also come from a closed set.
 ENUM_VALUES = {"estSource": {"stima-sviluppo", "manual", "none"},
-               "source": {"spec", "user", "freshdesk", "history", "branch"},
+               "source": {"spec", "user", "freshdesk", "history", "branch", "brief"},
                "gate": {"fixloop", "conflict", "stall", "blocked", "contradiction", "other", "autostop"}}
 RE_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,40}$")
 RE_NUM = re.compile(r"^-?\d+(?:\.\d+)?$")
@@ -455,6 +458,8 @@ def link_from_branch(cwd: str, session: str) -> tuple[str, bool]:
     if not issue:
         return "missing", False
     if issue == "none":
+        if ident.issue_state(session) != "none":
+            ident.set_issue(session, "none")
         return "none", False
     if ident.issue_no(session) == issue:
         return issue, False
@@ -948,13 +953,17 @@ def main(argv: list[str]) -> int:
             import ident as _ident
 
             no = props.get("issueNo", "")
-            if no != "0" and not _ident.RE_ISSUE.match(no):
+            if no.lower() == "none":
+                no = "none"  # the user's answer "no Issue for this work": recorded, never an issueNo
+            if no not in ("0", "none") and not _ident.RE_ISSUE.match(no):
                 return 0  # not an Issue entryNo: nothing linked, nothing sent
             if not _ident.set_issue(session, no):
                 return 0
-            if no == "0":
+            if no in ("0", "none"):
                 props.pop("issueNo", None)
                 props["linked"] = "false"
+                if no == "none":
+                    props["answer"] = "none"
         if event in ("AldcRunStart", "AldcEstimate") and props.get("req"):
             # The spec header knows the Issue and the estimate; the conductor need not pass them.
             import ident as _ident
@@ -965,6 +974,14 @@ def main(argv: list[str]) -> int:
                 props["issueNo"] = no
                 if _ident.issue_no(session) != no:
                     _ident.set_issue(session, no)
+            # Whether the Issue question was answered, so "no Issue" (a valid answer) and
+            # "nobody asked" (the leak) are told apart: linked | none | unanswered.
+            if props.get("issueNo"):
+                props["issueState"] = "linked"
+            elif no == "none" or _ident.issue_state(session) == "none":
+                props["issueState"] = "none"
+            else:
+                props["issueState"] = "unanswered"
             if event == "AldcEstimate" and "estP50Min" not in meas and facts.get("p50"):
                 meas["estP50Min"], meas["estP80Min"] = float(facts["p50"]), float(facts["p80"])
                 props.setdefault("estSource", facts.get("estSource", "manual"))
@@ -1364,7 +1381,26 @@ def _self_test_issue(cwd: str) -> list[tuple[str, bool]]:
             recs = [json.loads(x) for x in fh if x.strip()]
         main(["AldcIssue", "issueNo=0", "--session", s])
         gone = build("AldcLane", ["result=ran"], cwd, s)[0]
+
+        def last() -> dict:
+            with open(os.path.join(base, "metrics", "aldc-metrics.jsonl"), encoding="utf-8") as fh:
+                return json.loads([x for x in fh if x.strip()][-1])["props"]
+        main(["AldcRunStart", "req=self-test-req", "tier=LOW", "--session", s])
+        unanswered = last().get("issueState")
+        main(["AldcIssue", "issueNo=None", "source=user", "--session", s])
+        none_rec = last()
+        main(["AldcRunStart", "req=self-test-req", "tier=LOW", "--session", s])
+        none_state = last()
+        main(["AldcIssue", "issueNo=4821", "source=brief", "--session", s])
+        main(["AldcRunStart", "req=self-test-req", "tier=LOW", "--session", s])
+        linked_state = last().get("issueState")
         return [
+            ("issue: run start says unanswered before any answer", unanswered == "unanswered"),
+            ("issue: none is recorded as an answer, without issueNo",
+             none_rec.get("answer") == "none" and "issueNo" not in none_rec),
+            ("issue: run start after none says none", none_state.get("issueState") == "none"
+             and "issueNo" not in none_state),
+            ("issue: run start after a link says linked (source=brief accepted)", linked_state == "linked"),
             ("issue: absent before a link", "issueNo" not in before),
             ("issue: a non-numeric value links nothing", junk == ""),
             ("issue: later events of the session carry it", after.get("issueNo") == "4821"),

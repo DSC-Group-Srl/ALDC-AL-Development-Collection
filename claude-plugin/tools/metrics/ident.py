@@ -15,9 +15,12 @@ to tell "my sessions" from the team's, and this machine from another one or from
                  `<live dir>/<session>.issue`; every later event of the session carries it, so
                  tokens, time and outcome join to the Issue's estimated and actual hours.
 
-The e-mail is read from, in order: ALDC_USER_EMAIL, the signed-in Claude account
-(~/.claude.json oauthAccount.emailAddress), `git config user.email`. Nothing else about the
-account is read, and the full address never leaves this module.
+The e-mail is ALDC_USER_EMAIL when set; otherwise the first address on the company domain
+(ALDC_COMPANY_EMAIL_DOMAIN, default dsc-group.net) among the signed-in Claude account
+(~/.claude.json oauthAccount.emailAddress) and `git config user.email` (repo, then global);
+otherwise the company address this machine resolved before; otherwise whatever was found. A
+personal address therefore never wins over the company one (see email()). Nothing else about
+the account is read, and the full address never leaves this machine.
 
 Never raises: every lookup degrades to "unknown"/absent.
 """
@@ -42,23 +45,81 @@ def _truthy(v: str) -> bool:
     return (v or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def company_domain() -> str:
+    """The company e-mail domain (same variable as tools/issue/whoami.sh)."""
+    return (os.environ.get("ALDC_COMPANY_EMAIL_DOMAIN", "") or "dsc-group.net").strip().lower()
+
+
+def _identity_file() -> str:
+    return os.path.join(os.path.expanduser("~"), ".claude", "aldc-plugin-data", "identity.json")
+
+
+def _claude_email() -> str:
+    for base in dict.fromkeys((os.environ.get("CLAUDE_CONFIG_DIR", ""), os.path.expanduser("~"))):
+        if not base:
+            continue
+        try:
+            with open(os.path.join(base, ".claude.json"), encoding="utf-8") as fh:
+                return str(((json.load(fh) or {}).get("oauthAccount") or {}).get("emailAddress") or "")
+        except (OSError, ValueError, AttributeError):
+            continue
+    return ""
+
+
+def _git_email(*scope: str) -> str:
+    try:
+        return subprocess.run(["git", "config", *scope, "user.email"], capture_output=True,
+                              text=True, timeout=3).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _remembered() -> str:
+    try:
+        with open(_identity_file(), encoding="utf-8") as fh:
+            return str((json.load(fh) or {}).get("email") or "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def _remember(e: str) -> None:
+    if _remembered() == e:
+        return
+    try:
+        os.makedirs(os.path.dirname(_identity_file()), exist_ok=True)
+        with open(_identity_file(), "w", encoding="utf-8") as fh:
+            json.dump({"email": e}, fh)
+    except OSError:
+        pass
+
+
+def _norm(e: str) -> str:
+    e = (e or "").strip().strip('"').lower()
+    return e if "@" in e and " " not in e else ""
+
+
 def email() -> str:
+    """One person, one identity. The same developer used to show up twice (a personal address
+    in git or the Claude login on one machine, the company one on another), splitting their
+    runs in every per-user view. So:
+      1. ALDC_USER_EMAIL, when set, wins outright;
+      2. else the first address on the company domain among the Claude login, the repo's and
+         the global git e-mail;
+      3. else the company address this machine resolved before (~/.claude/aldc-plugin-data/
+         identity.json, written by step 2 — it stays on this machine);
+      4. else the first address found at all."""
     if _email_cache:
         return _email_cache[0]
-    e = os.environ.get("ALDC_USER_EMAIL", "").strip()
+    e = _norm(os.environ.get("ALDC_USER_EMAIL", ""))
     if not e:
-        try:
-            with open(os.path.join(os.path.expanduser("~"), ".claude.json"), encoding="utf-8") as fh:
-                e = str(((json.load(fh) or {}).get("oauthAccount") or {}).get("emailAddress") or "")
-        except (OSError, ValueError, AttributeError):
-            e = ""
-    if not e:
-        try:
-            e = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
-                               timeout=3).stdout.strip()
-        except (OSError, subprocess.SubprocessError):
-            e = ""
-    e = e.lower() if "@" in e else ""
+        dom = "@" + company_domain()
+        found = [x for x in (_norm(_claude_email()), _norm(_git_email()), _norm(_git_email("--global"))) if x]
+        e = next((x for x in found if x.endswith(dom)), "")
+        if e:
+            _remember(e)
+        else:
+            r = _norm(_remembered())
+            e = r if r.endswith(dom) else (found[0] if found else "")
     _email_cache.append(e)
     return e
 
@@ -105,9 +166,25 @@ def issue_no(session: str = "") -> str:
     return v if RE_ISSUE.match(v) else ""
 
 
+def issue_state(session: str = "") -> str:
+    """What the session's user answered about its Issue: "linked" (a number), "none" (the user
+    said there is no Issue for this work) or "" (nobody has answered yet)."""
+    if issue_no(session):
+        return "linked"
+    s = session_id(session)
+    if not s:
+        return ""
+    try:
+        with open(os.path.join(_live_dir(), f"{s}.issue"), encoding="utf-8") as fh:
+            return "none" if fh.read(32).strip().lower() == "none" else ""
+    except OSError:
+        return ""
+
+
 def set_issue(session: str, no: str) -> bool:
-    """Link the session to Issue `no` (digits), or clear the link with "0". False when the
-    session id or the number is not usable; never raises."""
+    """Link the session to Issue `no` (digits), record the user's "none" (no Issue for this
+    work), or clear the link with "0". False when the session id or the number is not usable;
+    never raises."""
     s = session_id(session)
     if not s:
         return False
@@ -117,7 +194,8 @@ def set_issue(session: str, no: str) -> bool:
             if os.path.isfile(p):
                 os.remove(p)
             return True
-        if not RE_ISSUE.match(no or ""):
+        no = "none" if (no or "").strip().lower() == "none" else no
+        if no != "none" and not RE_ISSUE.match(no or ""):
             return False
         os.makedirs(_live_dir(), exist_ok=True)
         with open(p, "w", encoding="utf-8") as fh:
@@ -190,7 +268,38 @@ def self_test() -> int:
         anon = props()
         os.environ["ALDC_METRICS_EXCLUDE"] = "1"
         excl = props()
+        # "none" is an answer, distinct from no answer; it never becomes an issueNo.
+        none_ok = set_issue("", "none")
+        none_state, none_props = issue_state(), props()
+        set_issue("", "0")
+        unanswered = issue_state()
+        # Identity: the company address wins over a personal one, whichever source has it.
+        os.environ.pop("ALDC_USER_EMAIL", None)
+        home = tempfile.mkdtemp(prefix="aldc-home-")
+        g = globals()
+        saved = (g["_claude_email"], g["_git_email"], g["_identity_file"])
+        try:
+            g["_identity_file"] = lambda: os.path.join(home, "identity.json")
+            g["_claude_email"] = lambda: "Mario.Rossi@gmail.com"
+            g["_git_email"] = lambda *a: "" if a else "mario.rossi@dsc-group.net"
+            _email_cache.clear()
+            prefers_company = email()
+            g["_git_email"] = lambda *a: ""
+            _email_cache.clear()
+            remembered = email()
+            g["_identity_file"] = lambda: os.path.join(home, "nothing-here.json")
+            _email_cache.clear()
+            personal_only = email()
+        finally:
+            g["_claude_email"], g["_git_email"], g["_identity_file"] = saved
+            _email_cache.clear()
         checks = [
+            ("issue none: recorded as an answer", none_ok and none_state == "none"),
+            ("issue none: never sent as issueNo", "issueNo" not in none_props),
+            ("issue state: empty when nobody answered", unanswered == ""),
+            ("identity: company address beats a personal one", prefers_company == "mario.rossi@dsc-group.net"),
+            ("identity: the machine remembers its company address", remembered == "mario.rossi@dsc-group.net"),
+            ("identity: a personal address is used only when nothing else exists", personal_only == "mario.rossi@gmail.com"),
             ("not excluded by default", "exclude" not in p),
             ("no issue until one is linked", "issueNo" not in p),
             ("issue link: only a positive integer is accepted", not any(bad_set) and linked_ok),

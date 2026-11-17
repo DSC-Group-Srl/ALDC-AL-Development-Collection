@@ -278,6 +278,8 @@ customEvents
 let includeExcluded = false;
 let includeRework = false;
 let minSchema = 3;
+// Personal addresses that once won over the company one (fixed in bc-dev 10.1, ident.email()).
+let canonicalUser = (u: string) { case(u == "concilio.dario", "dario.concilio", u) };
 let ev = (n: string) { customEvents
     | where name == n and toint(customDimensions.schema) >= minSchema
     | where includeExcluded or tostring(customDimensions.exclude) != "true"
@@ -303,6 +305,7 @@ let est = ev("AldcEstimate")
     | project runId, estimatedAt = timestamp, req = tostring(customDimensions.req),
               tier = tostring(customDimensions.tier), model = tostring(customDimensions.model),
               estSource = tostring(customDimensions.estSource), issueNo = tostring(customDimensions.issueNo),
+              issueState = tostring(customDimensions.issueState),
               parseOk = todouble(customMeasurements.parseOk),
               objTotal = todouble(customMeasurements.objTotal), objWeighted = todouble(customMeasurements.objWeighted),
               testCodeunitsPlanned = todouble(customMeasurements.testCodeunitsPlanned),
@@ -319,7 +322,7 @@ let run = ev("AldcRun")
     | mv-apply k = bag_keys(customMeasurements) to typeof(string) on (
         where k startswith "objDone_" | summarize objDone = make_bag(bag_pack(k, customMeasurements[k])))
     | project runId, finishedAt = timestamp, project_ = tostring(customDimensions.['project']),
-              user = tostring(customDimensions.user), pluginVersion = tostring(customDimensions.pluginVersion),
+              user = canonicalUser(tostring(customDimensions.user)), pluginVersion = tostring(customDimensions.pluginVersion),
               wallMinutesTotal = todouble(customMeasurements.wallMinutesTotal),
               reportedMinutes = todouble(customMeasurements.reportedMinutes),
               fixLoops = todouble(customMeasurements.fixLoops), stops = todouble(customMeasurements.stops),
@@ -428,3 +431,18 @@ customEvents
 | where ratio < 1
 | project timestamp, runId, attempt, tier, activeMin = round(activeS / 60, 1), waveMin = round(waveS / 60, 1), ratio
 | order by ratio asc;
+
+// X5. issue_coverage — does every run carry its Business Central Issue? One row per week:
+// conductor runs by issueState (bc-dev 10.1+): linked (a number), none (the user said there is
+// no Issue, recorded), unanswered (nobody asked — the leak the run guard exists to stop), and
+// pre-10.1 runs with no issueState at all, split by whether an issueNo arrived anyway.
+let includeExcluded = false;
+customEvents
+| where name == "AldcRunStart" and timestamp > ago(90d)
+| where includeExcluded or tostring(customDimensions.exclude) != "true"
+| summarize arg_min(timestamp, customDimensions) by runId = tostring(customDimensions.runId)
+| extend state = tostring(customDimensions.issueState), issueNo = tostring(customDimensions.issueNo)
+| extend state = iff(isempty(state), iff(isnotempty(issueNo), "linked (pre-10.1)", "no state (pre-10.1)"), state)
+| summarize runs = count() by week = startofweek(timestamp), state
+| evaluate pivot(state, sum(runs))
+| order by week desc;

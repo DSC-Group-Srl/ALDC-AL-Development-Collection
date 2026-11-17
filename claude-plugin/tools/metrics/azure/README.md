@@ -114,8 +114,9 @@ BCQuality was not mounted, and which pin the estate is actually on).
 The ESTIMATION blocks at the end (X1–X3) are the training and calibration set for duration
 estimates: `estimation_dataset` (one row per task: planned scope, delivered size, measured time,
 attempts, tokens), `estimation_calibration` (share of tasks within their P80, by week and tier)
-`scope_drift` (planned vs delivered objects per kind) and `active_time_check` (runs whose
-measured time undercounts their waves — should stay empty).
+`scope_drift` (planned vs delivered objects per kind), `active_time_check` (runs whose
+measured time undercounts their waves — should stay empty) and `issue_coverage` (X5: conductor
+runs per week by `issueState` — how many carry their Business Central Issue).
 
 [`workbook.json`](workbook.json) is an importable Azure Workbook with two tabs. **Quality**: the
 four metrics as tiles, the independence-ratio trend against its 0.15 floor, the most-deviated
@@ -138,6 +139,13 @@ e-mail's local part — `ALDC_METRICS_ANONYMOUS=1` drops it and keeps only the h
 session id, so the panel can open it). The full e-mail never leaves the machine, and identity
 is never written to the in-repo `.github/metrics/` lane.
 
+**One person, one identity (since 10.1).** The e-mail is the first address on the company domain
+(`ALDC_COMPANY_EMAIL_DOMAIN`, default `dsc-group.net`) among the Claude login and git's repo and
+global `user.email`, else the company address the machine resolved before
+(`~/.claude/aldc-plugin-data/identity.json`), else whatever was found. Before, the first source
+won, so a developer whose git e-mail was personal showed up as two users. Older rows are folded
+back by `canonicalUser()` in the estimation queries; add a line there if another split appears.
+
 **Live events (since 8.4)**: `AldcRunStart`, `AldcWave` and `AldcWp` (`stage=start|end`) from
 al-conductor, and `AldcAlive` — a heartbeat at most every 2 minutes per session from a
 PreToolUse hook, carrying the active agent type and tool name. Same allowlist discipline as
@@ -154,6 +162,7 @@ a `schema` dimension; filter on `toint(customDimensions.schema) >= 3`.
 | every run event (`AldcRunStart`, `AldcWave`, `AldcWp`, `AldcLane`, `AldcAlive`, `AldcGate`, `AldcEstimate`) | `attempt` — the session's number for this run (a resume in a new session is the next attempt) |
 | `AldcPhase`, `AldcSession` | `req`, `runId` (and `attempt`) of the conductor run live in the session, so tokens sum per task |
 | `AldcIssue` (new) | links the session to a DSC Business Central Issue: `issueNo` (the Issue's entryNo, digits only) and `source` (`spec` · `user` · `freshdesk` · `history` · `branch`). From then on **every** event of the session carries `issueNo` as a dimension (`AldcRun`, `AldcEstimate`, `AldcPhase`, `AldcSession`, `AldcLane`, …), so tokens, minutes and outcome join to the Issue's estimated and actual hours in BC. Only the number is sent — never a description, customer or hours. |
+| `AldcRunStart`, `AldcEstimate` (10.1) | `issueState` = `linked` (a number) · `none` (the user said there is no Issue, recorded with `AldcIssue issueNo=none`) · `unanswered` (nobody asked). `AldcIssue` takes `issueNo=none` (sent as `answer=none`, never as an issueNo) and `source=brief` (the run guard linking a number written in the conductor brief). |
 | `AldcGate` (new) | emitted by the conductor right before a mid-run stop-and-ask: `gate` (`fixloop` · `conflict` · `stall` · `blocked` · `contradiction` · `other`) |
 
 Before schema 3, `wallMinutes` was the conductor's own guess (round numbers that disagreed with

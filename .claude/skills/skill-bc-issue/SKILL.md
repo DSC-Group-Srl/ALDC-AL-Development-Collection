@@ -158,8 +158,10 @@ Rules for the proposal:
   number directly, with the same "No Issue" option.
 
 **Before a conductor run this always happens.** A guard (`tools/issue/run_guard.sh`) denies
-launching `al-conductor` until the spec header or the brief says `BC Issue: <number>` or
-`BC Issue: none`.
+launching `al-conductor` until the answer is on record: the spec header says
+`**BC Issue:** <number>` or `none`, or the session holds it (the `emit.py AldcIssue` line in §2).
+A number in the brief is enough (the guard records it itself); `BC Issue: none` in the brief
+alone is not: run the `issueNo=none` line first.
 
 ## 2. Record the link
 
@@ -174,7 +176,7 @@ Three places, all cheap:
    already linked says so at start: don't emit again):
 
    ```bash
-   python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcIssue issueNo=<entryNo> source=<spec|user|freshdesk|history|branch>
+   python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcIssue issueNo=<entryNo> source=<spec|user|freshdesk|history|branch|brief>
    ```
 
    From then on every event of the session (conductor run, each subagent phase, the session
@@ -186,7 +188,12 @@ Three places, all cheap:
    a script reads them.
 3. **Your reply** — one line: `Linked to Issue <issueListRef> (<entryNo>): <short description>`.
 
-"No Issue" is recorded too: write `**BC Issue:** none` in the spec, and do not emit.
+"No Issue" is recorded too, in the same two places: write `**BC Issue:** none` in the spec, and
+emit the answer, so the estimation data can tell "asked, no Issue" from "never asked":
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/tools/metrics/emit.py" AldcIssue issueNo=none source=user
+```
 
 ## 3. Read the estimate on the Issue — when there is one
 
