@@ -4,12 +4,13 @@
 # heartbeat event shape. Exits non-zero if any assertion fails — including the privacy
 # assertions (no customer path, no message body ever reaches an emitted record or envelope).
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 cd "$(dirname "${BASH_SOURCE[0]}")"
 # Anything a self-test does send is marked as a test, so the estimation queries skip it.
 export ALDC_METRICS_EXCLUDE=1
 
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 if [ -z "$PY" ]; then
   echo "no python interpreter on PATH" >&2
   exit 2

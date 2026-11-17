@@ -29,6 +29,7 @@
 # Kill switch: ALDC_ISSUE_RUN_GUARD_DISABLE=1. Self-test: tools/hooks/test_dispatchers.sh.
 
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 [ "${ALDC_ISSUE_RUN_GUARD_DISABLE:-}" = "1" ] && exit 0
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -49,7 +50,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
 PY=""
 # Only an interpreter that runs: on Windows `python3` is often the Microsoft Store stub, which
 # exists on PATH and fails every call - the link would then be lost without a word.
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 sid="$(printf '%s' "$INPUT" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
   | sed -E 's/^"[^"]+"[[:space:]]*:[[:space:]]*"//; s/"$//' | tr -cd 'A-Za-z0-9_-')"
 [ -n "$sid" ] || sid="${CLAUDE_CODE_SESSION_ID:-}"

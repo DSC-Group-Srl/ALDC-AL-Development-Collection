@@ -31,6 +31,7 @@
 # Self-test: tools/hooks/test_dispatchers.sh.
 
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 [ "${ALDC_FRESHDESK_GUARD_DISABLE:-}" = "1" ] && exit 0
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -66,7 +67,7 @@ metric() { # $1 decision, $2 calls
   case "$name" in
     fetchTicket|fetchTicketConversations|fetchSolutionArticle|createTicketNote|replyTicket) tool_tok="$name" ;;
   esac
-  for c in python3 python py; do
+  for c in $(aldc_python); do
     if command -v "$c" >/dev/null 2>&1; then
       ( nohup "$c" "$here/../metrics/emit.py" AldcHook hook=freshdesk-guard "decision=$1" \
           "tool=$tool_tok" "calls=$2" --session "$sid" >/dev/null 2>&1 & ) >/dev/null 2>&1

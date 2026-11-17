@@ -5,6 +5,7 @@
 # Fast paths in plain bash so the common case costs no python start-up: a ranged Read, and any
 # shell command that is not a bare cat/type/Get-Content, are allowed without spawning python.
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 [ "${ALDC_READ_GUARD_DISABLE:-}" = "1" ] && exit 0
 INPUT="$(cat)"
 case "$INPUT" in
@@ -14,7 +15,7 @@ case "$INPUT" in
     printf '%s' "$INPUT" | grep -qiE '"command"[[:space:]]*:[[:space:]]*"[[:space:]]*(cat|type|get-content|gc)[[:space:]]' || exit 0 ;;
 esac
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
-for c in python3 python py; do
+for c in $(aldc_python); do
   if command -v "$c" >/dev/null 2>&1; then
     printf '%s' "$INPUT" | "$c" "$here/read_guard.py"
     exit 0

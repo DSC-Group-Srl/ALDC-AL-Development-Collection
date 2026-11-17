@@ -17,6 +17,7 @@
 # Run on SessionStart by tools/hooks/sessionstart.sh, alongside the BCQuality and rules hooks.
 
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
 plugin_root="$(cd "$script_dir/../.." 2>/dev/null && pwd || echo .)"
@@ -46,7 +47,7 @@ if [ "$current_version" = "$previous_version" ] && [ "$age_h" -lt "$interval_h" 
   exit 0
 fi
 
-for c in python3 python py; do
+for c in $(aldc_python); do
   if command -v "$c" >/dev/null 2>&1; then
     "$c" "$script_dir/heartbeat.py" \
       --version "$current_version" \

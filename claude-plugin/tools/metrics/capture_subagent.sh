@@ -32,6 +32,7 @@
 # Wired from hooks/hooks.json on SubagentStop.
 
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 
 STDIN_JSON="$(cat 2>/dev/null || true)"
 [ -z "$STDIN_JSON" ] && exit 0
@@ -48,7 +49,7 @@ note() { mkdir -p "$out_dir" 2>/dev/null || true; printf '%s %s\n' "$(date -u +%
 # of thing that silently mangles a count. Absent python, record the gap rather than guessing
 # — a metric quietly derived from a broken parse is worse than a missing one.
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 if [ -z "$PY" ]; then
   note "SKIP no python interpreter on PATH - metrics not captured this session"
   exit 0

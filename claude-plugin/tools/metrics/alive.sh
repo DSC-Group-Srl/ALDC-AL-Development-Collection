@@ -15,6 +15,7 @@
 # decision).
 
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 [ "${ALDC_METRICS_ALIVE_DISABLE:-}" = "1" ] && exit 0
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -37,7 +38,7 @@ agent=$(printf '%s' "$INPUT" | grep -o '"agent_type"[[:space:]]*:[[:space:]]*"[A
 cwd_json=$(printf '%s' "$INPUT" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/' | sed 's/\\\\/\\/g')
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
-for c in python3 python py; do
+for c in $(aldc_python); do
   if command -v "$c" >/dev/null 2>&1; then
     (
       [ -n "$cwd_json" ] && export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$cwd_json}"

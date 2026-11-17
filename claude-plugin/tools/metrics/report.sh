@@ -2,8 +2,9 @@
 # Thin launcher for report.py — finds a python interpreter and passes the flags through.
 # Invoked by /bc-dev:al-metrics so the command does not have to know which python is present.
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
-for c in python3 python py; do
+for c in $(aldc_python); do
   if command -v "$c" >/dev/null 2>&1; then
     exec "$c" "$here/report.py" --project-dir "${CLAUDE_PROJECT_DIR:-$PWD}" "$@"
   fi

@@ -8,6 +8,7 @@
 # Exits non-zero if any assertion fails. Needs python or node only to VALIDATE the JSON (the
 # dispatchers themselves need neither); a missing read-guard python skips that one case.
 set -u
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS="$(cd "$HERE/.." && pwd)"
 PRE="$HERE/pretooluse.sh"
@@ -29,7 +30,7 @@ ok()   { echo "ok   $1"; }
 bad()  { echo "FAIL $1"; FAIL=1; }
 
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 NODE=""; command -v node >/dev/null 2>&1 && NODE=node
 
 # winpath <posix path> -> a path python/node on this OS can open (C:/x/y on Git Bash).

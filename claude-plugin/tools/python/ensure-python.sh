@@ -14,6 +14,7 @@
 # contract on stdout, same shape as tools/al-cli/ensure-al-tool.sh and
 # tools/nodejs/ensure-npx.sh.
 set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 
 EVENT="${1:-SessionStart}"
 
@@ -40,7 +41,7 @@ emit() {
   printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$EVENT" "$esc"
 }
 
-for c in python3 python py; do
+for c in $(aldc_python); do
   if command -v "$c" >/dev/null 2>&1; then
     exit 0
   fi

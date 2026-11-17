@@ -3,6 +3,7 @@
 # with and without the BC Issue line. Nothing reaches telemetry or the user's real state.
 # Exits non-zero on any failure. Skips (exit 0) when no python is on PATH.
 set -u
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$HERE/link_hook.sh"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
@@ -13,7 +14,7 @@ check() { if printf '%s' "$2" | grep -qF -- "$3"; then ok "$1"; else bad "$1 :: 
 empty() { if [ -z "$2" ]; then ok "$1"; else bad "$1 :: ${2:0:300}"; fi; }
 
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 [ -n "$PY" ] || { echo "skip: no python on PATH"; exit 0; }
 
 export ALDC_METRICS_EXCLUDE=1 ALDC_METRICS_APPINSIGHTS_DISABLE=1

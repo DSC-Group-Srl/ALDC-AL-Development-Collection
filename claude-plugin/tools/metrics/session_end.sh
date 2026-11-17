@@ -3,9 +3,10 @@
 # transcript plus every subagent transcript into one AldcSession event (tokens, wall-clock,
 # human turns, tokens per changed AL line). Silent and best-effort: never blocks, never fails.
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 [ -z "$PY" ] && exit 0
 # Detached on purpose. When the user exits, Claude Code gives SessionEnd hooks very little time
 # and then kills them; summing a long session's transcripts (the ones with a conductor run are

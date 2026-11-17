@@ -20,6 +20,7 @@
 #
 # Kill switch: ALDC_ISSUE_LINK_DISABLE=1.
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../python/find-python.sh" 2>/dev/null || aldc_python() { echo python3 python py; }
 
 EVENT="${1:-SessionStart}"
 [ "${ALDC_ISSUE_LINK_DISABLE:-}" = "1" ] && exit 0
@@ -38,7 +39,7 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo .)"
 PY=""
-for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
+for c in $(aldc_python); do command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }; done
 [ -n "$PY" ] || exit 0
 
 status="$("$PY" "$here/../metrics/emit.py" AldcIssue --from-branch --session "$sid" 2>/dev/null \
