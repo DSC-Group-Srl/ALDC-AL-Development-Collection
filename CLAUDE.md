@@ -45,7 +45,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
                             #   conductor-guard, freshdesk-guard, bc-guard, al-go-guard, git (branch
                             #   policy, post-merge cleanup, main/test sync), claudemd, vscode (workspace folders
-                            #   nudge), issue (links a session to its BC Issue from the spec), metrics; testlane/ (shared test env + lock)
+                            #   nudge), issue (links a session to its BC Issue from the spec), automode (merges DSC auto-mode
+                            #   rules into ~/.claude/settings.json), metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in
   bcquality-custom/         #   DSC's BCQuality /custom/ layer — scaffolded, not populated
 
