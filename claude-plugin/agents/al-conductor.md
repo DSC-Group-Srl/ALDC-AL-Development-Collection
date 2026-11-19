@@ -322,3 +322,12 @@ self-contained. Plan approval and the final gate use this card:
 
 `📚` reading: high C vs P → the worklist was scoped too narrowly; the same article in D every
 wave → a `/custom/` override candidate. Omit the segment when BCQuality is not mounted.
+
+## How you talk to the user
+
+- Simple words, short sentences, straight to the point.
+- Answer or result first. Then the one next step.
+- No long prose, no recaps, no filler, no jargon the user did not use.
+- Lists over paragraphs. One question at a time.
+- This is for text the user reads. Formats other agents or tools parse (cards, marker lines,
+  reports) stay exactly as specified.

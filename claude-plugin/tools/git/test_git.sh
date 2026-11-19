@@ -18,6 +18,8 @@ cat > "$T/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 case "$*" in
   *properties/values*) printf '%s\n' "${GH_STUB_PROP:-}" ;;
+  *"pr view"*) printf '%b\n' "${GH_STUB_PR_VIEW:-}" ;;
+  *"pr list"*--head*open*) printf '%s\n' "${GH_STUB_OPEN_PR:-}" ;;
   *"pr list"*merged*headRefOid*) printf '%s\n' "${GH_STUB_MERGED_HEAD:-}" ;;
   *"pr list"*merged*) printf '%s\n' "${GH_STUB_MERGED_NUM:-}" ;;
   *) : ;;
@@ -133,5 +135,31 @@ empty "guard: removing an override allowed" "$o"
 o="$(g '{"tool_name":"Edit","tool_input":{"file_path":"C:\\repo\\skills\\x\\SKILL.md","old_string":"a","new_string":"GoLive=true"}}')"
 empty "guard: other files untouched" "$o"
 
+
+# --- merge guard, through the real PreToolUse dispatcher ---------------------------------
+export ALDC_MERGE_GUARD_ME=massimo
+export GH_STUB_PR_VIEW='81\thaknho\tfix(0061): pack tab'
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 81 --squash --delete-branch"}}')"
+check "merge: someone else's PR asks" "$o" '"ask".*#81.*haknho.*not by you \(massimo\)'
+o="$(g '{"tool_name":"PowerShell","tool_input":{"command":"gh pr merge 82 --squash; gh pr merge 81 -R DSC-Group-Srl/dscgroup-base --subject \"a b\" --merge"}}')"
+check "merge: chained second merge asks" "$o" '"ask".*haknho'
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"gh api -X PUT repos/DSC-Group-Srl/dscgroup-base/pulls/81/merge"}}')"
+check "merge: gh api merge asks" "$o" '"ask".*haknho'
+export GH_STUB_OPEN_PR=81
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"git fetch && git merge origin/fix/0061-excel --no-edit"}}')"
+check "merge: git merge of an open PR branch asks" "$o" '"ask".*git merge fix/0061-excel'
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"git merge origin/main"}}')"
+empty "merge: git merge main silent" "$o"
+export GH_STUB_PR_VIEW='82\tmassimo\tfeat: systemId'
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 82 --squash"}}')"
+empty "merge: own PR silent" "$o"
+export GH_STUB_PR_VIEW=''
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 99"}}')"
+check "merge: unreadable PR asks" "$o" '"ask".*could not read'
+o="$(g '{"tool_name":"Bash","tool_input":{"command":"gh pr list --state open"}}')"
+empty "merge: other gh commands silent" "$o"
+o="$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 81"}}' | ALDC_MERGE_GUARD_DISABLE=1 ALDC_METRICS_ALIVE_DISABLE=1 ALDC_READ_GUARD_DISABLE=1 bash "$TOOLS/hooks/pretooluse.sh")"
+empty "merge: kill switch" "$o"
+unset ALDC_MERGE_GUARD_ME GH_STUB_PR_VIEW GH_STUB_OPEN_PR
 [ "$FAIL" -eq 0 ] && echo "ALL OK" || echo "FAILURES"
 exit "$FAIL"

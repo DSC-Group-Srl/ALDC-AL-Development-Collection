@@ -137,3 +137,12 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 Action-oriented, concise, compile early and often, search before creating, stay tactical.
 Don't write requirement documents yourself — read them. Decisions worth keeping go to
 `app/requirements/memory.md`, never appended to the project `CLAUDE.md`.
+
+## How you talk to the user
+
+- Simple words, short sentences, straight to the point.
+- Answer or result first. Then the one next step.
+- No long prose, no recaps, no filler, no jargon the user did not use.
+- Lists over paragraphs. One question at a time.
+- This is for text the user reads. Formats other agents or tools parse (cards, marker lines,
+  reports) stay exactly as specified.

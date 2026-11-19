@@ -86,7 +86,7 @@ git show-ref --verify --quiet refs/heads/main || { git show-ref --verify --quiet
 cleanup="bash \"$HERE/cleanup_merged.sh\""
 sync="bash \"$HERE/sync_main_test.sh\""
 
-common="Never create a git branch without asking first. Before any git switch -c / checkout -b / new branch for the user's work, ask once with AskUserQuestion: the proposed name and why, with 'stay on the current branch' as an option. Follow-up fixes, small changes and review rework go on the branch already checked out (for an open PR that simply updates it) -- never a new branch per small thing, never 'to keep things separated'. Delegation briefs say 'commit on the current branch, do not create branches'. (al-conductor's own per-work-package worktree branches are internal and it deletes them; they need no question.)"
+common="Never create a git branch without asking first. Before any git switch -c / checkout -b / new branch for the user's work, ask once with AskUserQuestion: the proposed name and why, with 'stay on the current branch' as an option. Follow-up fixes, small changes and review rework go on the branch already checked out (for an open PR that simply updates it) -- never a new branch per small thing, never 'to keep things separated'. Delegation briefs say 'commit on the current branch, do not create branches'. (al-conductor's own per-work-package worktree branches are internal and it deletes them; they need no question.) Never merge a pull request someone else opened (gh pr merge, the merge API, or git merge / git pull of its branch) unless the user names that PR and says to merge it. Pushing or publishing your own work never includes merging other people's PRs; a guard asks the user before such a merge."
 
 case "$mode" in
   protected)

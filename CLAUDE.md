@@ -44,7 +44,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   hooks/hooks.json          #   SessionStart, PreToolUse, SubagentStop, SessionEnd wiring
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
                             #   conductor-guard, freshdesk-guard, bc-guard, al-go-guard, git (branch
-                            #   policy, post-merge cleanup, main/test sync), claudemd, vscode (workspace folders
+                            #   policy, merge guard: asks before merging a PR someone else opened, post-merge cleanup,
+                            #   main/test sync), voice (plain-talk rule for the main session), claudemd, vscode (workspace folders
                             #   nudge), issue (links a session to its BC Issue from the spec), automode (merges DSC auto-mode
                             #   rules into ~/.claude/settings.json), metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in

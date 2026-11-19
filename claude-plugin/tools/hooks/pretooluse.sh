@@ -16,8 +16,10 @@
 #   3. routes by tool_name and feeds the same stdin to the guards:
 #        Read                 -> tools/read-guard/pretooluse_hook.sh
 #        Bash|PowerShell      -> tools/al-go-guard/pretooluse_hook.sh (AL-Go release inputs),
+#                                then tools/git/merge_guard.sh (asks the user before a merge
+#                                of a pull request someone else opened),
 #                                then tools/read-guard/pretooluse_hook.sh
-#        Write|Edit           -> tools/conductor-guard/pretooluse_hook.sh,
+#        Write|Edit          -> tools/conductor-guard/pretooluse_hook.sh,
 #                                then tools/al-go-guard/pretooluse_hook.sh (no AL-Go input
 #                                overrides in CLAUDE.md/memory),
 #                                then tools/main-thread-guard/pretooluse_hook.sh
@@ -42,7 +44,7 @@
 # Guard stderr is passed through unchanged.
 #
 # Each guard keeps its own kill switch (ALDC_READ_GUARD_DISABLE, ALDC_MAIN_THREAD_GUARD_DISABLE,
-# ALDC_ALGO_GUARD_DISABLE,
+# ALDC_ALGO_GUARD_DISABLE, ALDC_MERGE_GUARD_DISABLE,
 # ALDC_FRESHDESK_GUARD_DISABLE, ALDC_BC_GUARD_DISABLE, ALDC_ISSUE_RUN_GUARD_DISABLE,
 # ALDC_METRICS_ALIVE_DISABLE). Self-test: tools/hooks/test_dispatchers.sh.
 
@@ -62,7 +64,7 @@ tool="$(printf '%s' "$INPUT" | grep -oE '"tool_name"[[:space:]]*:[[:space:]]*"[^
 
 case "$tool" in
   Read)                 guards=("read-guard/pretooluse_hook.sh") ;;
-  Bash|PowerShell)      guards=("al-go-guard/pretooluse_hook.sh" "read-guard/pretooluse_hook.sh") ;;
+  Bash|PowerShell)      guards=("al-go-guard/pretooluse_hook.sh" "git/merge_guard.sh" "read-guard/pretooluse_hook.sh") ;;
   Write|Edit)           guards=("conductor-guard/pretooluse_hook.sh" "al-go-guard/pretooluse_hook.sh" "main-thread-guard/pretooluse_hook.sh") ;;
   mcp__plugin_bc-dev_freshdesk__*) guards=("freshdesk-guard/pretooluse_hook.sh") ;;
   mcp__plugin_bc-dev_businesscentral__*) guards=("bc-guard/pretooluse_hook.sh") ;;
