@@ -74,6 +74,11 @@ Valgono in aggiunta alle regole di scrittura della skill dsc-docs del tipo:
   personalizzato.
 - Personalizzazione vs standard: dillo chiaramente quando un comportamento è una personalizzazione
   DSC per quel cliente.
+- **Stime nel DAF**: capitolo *Stima e modalità di consuntivazione* di
+  `dsc-docs:skill-documento-analisi`. Ogni attività porta il richiamo della tipologia, preso dal
+  `managementType` dell'Issue (o del Task) in BC (`skill-bc-issue`): `Time Material Estimed` →
+  (\*) Time Material Stimato, `Quoted` → (\*\*) Quotato, `Time Material` → (\*\*\*) Time & Material.
+  Se manca, chiedilo. La dicitura che spiega i richiami la aggiunge lo script in fondo all'ultima pagina.
 
 ## Fase 3 — Generazione
 
