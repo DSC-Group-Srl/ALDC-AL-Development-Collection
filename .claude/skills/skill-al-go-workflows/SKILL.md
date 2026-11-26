@@ -121,11 +121,32 @@ user the exact commands with the inputs filled in, and dispatch only after a yes
 > should be removed (`/bc-dev:al-memory-create` prunes it), and never write one — the same
 > guard denies that edit too. A real need for another value is a plugin change.
 
+**Step 0 — Check the build that will be released. Never skip it.** `buildVersion=latest` takes
+the latest **successful** CI/CD build of `main`, not the latest commit. If the CI/CD run of the
+last merge is still running, or failed, AL-Go silently releases the **previous** build, without
+the change the user wants to deploy. This has already happened more than once.
+
+```bash
+git fetch origin main
+head=$(git rev-parse origin/main)
+git log -1 --oneline origin/main                       # the commit the user means to release
+git log --oneline $(gh release view --json tagName -q .tagName)..origin/main   # what is new since the last release
+gh run list --workflow CICD.yaml --branch main --limit 5 \
+  --json databaseId,headSha,status,conclusion,createdAt
+```
+
+- Show the user the commit and the list of changes since the last release. Ask: "is this what
+  you want to release?" Go on only after a yes.
+- The newest CI/CD run on `main` must have `headSha == $head`, `status == completed` and
+  `conclusion == success`.
+- Still running: `gh run watch <run-id>`, then check again.
+- Failed, or no run for `$head`: stop and tell the user. Don't release.
+
 **Step 1 — Create release** (both PTE and AppSource). DSC always fills the inputs like this:
 
 | Input | DSC value | Why |
 |---|---|---|
-| `buildVersion` | `latest` (default) | the latest successful CI/CD build of `main` |
+| `buildVersion` | `latest` (default) | the latest successful CI/CD build of `main`. Correct only after step 0 confirmed that build is `$head` |
 | `name` | **`<tag> - <one sentence on what this release does>`**, e.g. `1.4.0 - Credit check on sales orders and posting date fix on returns` | it's what people read in the Releases list. Lead with the version, then a single statement. No bullet list |
 | `tag` | the version being released, as semver `Major.Minor.0` | releases move in **0.1.0** steps, so read `version` from `app/app.json` on `main`: `1.4.0.0` → tag `1.4.0` |
 | `releaseType` | `Release` | |
@@ -142,7 +163,12 @@ gh workflow run CreateRelease.yaml --ref main \
   -f directCommit=true -f useGhTokenWorkflow=true
 gh run watch <run-id>                                  # wait for it to finish before step 2
 gh release view $v.0                                   # the release exists, with its .app files
+gh release view $v.0 --json targetCommitish -q .targetCommitish   # must be $head from step 0
 ```
+
+If `targetCommitish` is not `$head`, the release holds an older build. Stop before step 2 and
+tell the user: which commit it was built from, and which one they wanted. Don't deploy it.
+Deleting the release and its tag is the user's call.
 
 If `tag` already exists, the version on `main` wasn't bumped after the last release. Stop and
 tell the user. Never re-tag.
