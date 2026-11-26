@@ -2,6 +2,10 @@
 # BCQuality install scripts must stay LF to run after a Windows checkout.
 tools/bcquality/*.sh              text eol=lf
 claude-plugin/tools/bcquality/*.sh text eol=lf
+claude-plugin/tools/al-lint/*.sh text eol=lf
+claude-plugin/tools/al-lint/*.mjs -text
+*.wasm binary
+*.br binary
 # cmd wrappers (run-bash.cmd) must stay CRLF or cmd.exe misparses them.
 *.cmd text eol=crlf
 

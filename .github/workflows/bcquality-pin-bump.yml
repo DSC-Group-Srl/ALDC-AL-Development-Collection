@@ -136,6 +136,16 @@ jobs:
             echo
           } > "$BODY"
 
+          LINT_PIN=$(grep -E '^[[:space:]]*bcquality_pin[[:space:]]*=' claude-plugin/tools/al-lint/SOURCE 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]' || true)
+          if [ -n "$LINT_PIN" ] && [ "$LINT_PIN" != "$NEW_PIN" ]; then
+            {
+              echo "## :warning: al-lint must be rebuilt"
+              echo
+              echo "\`claude-plugin/tools/al-lint\` was built for BCQuality \`$LINT_PIN\`: its rule ids are article paths at that commit. \`validate_evidence.py\` fails until the bundle is rebuilt from dsc-code-reader for \`$NEW_REF\` (re-triage the changed articles, then \`npm run bundle:lint -- --out <plugin>/tools/al-lint\`; see its README, *Vendored into bc-dev*)."
+              echo
+            } >> "$BODY"
+          fi
+
           # Without a resolvable old commit there is no diff to show — say so and stop early.
           if [ -z "$CUR_PIN" ] || ! git -C "$BCQ" cat-file -e "$CUR_PIN^{commit}" 2>/dev/null; then
             echo "> The previous pin is empty or no longer resolvable upstream, so no file-level diff is available. Review the new release directly." >> "$BODY"

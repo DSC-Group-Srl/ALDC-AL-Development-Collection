@@ -10,7 +10,12 @@ Two independent checks (Nivel 4 of the evidencing design):
      before this guard existed). BCQuality is consumed from OUTSIDE the AL project
      (multi-root), so there is no in-repo submodule gitlink to check.
 
-  2. Citation resolvability — every knowledge-file path cited in a persisted
+  2. al-lint coherence — the bundled static analyzer (tools/al-lint/SOURCE,
+     `bcquality_pin`) must have been built for the same BCQuality commit as
+     bcquality.pin: its rule ids are article paths at that commit. A bump of the
+     pin without a rebuild of the bundle fails here.
+
+  3. Citation resolvability — every knowledge-file path cited in a persisted
      report (`app/requirements/**/*-review-phase-*.json`, the canonical superset,
      and `**/*-bcquality-*.json`, the derived BCQuality view) must resolve to a
      real file inside the external BCQuality clone given by `--bcquality-root`
@@ -39,6 +44,25 @@ SHA_RE = re.compile(r"^\s*pin\s*=\s*([0-9a-f]{40})\s*$", re.MULTILINE)
 # Legacy: a project's aldc.yaml may still override the shipped pin.
 ALDC_SHA_RE = re.compile(r'pinnedCommit:\s*"?([0-9a-f]{40})"?')
 ALDC_HOME_RE = re.compile(r'^\s*home:\s*"?([^"\n#]+?)"?\s*(?:#.*)?$', re.MULTILINE)
+
+
+AL_LINT_SOURCE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "al-lint", "SOURCE")
+SOURCE_PIN_RE = re.compile(r"^\s*bcquality_pin\s*=\s*([0-9a-f]{40})\s*$", re.MULTILINE)
+
+
+def shipped_pin() -> str | None:
+    """The commit in the bcquality.pin shipped beside this script (no aldc.yaml override)."""
+    m = SHA_RE.search(_read(PIN_FILE) or "")
+    return m.group(1) if m else None
+
+
+def al_lint_pin() -> tuple[bool, str | None]:
+    """(bundle present, BCQuality commit the bundled al-lint was built for)."""
+    text = _read(AL_LINT_SOURCE)
+    if text is None:
+        return False, None
+    m = SOURCE_PIN_RE.search(text)
+    return True, m.group(1) if m else None
 
 
 def repo_root() -> str:
@@ -126,6 +150,21 @@ def main() -> int:
     else:
         notes.append("BCQuality not pinned (tracking a branch/tag) - pin coherence skipped.")
 
+    present, lint_pin = al_lint_pin()
+    plugin_pin = shipped_pin()
+    if not present:
+        notes.append("al-lint bundle not found (tools/al-lint/SOURCE) - al-lint coherence skipped.")
+    elif not lint_pin:
+        errors.append("tools/al-lint/SOURCE has no bcquality_pin=<40-hex commit> line.")
+    elif plugin_pin and lint_pin != plugin_pin:
+        errors.append(
+            f"al-lint was built for BCQuality {lint_pin} but bcquality.pin pins {plugin_pin}: "
+            "rebuild the bundle from dsc-code-reader for the new release (its README, "
+            "'Vendored into bc-dev')."
+        )
+    else:
+        notes.append(f"al-lint built for BCQuality {lint_pin} (matches bcquality.pin).")
+
     # --- Resolve the external BCQuality clone (multi-root; no in-repo submodule) ---
     bcq_root = args.bcquality_root or bcquality_home(root)
     bcq_abs = None
@@ -140,7 +179,7 @@ def main() -> int:
     else:
         notes.append(f"BCQuality clone: {bcq_abs}")
 
-    # --- Check 2: citation resolvability -------------------------------------
+    # --- Check 3: citation resolvability -------------------------------------
     # Review-report (superset) + derived BCQuality view, under plans-dir; plus Dredd
     # audit reports under audits-dir. collect_citations recurses into sub-results, so a
     # superset/audit report covers its BCQuality citations too.

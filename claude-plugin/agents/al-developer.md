@@ -32,6 +32,7 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
 | Multi-project workspace (app + test app) | `Bash: al workspace compile <workspaceFile>` — **not** `al_build scope='all'`, which never refreshes a sibling dependent. Load `skill-al-mcp-workspace` before working across projects |
 | Symbols | Whole workspace / several projects / switching IT↔CH: `GITCloner al-symbols … --json` (`skill-gitcloner`; `GITCloner al-projects … --json` first shows what is missing). One project: **al-mcp** `al_downloadsymbols` (`globalSourcesOnly=true` needs no auth; environment-scoped needs the human). `al_addproject` (canonical long-form absolute path) |
 | Find objects / members / relations | **al-mcp** `al_symbolsearch` (`filters.scope='all'` spans added projects), `al_symbolrelations`, `al_getpackagedependencies`; AL LSP hover / go-to-definition / find-references; `Grep`/`Glob` for text |
+| Static pass (BCQuality rules decidable from syntax) | `bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh"` — the bundled `dsc-al-lint`, step 6. Advisory, never blocks |
 | Large files (>~350 lines) | `al-file-reader` via Task to locate, then ranged `Read` (contract §4) |
 | Translations | `skill-translate` (nab-al-tools MCP) |
 | Docs | **microsoft-docs**, **context7**, `WebSearch`/`WebFetch` |
@@ -91,6 +92,14 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    every error and every new warning. Compiler-authority rules: the diagnostic is right, verify
    the real signature with al-mcp before a second attempt, one grounded retry per diagnostic,
    never comment out or defer a feature to get a green build.
+   **Then the static pass** (advisory — it never blocks):
+   `bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --root <repo> --changed-lines --format json --examples 20`,
+   plus `--base origin/main` on a feature branch (committed work of the branch counts too).
+   Each entry of `rules[]` is one rule with findings; its `id` is a BCQuality article path. Read
+   that article once from the pinned clone (`~/.claude/bcquality/<id>`, or `$BCQUALITY_HOME`),
+   then fix its `examples` lines that you wrote, and recompile. A finding you decide not to fix
+   goes into the report as `lint:<slug>` (article file name without `.md`) + one-line reason.
+   Exit 1 or 2 → say "static pass did not run" and continue.
 7. **Test.** Through the lane only (`skill-test-lane`): the first time tests would run this
    session, ask which `.vscode/launch.json` configuration to use; if none is usable, offer to
    create a local container with the repo's AL-Go script (`skill-al-go-devenv`, when the lane
@@ -106,7 +115,8 @@ lane. Read it once per session before writing AL; do not improvise its marker sh
    with the lane lock; if the ban holds, the report says **tests NOT executed**, how many new
    tests never ran, and which new entry points never executed.
 8. **Report.** What changed (objects, files), build status (errors, new warnings, pre-existing
-   warnings left alone with file:line), test results from the lane, then the evidence line and
+   warnings left alone with file:line), the static pass (findings fixed, each `lint:<slug>` left
+   with its reason, or "did not run"), test results from the lane, then the evidence line and
    `### Knowledge Deviations` exactly as contract §2 specifies. Declare loaded skills in the
    `🧠` segment — once, not in a separate blockquote.
 

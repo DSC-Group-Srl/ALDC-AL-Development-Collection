@@ -37,6 +37,20 @@ locate, you judge.
 
 ## Procedure
 
+**Deterministic pass — before any BCQuality consultation.** On the integration checkout:
+`bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --root <repo> --changed-lines --base <wave base ref> --format json --examples 20 --sarif .claude/audits/al-lint-phase-<wave>.sarif`
+- Each entry of `rules[]` is a **cited finding**: its `id` is the BCQuality article path (the
+  citation, same shape as any other). **Advisory: never blocks a wave.** Every lint finding is
+  an Issues line at **MINOR** whatever the tool severity (write the tool severity in the text,
+  e.g. `lint blocker`); one line per rule, its `examples` as `file:line`. Open the article only
+  to write the fix. Count them in `{C} newly cited`. Only when you read the code yourself and
+  confirm a real defect do you raise it as your own Issue at the severity you judge.
+- `maturity: experimental` and the implementer disputed it with a sound reason (a
+  `lint:<slug>` line or a declared deviation) → drop it; never escalate it as undeclared.
+- `al-lint.sh --list-rules --format json` lists the articles that have a rule: the tool has
+  decided them for this diff, so pass (a) takes its result and passes (b) and (c) skip them.
+- Exit 1 or 2 → `al-lint did not run` in Diagnostics, review as before. Never a verdict by itself.
+
 **0. BCQuality — three passes, in this order** (probe per contract §1; absent → `⚪ BCQuality
 not mounted`, full native checklist, never block):
 
@@ -102,6 +116,7 @@ In `light` depth, write only the areas with something to flag; in `full`, one li
 - **[CRITICAL|MAJOR|MINOR]** WP-{n} {file:line} — {problem} → {fix}
 
 **Diagnostics:** re-ran on {k} files — errors {0} · new warnings {0} · ALCops codes seen {yes|no} · digest mismatches {none | …}
+**Lint:** {N} findings / {R} rules · knowledge {tag} · dropped {d} disputed   (or: al-lint did not run)
 
 **Per WP:** WP-1 {ok | revise: issue refs} · WP-2 …
 

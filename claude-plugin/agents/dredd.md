@@ -48,6 +48,14 @@ code the prescriptive loop did not produce, and `baseline: aligned` when it over
 written against the same corpus you are auditing with. Two numbers from different baselines
 are not comparable, and without the field someone will compare them anyway.
 
+### Step 1b — Static pre-pass (al-lint)
+Before any consultation, run the bundled deterministic analyzer on the same scope (read-only; it never writes AL):
+- changed-vs-`main` → `bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --root <repo> --changed --base main --format json --examples 20`
+- module/codebase → `bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --root <repo> <folder ...> --format json --examples 20` (no folder = the whole root)
+- once: `al-lint.sh --list-rules --format json` — the articles that have a rule, with their `tier`.
+
+Report its findings **first, grouped by article**: each entry of `rules[]` is a cited finding — `id` is the BCQuality article path (the citation), `blocker` → CRITICAL, `major` → MAJOR, `minor`/`info` → MINOR, with count and `file:line` examples; mark `experimental` ones as such. In Step 2, **exclude every article that has a rule** from the consultation, except a **tier-B** rule with **zero findings** where the scope has code it is about (tier B sees one file's declarations, so a cross-file case can slip past it). Tier-C articles have no rule and stay with you. Exit 1 or 2 → say `al-lint did not run` and consult as before. Findings are advisory: they feed the verdict like any cited finding, never decide it alone.
+
 ### Step 2 — Consult BCQuality (probe, don't assume)
 Per `.claude/rules/agent-contract.md` §1 (fallback `${CLAUDE_PLUGIN_ROOT}/rules-templates/agent-contract.md`), with a review goal, one consultation per batch → cited findings. Dredd-specific: if the probe **fails**, note it and **expand Step 3 from A/C/F/G to the full A–G** native checklist. A missing knowledge layer **never** aborts the audit.
 
@@ -73,10 +81,10 @@ Return an **advisory verdict** — exactly one of `PASS`, `PASS_WITH_FINDINGS`, 
 Head the report with the scope line, so the numbers are never read out of context:
 
 ```
-🟢 BCQuality <sha> · baseline: {unaligned | aligned} · scope: {module|codebase|changed-vs-main} · {N} objects
+🟢 BCQuality <sha> · baseline: {unaligned | aligned} · scope: {module|codebase|changed-vs-main} · {N} objects · lint: <N> findings / <R> rules / knowledge <tag>
 ```
 
-(Not mounted → start the line with `⚪ BCQuality not mounted` instead.) `baseline: aligned` gets one extra sentence saying the code was written against the same
+(Not mounted → start the line with `⚪ BCQuality not mounted` instead. `lint:` takes `totals.findings`, `totals.rulesWithFindings` and `tool.knowledge.tag` from Step 1b; `lint: did not run` when it failed.) `baseline: aligned` gets one extra sentence saying the code was written against the same
 corpus this audit judges by, so a low finding count is expected and is not evidence of
 quality. On `unaligned` say nothing extra — that is the honest measurement. **Persist** the audit report under `.claude/audits/dredd-audit-<YYYY-MM-DD-HHMM>.md` (create the folder if absent) — the durable, checkable artifact; the `bcquality-evidence` CI workflow validates its citations against the BCQuality clone at the pinned SHA. Write **only** there.
 

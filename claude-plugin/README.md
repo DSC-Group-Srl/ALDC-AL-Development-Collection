@@ -116,6 +116,19 @@ Loaded automatically by agents when needed:
 - Override the location with `$BCQUALITY_HOME`. A project that must pin differently from the rest of the estate can still override `url`/`ref`/`pinnedCommit` via an `aldc.yaml → external.bcquality` block (optional, advanced use only) — it wins over the shipped pin.
 - Absent or offline is never a blocker — agents fall back to the native A–G checklist and say so.
 
+## AL static analyzer (`tools/al-lint/`)
+
+`dsc-al-lint` — DSC's deterministic analyzer for the BCQuality anti-patterns that can be decided from syntax (built in DSC's `dsc-code-reader`, shipped here as one ~1 MB bundle: `dsc-al-lint.mjs` + the brotli-compressed tree-sitter AL grammar + the web-tree-sitter runtime). Needs only Node.js >= 20, no `npm install`. Every rule id is a BCQuality article path at the release in `tools/bcquality/bcquality.pin`; `tools/al-lint/SOURCE` names the code-reader commit and the BCQuality commit it was built for, and `validate_evidence.py` fails when that commit drifts from the pin.
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --root <repo> --changed-lines --base origin/main --format json
+pwsh -File "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.ps1" --root <repo> --format json
+bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --list-rules --format json
+bash "${CLAUDE_PLUGIN_ROOT}/tools/al-lint/al-lint.sh" --version
+```
+
+`al-developer` runs it on its changed lines after compiling, `al-review-subagent` on the wave diff before its BCQuality consultation, `dredd` on its scope as a pre-pass. Findings are advisory: exit 0 with or without findings, 1 when it could not run, 2 on wrong arguments — an agent that gets 1 or 2 says so and goes on.
+
 ## Quality metrics (automatic)
 
 A `SubagentStop` hook records what the BCQuality-guided flow actually produced, phase by

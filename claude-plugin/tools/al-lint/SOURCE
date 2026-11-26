@@ -1,0 +1,8 @@
+tool=dsc-al-lint
+version=0.1.0
+repository=DSC-Group-Srl/dsc-code-reader
+commit=5222d258edae65f1917040a1a5529140846b34c2
+built=2026-11-26
+bcquality_repository=microsoft/BCQuality
+bcquality_ref=v1.10
+bcquality_pin=b58d29b1c1a2af993bfa90009daf74a2376f7905
