@@ -32,14 +32,14 @@ page 50100 "Contoso Sales Orders API"
 
     EntityCaption = 'Sales Order';
     EntitySetCaption = 'Sales Orders';
-    EntityName = 'salesOrder';               // singular — used in URL for single entity
-    EntitySetName = 'salesOrders';           // plural — used in URL for collection
+    EntityName = 'salesOrder';
+    EntitySetName = 'salesOrders';
 
     PageType = API;
     SourceTable = "Sales Header";
     SourceTableView = where("Document Type" = const(Order));
-    DelayedInsert = true;                    // required — defers insert until all fields set
-    ODataKeyFields = SystemId;               // required — use SystemId for stable GUIDs
+    DelayedInsert = true;
+    ODataKeyFields = SystemId;
 
     layout
     {
@@ -91,6 +91,11 @@ page 50100 "Contoso Sales Orders API"
 }
 ```
 
+- `EntityName = 'salesOrder';` — singular — used in URL for single entity
+- `EntitySetName = 'salesOrders';` — plural — used in URL for collection
+- `DelayedInsert = true;` — required — defers insert until all fields set
+- `ODataKeyFields = SystemId;` — required — use SystemId for stable GUIDs
+
 **Resulting endpoint:**
 ```
 GET  /api/contoso/sales/v2.0/companies({companyId})/salesOrders
@@ -112,7 +117,6 @@ DELETE /api/contoso/sales/v2.0/companies({companyId})/salesOrders({id})
 Expose parent-child relationships via `part` subpages:
 
 ```al
-// Add inside the header API page's repeater:
 part(salesOrderLines; "Contoso Sales Order Lines API")
 {
     Caption = 'Lines';
@@ -124,7 +128,6 @@ part(salesOrderLines; "Contoso Sales Order Lines API")
 ```
 
 ```al
-// Lines API page (subpage)
 page 50101 "Contoso Sales Order Lines API"
 {
     APIVersion = 'v2.0';
@@ -179,12 +182,10 @@ POST /salesOrders({id})/salesOrderLines
 Bound actions trigger business logic on a specific entity:
 
 ```al
-// Inside the API page's actions area:
 actions
 {
     area(Processing)
     {
-        // POST /salesOrders({id})/Microsoft.NAV.post
         action(post)
         {
             ApplicationArea = All;
@@ -199,7 +200,6 @@ actions
             end;
         }
 
-        // POST /salesOrders({id})/Microsoft.NAV.release
         action(release)
         {
             ApplicationArea = All;
@@ -213,7 +213,6 @@ actions
             end;
         }
 
-        // POST /salesOrders({id})/Microsoft.NAV.reopen
         action(reopen)
         {
             ApplicationArea = All;
@@ -251,7 +250,7 @@ page 50102 "Contoso Utility API"
     EntitySetName = 'utilityFunctions';
 
     PageType = API;
-    SourceTable = "Company Information";    // read-only singleton as base
+    SourceTable = "Company Information";
     SourceTableTemporary = true;
     InsertAllowed = false;
     ModifyAllowed = false;
@@ -271,7 +270,6 @@ page 50102 "Contoso Utility API"
     {
         area(Processing)
         {
-            // POST /utilityFunctions/Microsoft.NAV.calculateShipping
             action(calculateShipping)
             {
                 ApplicationArea = All;
@@ -294,12 +292,13 @@ page 50102 "Contoso Utility API"
 }
 ```
 
+- `SourceTable = "Company Information";` — read-only singleton as base
+
 ### Pattern 5: API Versioning and Deprecation
 
 Maintain backward compatibility while evolving the API:
 
 ```al
-// v1.0 — deprecated, keep running for existing consumers
 page 50100 "Contoso Sales Orders API v1"
 {
     APIVersion = 'v1.0';
@@ -311,10 +310,8 @@ page 50100 "Contoso Sales Orders API v1"
     SourceTable = "Sales Header";
     ObsoleteState = Pending;
     ObsoleteReason = 'Use v2.0. Will be removed in 2027.';
-    // ... limited field set from original v1 design ...
 }
 
-// v2.0 — current stable version
 page 50110 "Contoso Sales Orders API"
 {
     APIVersion = 'v2.0';
@@ -324,10 +321,8 @@ page 50110 "Contoso Sales Orders API"
     EntitySetName = 'salesOrders';
     PageType = API;
     SourceTable = "Sales Header";
-    // ... full field set, navigation properties, actions ...
 }
 
-// beta — preview of next breaking change
 page 50120 "Contoso Sales Orders API v3"
 {
     APIVersion = 'beta';
@@ -337,9 +332,12 @@ page 50120 "Contoso Sales Orders API v3"
     EntitySetName = 'salesOrders';
     PageType = API;
     SourceTable = "Sales Header";
-    // ... new structure, breaking changes ...
 }
 ```
+
+`v1.0` is deprecated but keeps running for existing consumers (the original, limited field set);
+`v2.0` is the current stable version (full field set, navigation properties, actions); `beta`
+previews the next breaking change.
 
 **Versioning rules:**
 - Same `EntityName`/`EntitySetName` across versions — only `APIVersion` and page ID differ

@@ -199,7 +199,6 @@ if it doesn't exist yet (see above), then build and compile clean:
 
        procedure CreateHistoricalData()
        begin
-           // no historical documents in this app — empty is a valid implementation
        end;
 
        var

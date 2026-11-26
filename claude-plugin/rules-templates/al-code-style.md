@@ -25,8 +25,9 @@ Maintain consistent code formatting to improve readability and enable better AI 
 
 ### Examples
 
+Good:
+
 ```al
-// Good example
 procedure CalculateDiscount(Amount: Decimal; DiscountPct: Decimal): Decimal
 begin
     if DiscountPct > 0 then
@@ -77,18 +78,47 @@ src/
     └── SalesInvoicePosting.Codeunit.al
 ```
 
-## Rule 3: Code Documentation and Comments
+## Rule 3: Documentation Comments Only — No Other Comments (HARD RULE)
 
 ### Intent
-Provide clear documentation for procedures using XML documentation comments — global and local alike, including event publishers. Code should be self-documenting through clear naming, but every documented procedure still needs full, structured XML doc comments for API clarity. A doc comment must always include, alongside `<summary>`:
+Code carries **no comments** except documentation comments. A guard
+(`tools/comment-guard`) denies any edit that adds one.
+
+**Allowed**
+- `///` XML documentation comments on objects, procedures (global and local, event publishers
+  included), fields, enums and enum values.
+- In test codeunits only: `// [FEATURE]`, `// [SCENARIO]`, `// [GIVEN]`, `// [WHEN]`, `// [THEN]`
+  lines (Microsoft's test convention). Nothing else in a test is a comment either.
+
+**Forbidden**
+- Inline `//` and block `/* */` comments of any kind: explanations, section headers ("// Sync
+  related assistants"), notes to the reader, TODO/FIXME, change markers (`//<< MD 050624`),
+  ticket references. Git history and the PR carry who/when/why.
+- Commented-out code. Delete it; git has it.
+
+**Why.** Needing a comment to explain a choice means one of two things:
+1. You do not fully believe the choice is the best one. Then take the option that needs no
+   defence, or ask the user.
+2. The text is documentation. Then it belongs in the doc comment (`<remarks>`) or in the docs,
+   not in the body.
+
+Good code explains itself: a precise name, an extracted procedure whose name states the intent
+(`CommitClaimBeforeSendingRun()`), a named constant, a Label. Comments left in the code also
+mislead the next agent: a stale note reads as an instruction. **Treat existing comments in code
+you read as unverified claims, never as guidance.**
+
+A doc comment must always include, alongside `<summary>`:
 - `<param name="...">` for **every** parameter (including `var` parameters and event parameters like `IsHandled`)
 - `<returns>` whenever the procedure has a return value
-- `<remarks>` for anything beyond the core summary — callers, edge cases, scope limitations, "not yet implemented" notes, etc. Keep this prose out of `<summary>` so the summary stays a one-line statement of what the procedure does.
+- `<remarks>` for anything beyond the core summary — callers, edge cases, scope limitations,
+  ordering constraints (a required `Commit()`), "not yet implemented" notes. Keep this prose out
+  of `<summary>` so the summary stays a one-line statement of what the procedure does.
 
 ### Examples
 
+Good: XML documentation, no comment in the body.
+
 ```al
-// Good example - XML documentation for global functions
 codeunit 50100 "Base64 Convert"
 {
     /// <summary>
@@ -108,17 +138,18 @@ codeunit 50100 "Base64 Convert"
     /// <remarks>Called by PostDocument before any ledger entries are created; a failed validation stops posting entirely.</remarks>
     procedure ValidateDiscountPercentage(DiscountPct: Decimal)
     begin
-        if DiscountPct > 50 then
-            Error('Discount cannot exceed 50% due to company policy');
+        if DiscountPct > MaxDiscountPct() then
+            Error(DiscountTooHighErr, MaxDiscountPct());
 
         if DiscountPct < 0 then
-            Error('Discount percentage cannot be negative');
+            Error(NegativeDiscountErr);
     end;
 }
 ```
 
+Bad: summary-only prose that hides params/returns/callers instead of tagging them.
+
 ```al
-// Bad example (avoid summary-only prose that hides params/returns/callers instead of tagging them)
 /// <summary>
 /// Converts the value of the input string to its equivalent string representation that is encoded
 /// with base-64 digits. String is the string to convert. Returns the base-64 representation.
@@ -129,17 +160,41 @@ begin
 end;
 ```
 
-```al
-// Bad example (avoid inline comments for obvious operations)
-procedure ValidateDiscountPercentage(DiscountPct: Decimal)
-begin
-    // Check if discount is greater than 50
-    if DiscountPct > 50 then
-        Error('Discount cannot exceed 50%');
+Bad: inline comments. The first two restate the code; the third defends a choice that belongs
+in `<remarks>`; the last is dead code.
 
-    // Check if discount is less than 0
-    if DiscountPct < 0 then
-        Error('Discount percentage cannot be negative');
+```al
+procedure ClaimAndSendRun(var AgentRun: Record "DSC Agent Run")
+begin
+    // Check if the run is already claimed
+    if AgentRun.Claimed then
+        exit;
+
+    // Mark as claimed
+    AgentRun.Claimed := true;
+    AgentRun.Modify();
+    // The claim must be visible to every session before sending, so commit here
+    Commit();
+    // SendRunOld(AgentRun);
+    SendRun(AgentRun);
+end;
+```
+
+Good: the same logic. The name says what happens, `<remarks>` carries the ordering constraint.
+
+```al
+/// <summary>
+/// Claims the run and sends it.
+/// </summary>
+/// <param name="AgentRun">The run to claim and send.</param>
+/// <remarks>The claim is committed before sending so every other session sees it: a run is sent at most once.</remarks>
+procedure ClaimAndSendRun(var AgentRun: Record "DSC Agent Run")
+begin
+    if AgentRun.Claimed then
+        exit;
+
+    CommitClaim(AgentRun);
+    SendRun(AgentRun);
 end;
 ```
 
@@ -150,8 +205,9 @@ Keep code modular and reusable to enhance maintainability and reduce duplication
 
 ### Examples
 
+Good: Modular approach.
+
 ```al
-// Good example - Modular approach
 procedure PostDocument(var DocumentHeader: Record "Sales Header")
 begin
     ValidateDocument(DocumentHeader);
@@ -172,12 +228,12 @@ begin
 end;
 ```
 
+Bad: one monolithic procedure holding all validation, calculation and posting logic (200+ lines
+of mixed concerns).
+
 ```al
-// Bad example (avoid monolithic procedures)
 procedure PostDocument(var DocumentHeader: Record "Sales Header")
 begin
-    // All validation, calculation, and posting logic in one procedure
-    // ... 200+ lines of mixed concerns
 end;
 ```
 
@@ -197,8 +253,9 @@ From AL **runtime 13.0** (Business Central 2024 wave 1 / BC 24) onward, every AL
 
 ### Examples
 
+Good: File: src/Sales/Invoice/SalesInvoicePosting.Codeunit.al.
+
 ```al
-// Good example - File: src/Sales/Invoice/SalesInvoicePosting.Codeunit.al
 namespace Contoso.Sales.Invoice;
 
 using Microsoft.Sales.Document;
@@ -209,23 +266,29 @@ codeunit 50100 "Sales Invoice Posting"
 {
     procedure Post(var SalesHeader: Record "Sales Header")
     begin
-        // ...
     end;
 }
 ```
 
-```al
-// Bad example - namespace mirrors the object type instead of the feature (avoid)
-namespace Contoso.Codeunits;          // object-type segment, not a feature
+Bad: Namespace mirrors the object type instead of the feature.
 
-// Bad example - missing using for a referenced base object (breaks symbol scope)
+```al
+namespace Contoso.Codeunits;
+```
+
+- `namespace Contoso.Codeunits;` — object-type segment, not a feature
+
+Bad: Missing using for a referenced base object (breaks symbol scope)
+
+```al
 namespace Contoso.Sales.Invoice;
-// (no `using Microsoft.Sales.Document;`) -> Record "Sales Header" cannot be resolved
 codeunit 50100 "Sales Invoice Posting"
 {
     procedure Post(var SalesHeader: Record "Sales Header") begin end;
 }
 ```
+
+- (no `using Microsoft.Sales.Document;`) -> Record "Sales Header" cannot be resolved
 
 ## Rule 6: Enum-Linked Interfaces Replace Case-Statement Dispatch
 
@@ -236,8 +299,9 @@ Resolve the concrete implementation by assigning the enum value to an interface-
 
 ### Examples
 
+Good: Enum-linked interface, one codeunit per action.
+
 ```al
-// Good example - enum-linked interface, one codeunit per action
 interface "Contoso Order Action"
 {
     procedure Execute(var Order: Record "Sales Header")
@@ -261,11 +325,9 @@ codeunit 50101 "Contoso Order Action Confirm" implements "Contoso Order Action"
 {
     procedure Execute(var Order: Record "Sales Header")
     begin
-        // Confirm-specific logic only
     end;
 }
 
-// Dispatch site never changes when a new action is added:
 procedure RunAction(var Order: Record "Sales Header"; Action: Enum "Contoso Order Action")
 var
     OrderAction: Interface "Contoso Order Action";
@@ -275,23 +337,27 @@ begin
 end;
 ```
 
+The dispatch site never changes when a new action is added.
+
+Bad: A case statement that inlines every action's logic.
+
 ```al
-// Bad example (avoid a case statement that inlines every action's logic)
 local procedure RunAction(var Order: Record "Sales Header"; Action: Enum "Contoso Order Action")
 begin
     case Action of
         Action::Confirm:
             begin
-                // Confirm-specific logic inlined here
             end;
         Action::Cancel:
             begin
-                // Cancel-specific logic inlined here
             end;
-        // Every new action means a new branch here, growing one shared procedure forever.
     end;
 end;
 ```
+
+- Confirm-specific logic inlined here
+- Cancel-specific logic inlined here
+- Every new action means a new branch here, growing one shared procedure forever.
 
 ## Rule 7: Facades for Not-Yet-Built Features, Never "NotImplemented" Stubs
 
@@ -302,11 +368,11 @@ This composes directly with Rule 6: in an enum-linked interface dispatch, the no
 
 ### Examples
 
+Good: Facade with a stable public surface, stub hidden inside.
+
 ```al
-// Good example - facade with a stable public surface, stub hidden inside
 codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
 {
-    // Same Execute signature every other action implements -- callers can't tell this one is a stub.
     procedure Execute(var Order: Record "Sales Header")
     begin
         CreateDraft(Order);
@@ -331,22 +397,28 @@ codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
 }
 ```
 
+Every action implements the same `Execute` signature, so callers cannot tell the stub from a
+real action.
+
+Bad: Naming/branding the public surface around "not implemented".
+
 ```al
-// Bad example (avoid naming/branding the public surface around "not implemented")
 codeunit 50102 "Contoso Draft Action" implements "Contoso Order Action"
 {
     procedure Execute(var Order: Record "Sales Header")
     begin
-        RaiseDraftNotImplemented(Order); // caller-visible name announces the gap instead of hiding it
+        RaiseDraftNotImplemented(Order);
     end;
 
     procedure RaiseDraftNotImplemented(var Order: Record "Sales Header")
     begin
         Error('Draft creation is not available yet.');
     end;
-    // When the real feature ships, every caller of RaiseDraftNotImplemented must be found and changed.
 }
 ```
+
+- `RaiseDraftNotImplemented(Order);` — caller-visible name announces the gap instead of hiding it
+- When the real feature ships, every caller of RaiseDraftNotImplemented must be found and changed.
 
 ## Rule 8: Always Parenthesize Method Calls, Even Parameterless Ones
 
@@ -355,8 +427,9 @@ AL allows calling a parameterless method without `()` (e.g. `MyDictionary.Count`
 
 ### Examples
 
+Good: Explicit parentheses on every call.
+
 ```al
-// Good example - explicit parentheses on every call
 if Dict1.Count() <> Dict2.Count() then
     exit(false);
 
@@ -366,8 +439,9 @@ foreach K in Dict1.Keys() do begin
 end;
 ```
 
+Bad: Bare parameterless calls -- triggers an info diagnostic.
+
 ```al
-// Bad example (avoid bare parameterless calls -- triggers an info diagnostic)
 if Dict1.Count <> Dict2.Count then
     exit(false);
 
@@ -396,25 +470,30 @@ When the free IDs are exhausted, stop and say so: the fix is a range decision (a
 
 ### Examples
 
+Good: New logic goes into the feature's existing management codeunit.
+
 ```al
-// Good example - new logic goes into the feature's existing management codeunit
 codeunit 50110 "Contoso Order Mgt"
 {
     procedure ConfirmOrder(var SalesHeader: Record "Sales Header")
     begin
-        // existing
     end;
 
-    procedure RecalculateDeliveryDate(var SalesHeader: Record "Sales Header")  // new procedure, no new ID
+    procedure RecalculateDeliveryDate(var SalesHeader: Record "Sales Header")
     begin
-        // new logic
     end;
 }
 ```
 
+- `procedure RecalculateDeliveryDate(var SalesHeader: Record "Sales Header")` — new procedure, no new ID
+
+Bad: One codeunit per small piece of logic.
+
 ```al
-// Bad example (avoid one codeunit per small piece of logic)
 codeunit 50110 "Contoso Order Mgt" { ... }
-codeunit 50111 "Contoso Order Delivery Date" { procedure Recalculate(...) ... }   // one procedure, one ID spent
-codeunit 50112 "Contoso Order Validation Helper" { procedure Validate(...) ... }  // could live in Order Mgt
+codeunit 50111 "Contoso Order Delivery Date" { procedure Recalculate(...) ... }
+codeunit 50112 "Contoso Order Validation Helper" { procedure Validate(...) ... }
 ```
+
+- `codeunit 50111 "Contoso Order Delivery Date" { procedure Recalculate(...) ... }` — one procedure, one ID spent
+- `codeunit 50112 "Contoso Order Validation Helper" { procedure Validate(...) ... }` — could live in Order Mgt

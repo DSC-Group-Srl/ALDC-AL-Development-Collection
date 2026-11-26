@@ -122,7 +122,7 @@ codeunit 50101 "Contoso Isolated Storage"
     begin
         if IsolatedStorage.Get('AzureOpenAIDeployment', DataScope::Module, Deployment) then
             exit(Deployment);
-        exit('gpt-4o');   // default model
+        exit('gpt-4o');
     end;
 
     procedure SetDeployment(NewDeployment: Text)
@@ -201,7 +201,6 @@ page 50110 "Contoso Sales Forecast Copilot"
 
         area(Content)
         {
-            // Option A: simple text response
             field(AIResponse; AIResponseText)
             {
                 ApplicationArea = All;
@@ -209,12 +208,6 @@ page 50110 "Contoso Sales Forecast Copilot"
                 MultiLine = true;
                 Editable = false;
             }
-
-            // Option B: structured results via subpage
-            // part(Proposals; "Contoso Forecast Proposal Sub")
-            // {
-            //     ApplicationArea = All;
-            // }
         }
     }
 
@@ -311,7 +304,6 @@ page 50110 "Contoso Sales Forecast Copilot"
 
     local procedure ApplySuggestions()
     begin
-        // Apply user-approved results to BC data
     end;
 
     /// Call from external page to set context before opening
@@ -327,6 +319,9 @@ page 50110 "Contoso Sales Forecast Copilot"
         ContextItemCategory: Code[20];
 }
 ```
+
+The page shows the answer as a simple text field. For structured results, replace that field
+with a subpage: `part(Proposals; "Contoso Forecast Proposal Sub") { ApplicationArea = All; }`.
 
 ### Pattern: Temporary Table for Structured Output
 
@@ -416,31 +411,20 @@ codeunit 50110 "Contoso Forecast Generation"
         AOAIChatMessages: Codeunit "AOAI Chat Messages";
         AOAIDeployments: Codeunit "AOAI Deployments";
     begin
-        // --- Authorization ---
-        // Production (Microsoft-managed):
         AzureOpenAI.SetManagedResourceAuthorization(
             Enum::"AOAI Model Type"::"Chat Completions",
             AOAIDeployments.GetGPT4oLatest());
 
-        // Development (own subscription) — uncomment and configure:
-        // var Storage: Codeunit "Contoso Isolated Storage";
-        // AzureOpenAI.SetAuthorization(
-        //     Enum::"AOAI Model Type"::"Chat Completions",
-        //     Storage.GetEndpoint(), Storage.GetDeployment(), Storage.GetSecretKey());
-
         AzureOpenAI.SetCopilotCapability(
             Enum::"Copilot Capability"::"Sales Forecasting");
 
-        // --- Parameters ---
         AOAIChatCompletionParams.SetMaxTokens(2500);
-        AOAIChatCompletionParams.SetTemperature(0);    // 0 = deterministic
-        AOAIChatCompletionParams.SetJsonMode(true);     // force JSON output
+        AOAIChatCompletionParams.SetTemperature(0);
+        AOAIChatCompletionParams.SetJsonMode(true);
 
-        // --- Messages ---
         AOAIChatMessages.AddSystemMessage(SystemPrompt);
         AOAIChatMessages.AddUserMessage(ChatUserPrompt);
 
-        // --- Call ---
         AzureOpenAI.GenerateChatCompletion(
             AOAIChatMessages, AOAIChatCompletionParams, AOAIOperationResponse);
 
@@ -548,6 +532,18 @@ codeunit 50110 "Contoso Forecast Generation"
 }
 ```
 
+The authorization above is the production one (Microsoft-managed). For development against your
+own Azure OpenAI subscription, replace `SetManagedResourceAuthorization` with:
+
+```al
+AzureOpenAI.SetAuthorization(
+    Enum::"AOAI Model Type"::"Chat Completions",
+    Storage.GetEndpoint(), Storage.GetDeployment(), Storage.GetSecretKey());
+```
+
+where `Storage` is your own isolated-storage codeunit. Temperature 0 makes the answer
+deterministic; JSON mode forces JSON output.
+
 ### Prompt Engineering Guidelines
 
 **System prompt structure:**
@@ -603,8 +599,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
         Assert: Codeunit "Library Assert";
         AITTestContext: Codeunit "AIT Test Context";
 
-    // --- Happy Path ---
-
     [Test]
     procedure Generate_ValidInput_ReturnsStructuredJSON()
     var
@@ -629,8 +623,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
             'Confidence must be 0..1');
     end;
 
-    // --- AI Test Toolkit Dataset Test ---
-
     [Test]
     procedure Generate_AITDataset_OutputMatchesSchema()
     var
@@ -654,8 +646,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
         AITTestContext.SetTestOutput(TestOutput);
     end;
 
-    // --- Edge Cases ---
-
     [Test]
     procedure Generate_EmptyInput_HandlesGracefully()
     var
@@ -665,7 +655,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
         Initialize();
         GenCU.SetUserPrompt('');
         GenCU.Run();
-        // No error = graceful handling
     end;
 
     [Test]
@@ -682,8 +671,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
         GenCU.SetUserPrompt(LongText.ToText());
         GenCU.Run();
     end;
-
-    // --- Consistency ---
 
     [Test]
     procedure Generate_SameInput_ConsistentResults()
@@ -708,8 +695,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
             'Same input should produce same count with Temperature=0');
     end;
 
-    // --- Performance ---
-
     [Test]
     procedure Generate_StandardPrompt_RespondsUnder10Seconds()
     var
@@ -729,11 +714,8 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
             StrSubstNo('Response time %1ms should be < 10000ms', ElapsedMs));
     end;
 
-    // --- Helpers ---
-
     local procedure Initialize()
     begin
-        // reset state if needed
     end;
 
     local procedure CreateTestSalesData()
@@ -741,8 +723,6 @@ codeunit 50200 "Contoso Forecast Copilot Tests"
         Item: Record Item;
         SalesLine: Record "Sales Line";
     begin
-        // Create minimal test items + sales lines
-        // Use Library - Sales / Library - Inventory for realistic data
     end;
 
     local procedure VerifyJSONStructure(ResponseText: Text)

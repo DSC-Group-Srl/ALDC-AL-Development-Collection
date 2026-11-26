@@ -51,8 +51,12 @@ app/
 
 ### Registration (3 objects)
 
+1. The Copilot Capability enum extension is the feature switch.
+2. The Agent Metadata Provider enum extension links to the 3 interface implementations.
+3. The install codeunit registers the capability and re-installs the instructions of existing
+   agents.
+
 ```al
-// 1. Extend Copilot Capability — feature switch
 enumextension 52100 "My Agent Copilot Capability" extends "Copilot Capability"
 {
     value(52100; "My Agent Capability")
@@ -61,7 +65,6 @@ enumextension 52100 "My Agent Copilot Capability" extends "Copilot Capability"
     }
 }
 
-// 2. Extend Agent Metadata Provider — links to 3 interface implementations
 enumextension 52101 "My Agent Metadata Provider" extends "Agent Metadata Provider"
 {
     value(52101; "My Agent")
@@ -73,7 +76,6 @@ enumextension 52101 "My Agent Metadata Provider" extends "Agent Metadata Provide
     }
 }
 
-// 3. Install codeunit — register + unregister on install
 codeunit 52101 "My Agent Install"
 {
     Subtype = Install;
@@ -85,7 +87,6 @@ codeunit 52101 "My Agent Install"
     begin
         RegisterCapability();
 
-        // Re-install instructions for existing agents
         var MyAgentSetup: Record "My Agent Setup";
         if MyAgentSetup.FindSet() then
             repeat
@@ -131,7 +132,7 @@ codeunit 52100 MyAgentFactory implements IAgentFactory
 
     procedure ShowCanCreateAgent(): Boolean
     begin
-        exit(true); // or single-instance logic
+        exit(true);
     end;
 
     procedure GetCopilotCapability(): Enum "Copilot Capability"
@@ -178,19 +179,22 @@ codeunit 52102 MyAgentMetadata implements IAgentMetadata
 
     procedure GetAgentTaskMessagePageId(AgentUserId: Guid; MessageId: Guid): Integer
     begin
-        exit(Page::"Agent Task Message Card"); // default or custom
+        exit(Page::"Agent Task Message Card");
     end;
 
     procedure GetAgentAnnotations(AgentUserId: Guid; var Annotations: Record "Agent Annotation")
     begin
         Clear(Annotations);
-        // Validate preconditions: licensing, configuration completeness
     end;
 
     var
         MyAgentSetupCU: Codeunit "My Agent Setup";
 }
 ```
+
+`ShowCanCreateAgent` can hold single-instance logic; `GetAgentTaskMessagePageId` may return a
+custom page; `GetAgentAnnotations` validates preconditions (licensing, configuration
+completeness).
 
 **IAgentTaskExecution** — Task processing:
 
@@ -226,7 +230,6 @@ codeunit 52104 MyAgentTaskExecution implements IAgentTaskExecution
         AgentTaskPageContextRequest: Record "Agent Task Page Context Req.";
         var AgentTaskPageContext: Record "Agent Task Page Context")
     begin
-        // Populate page-specific context for the agent
     end;
 
     local procedure ValidateInputMessage(
@@ -237,8 +240,6 @@ codeunit 52104 MyAgentTaskExecution implements IAgentTaskExecution
         MessageText: Text;
     begin
         MessageText := AgentMessage.GetText(AgentTaskMessage);
-        // Add Error annotation to stop task
-        // Add Warning annotation to trigger user intervention
     end;
 
     local procedure PostProcessOutputMessage(
@@ -253,6 +254,10 @@ codeunit 52104 MyAgentTaskExecution implements IAgentTaskExecution
     end;
 }
 ```
+
+Fill in: the page-context procedure populates page-specific context for the agent;
+`ValidateInputMessage` adds an Error annotation to stop the task, or a Warning one to ask the
+user to intervene.
 
 ### Setup Codeunit (Centralized Logic)
 
@@ -308,7 +313,6 @@ codeunit 52103 "My Agent Setup"
     var
         AgentSetup: Codeunit "Agent Setup";
     begin
-        // Load existing or set defaults
         if AgentSetupBuffer.IsEmpty() then
             AgentSetup.GetSetupRecord(
                 AgentSetupBuffer,
@@ -354,12 +358,11 @@ page 52100 "My Agent Setup"
     {
         area(Content)
         {
-            part(AgentSetupPart; "Agent Setup Part")  // MUST be first
+            part(AgentSetupPart; "Agent Setup Part")
             {
                 ApplicationArea = All;
                 UpdatePropagation = Both;
             }
-            // Custom groups below...
         }
     }
     actions
@@ -401,8 +404,6 @@ codeunit 52106 "My Agent Public API"
         exit(Impl.AssignTask(AgentUserSecurityID, TaskTitle, From, Message));
     end;
 
-    // Overloads for ExternalId, Attachments, etc.
-
     var
         Impl: Codeunit "My Agent Public API Impl.";
 }
@@ -411,7 +412,6 @@ codeunit 52106 "My Agent Public API"
 ### Task Creation (via Agent Task Builder)
 
 ```al
-// Inside the Impl codeunit:
 local procedure AssignTaskInternal(...): Record "Agent Task"
 var
     AgentTaskBuilder: Codeunit "Agent Task Builder";
@@ -430,14 +430,12 @@ end;
 ### Agent Session Detection
 
 ```al
-// Detect any agent session
 var AgentSession: Codeunit "Agent Session";
     AgentMetadataProvider: Enum "Agent Metadata Provider";
 begin
     if not AgentSession.IsAgentSession(AgentMetadataProvider) then exit;
 end;
 
-// Performance: bind subscribers only for agent task duration
 [EventSubscriber(ObjectType::Codeunit, Codeunit::"System Initialization", OnAfterInitialization, '', false, false)]
 local procedure OnInit()
 begin

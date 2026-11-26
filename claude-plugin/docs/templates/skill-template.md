@@ -20,7 +20,7 @@ This skill should be loaded when:
 {Description with AL code examples}
 
 ```al
-// Example AL code
+{AL code example, with no comments other than /// doc comments}
 ```
 
 ### Pattern 2: {Name}

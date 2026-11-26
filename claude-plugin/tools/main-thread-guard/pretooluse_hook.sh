@@ -18,11 +18,12 @@
 #   - tool is Edit (never Write), not replace_all, and a session_id is present
 #   - the changed text is ONE line on each side (old_string and new_string),
 #     trimmed, and each side is exactly one of:
-#       * a "//" comment line
 #       * a text property line: Caption/ToolTip/Description/AboutTitle/AboutText/
 #         InstructionalText/AdditionalSearchTerms = '...';
 #       * a Label declaration: Name: Label '...' [, Comment = '...'] [, Locked = x];
-#     i.e. human-readable text only, never logic, structure, or identifiers
+#     i.e. human-readable text only, never logic, structure, or identifiers.
+#     A "//" comment line no longer qualifies: code carries no comments
+#     (tools/comment-guard), so there is nothing to fix in one.
 #   - at most ALDC_FAST_PATH_MAX (default 3) such edits per session
 # Kill switch: ALDC_FAST_PATH_DISABLE=1.
 #
@@ -75,14 +76,13 @@ trim_line() {
 
 TEXT_PROP="^(Caption|ToolTip|Description|AboutTitle|AboutText|InstructionalText|AdditionalSearchTerms) *= *'([^']|'')*';$"
 LABEL_DECL="^[A-Za-z_][A-Za-z0-9_]*: *Label +'([^']|'')*'(, *Comment *= *'([^']|'')*')?(, *Locked *= *(true|false))?;$"
-COMMENT_LINE="^//"
 
 is_trivial_line() {
   [ -n "$1" ] || return 1
   [ "${#1}" -le 200 ] || return 1
   # any JSON escape (\n, \r, \", \\, \uXXXX ...) -> not a plain single line
   case "$1" in *\\*) return 1 ;; esac
-  printf '%s' "$1" | grep -qE "$TEXT_PROP|$LABEL_DECL|$COMMENT_LINE"
+  printf '%s' "$1" | grep -qE "$TEXT_PROP|$LABEL_DECL"
 }
 
 fast_path_ok() {
@@ -115,4 +115,4 @@ fi
 
 JSON_SAFE_PATH="$(printf '%s' "$FILE_PATH" | sed 's/\\/\\\\/g; s/"/\\"/g')"
 
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"ALDC routing: the main thread must not write or edit AL source itself (path: %s). Do not retry this Write/Edit. Instead: (1) tell the user which agent you are delegating to; (2) LOW complexity -> launch bc-dev:al-developer via the Task tool; MEDIUM/HIGH -> /bc-dev:al-spec-create then bc-dev:al-conductor; (3) the requirement doc goes in app/requirements/in-progress/{req}/{req}.spec.md (bc-dev spec template), never an external artifact; (4) the delegated agent must return the BCQuality evidence line and a Knowledge Deviations section, and you must include them in your reply. (5) fast path: only a single-line Edit of a comment, a Caption/ToolTip/Description-style text property, or a Label declaration is allowed in the main thread (max 3 per session); this edit did not qualify. If the user explicitly told you to write AL directly in the main thread, ask them to set ALDC_MAIN_THREAD_GUARD_DISABLE=1."}}\n' "$JSON_SAFE_PATH"
+printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"ALDC routing: the main thread must not write or edit AL source itself (path: %s). Do not retry this Write/Edit. Instead: (1) tell the user which agent you are delegating to; (2) LOW complexity -> launch bc-dev:al-developer via the Task tool; MEDIUM/HIGH -> /bc-dev:al-spec-create then bc-dev:al-conductor; (3) the requirement doc goes in app/requirements/in-progress/{req}/{req}.spec.md (bc-dev spec template), never an external artifact; (4) the delegated agent must return the BCQuality evidence line and a Knowledge Deviations section, and you must include them in your reply. (5) fast path: only a single-line Edit of a Caption/ToolTip/Description-style text property, or a Label declaration is allowed in the main thread (max 3 per session); this edit did not qualify. If the user explicitly told you to write AL directly in the main thread, ask them to set ALDC_MAIN_THREAD_GUARD_DISABLE=1."}}\n' "$JSON_SAFE_PATH"

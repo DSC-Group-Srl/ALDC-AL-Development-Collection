@@ -82,7 +82,8 @@ are authoritative. Domain depth: `.claude/aldc-rules/al-*.md` (fallback
    - A tool call that fails (not a diagnostic): tool-failure protocol — one alternate, then
      TOOL_BLOCKED.
 5. **REFACTOR.** Naming, small procedures, `SetLoadFields` where the rules floor says so, XML
-   doc comments. Recompile (step 4) after refactoring.
+   doc comments — and no other comment anywhere (rules floor, guard-enforced): what a comment
+   would say goes into a name, an extracted procedure or `<remarks>`. Recompile (step 4) after refactoring.
 6. **Return** the summary below. Do not re-read files already in context.
 
 A WP that genuinely cannot have tests (permission set, translations) says why under Tests.

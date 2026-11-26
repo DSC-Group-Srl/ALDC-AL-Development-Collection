@@ -271,13 +271,14 @@ Copy-Item "<skill-references>\main.css" `
           "C:\<repo>\docs\developer\en-US\template\ContentTemplate\public\main.css"
 ```
 
-Key variables to customise at the top of the file:
+Key variables to customise at the top of the file (primary = main accent, secondary = secondary
+accent, blue = link and heading colour, gold = border and highlight):
 ```css
 :root {
-  --brand-primary:   #c0175c;   /* main accent */
-  --brand-secondary: #6b1a9a;   /* secondary accent */
-  --brand-blue:      #1a3a8f;   /* link / heading colour */
-  --brand-gold:      #f0a800;   /* border / highlight */
+  --brand-primary:   #c0175c;
+  --brand-secondary: #6b1a9a;
+  --brand-blue:      #1a3a8f;
+  --brand-gold:      #f0a800;
   --brand-gradient:  linear-gradient(135deg, #c0175c 0%, #6b1a9a 45%, #1a3a8f 100%);
 }
 ```
@@ -399,8 +400,7 @@ Quality bar: every summary must explain WHAT it does, WHY it exists (business co
 Report: "Completed: X files processed, Y summaries added total"`
 
 const GROUPS = [
-  { label: 'Config-Enum-ControlAddin', files: [ /* ... */ ] },
-  // ... one entry per folder group
+  { label: 'Config-Enum-ControlAddin', files: ConfigEnumControlAddinFiles },
 ]
 
 phase('Sweep groups')
@@ -409,6 +409,8 @@ await parallel(GROUPS.map(group => () =>
 ))
 return { groupsProcessed: GROUPS.length }
 ```
+
+`GROUPS` holds one entry per folder group.
 
 ### Two-pass sweep for large codebases
 

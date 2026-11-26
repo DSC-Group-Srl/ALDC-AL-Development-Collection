@@ -80,6 +80,7 @@ the cheat sheet, cite `file:line`:
 | Tests | tests only in the test project; Given/When/Then; `Library Assert`; Library-* setup; happy + error + edge cases for each acceptance criterion |
 | Parallel hygiene | no WP edited outside its owned globs; no shared-file edits except the conductor's applied requests; no stray `*.g.xlf` churn |
 | Docs | XML doc comments on documented procedures |
+| Comments (hard rule) | run `python "${CLAUDE_PLUGIN_ROOT}/tools/comment-guard/comment_guard.py" scan <changed files>`: every hit (a `//` or `/* */` that is not a `///` doc comment or a test `// [GIVEN]`-style line — explanations, section headers, TODOs, change markers, commented-out code) → MAJOR. A comment that defends a choice → also judge the choice itself |
 
 In `light` depth, write only the areas with something to flag; in `full`, one line per area.
 

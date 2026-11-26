@@ -15,14 +15,14 @@ Implement proper event patterns to enable extensibility without modifying base a
 
 ### Examples
 
+Good: Event subscriber implementation with Handler suffix.
+
 ```al
-// Good example - Event subscriber implementation with Handler suffix
 codeunit 50100 "Sales Document Events Handler"
 {
     [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnBeforeInsert, '', false, false)]
     local procedure OnBeforeInsertSalesHeader(var SalesHeader: Record "Sales Header"; RunTrigger: Boolean)
     begin
-        // Custom validation logic
         ValidateCustomFields(SalesHeader);
     end;
 }
@@ -35,8 +35,9 @@ Use integration events to provide better extensibility points and clearer API co
 
 ### Examples
 
+Good: Integration events with handled pattern.
+
 ```al
-// Good example - Integration events with handled pattern
 codeunit 50101 "Customer Management"
 {
     procedure CreateCustomer(var Customer: Record Customer): Boolean
@@ -57,29 +58,23 @@ codeunit 50101 "Customer Management"
     [IntegrationEvent(false, false)]
     procedure OnBeforeCreateCustomer(var Customer: Record Customer; var IsHandled: Boolean)
     begin
-        // Allow extensions to modify customer data before creation
-        // Set IsHandled to true to skip default processing
     end;
 
     [IntegrationEvent(false, false)]
     procedure OnAfterCreateCustomer(var Customer: Record Customer)
     begin
-        // Allow extensions to perform additional actions after customer creation
     end;
 }
 ```
 
 ```al
-// Extension subscribing to integration events with Handler suffix
 codeunit 50102 "Customer Validation Handler"
 {
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Customer Management", OnBeforeCreateCustomer, '', false, false)]
     local procedure ValidateCustomerOnBeforeCreate(var Customer: Record Customer; var IsHandled: Boolean)
     begin
-        // Custom validation logic
         ValidateCustomerCreditLimit(Customer);
 
-        // Optionally handle the event to skip default processing
         if ShouldSkipDefaultProcessing(Customer) then
             IsHandled := true;
     end;
@@ -95,26 +90,19 @@ Design event parameters that provide sufficient context while maintaining perfor
 
 ### Examples
 
+Good: Well-designed event parameters with handled pattern.
+
 ```al
-// Good example - Well-designed event parameters with handled pattern
 codeunit 50103 "Document Posting Events"
 {
     [IntegrationEvent(false, false)]
     procedure OnBeforePostDocument(var DocumentHeader: Record "Sales Header"; var DocumentLines: Record "Sales Line"; PostingDate: Date; var IsHandled: Boolean)
     begin
-        // Comprehensive context for document posting
-        // - Document header and lines for full context
-        // - Posting date for temporal context
-        // - IsHandled flag for control flow
     end;
 
     [IntegrationEvent(false, false)]
     procedure OnAfterPostDocument(DocumentHeader: Record "Sales Header"; PostedDocumentNo: Code[20]; PostingResult: Boolean)
     begin
-        // Results context after posting
-        // - Original document for reference
-        // - Posted document number for tracking
-        // - Success/failure indication
     end;
 }
 ```

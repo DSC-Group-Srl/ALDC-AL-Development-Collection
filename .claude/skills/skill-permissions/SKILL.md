@@ -31,13 +31,10 @@ permissionset 50100 "Contoso Sales"
     Caption = 'Contoso Sales Permissions';
 
     Permissions =
-        // Tables — object-level execute
         table "Contoso Sales Setup" = X,
         table "Contoso Discount Rule" = X,
-        // Table data — RIMD granularity
-        tabledata "Contoso Sales Setup" = R,          // read-only for most users
-        tabledata "Contoso Discount Rule" = RIMD,     // full CRUD
-        // Executable objects
+        tabledata "Contoso Sales Setup" = R,
+        tabledata "Contoso Discount Rule" = RIMD,
         codeunit "Contoso Sales Management" = X,
         page "Contoso Sales Setup Card" = X,
         page "Contoso Discount Rules List" = X,
@@ -45,6 +42,8 @@ permissionset 50100 "Contoso Sales"
         xmlport "Contoso Sales Import" = X;
 }
 ```
+
+- `tabledata "Contoso Sales Setup" = R,` — read-only for most users
 
 **Permission letters for `tabledata`:**
 
@@ -64,10 +63,9 @@ For non-tabledata objects (`table`, `codeunit`, `page`, `report`, `xmlport`, `qu
 Design a layered permission structure — each role includes only what it needs:
 
 ```al
-// Layer 1: Base — read-only access shared by all roles
 permissionset 50100 "Contoso Base"
 {
-    Assignable = false;                   // not directly assignable to users
+    Assignable = false;
     Caption = 'Contoso Base (Read)';
 
     Permissions =
@@ -77,7 +75,6 @@ permissionset 50100 "Contoso Base"
         page "Contoso Discount Rules List" = X;
 }
 
-// Layer 2: User — standard operations (includes Base)
 permissionset 50101 "Contoso User"
 {
     Assignable = true;
@@ -86,12 +83,11 @@ permissionset 50101 "Contoso User"
     IncludedPermissionSets = "Contoso Base";
 
     Permissions =
-        tabledata "Contoso Discount Rule" = IM,      // create + edit (no delete)
+        tabledata "Contoso Discount Rule" = IM,
         codeunit "Contoso Sales Management" = X,
         report "Contoso Sales Summary" = X;
 }
 
-// Layer 3: Admin — full control (includes User)
 permissionset 50102 "Contoso Admin"
 {
     Assignable = true;
@@ -100,11 +96,19 @@ permissionset 50102 "Contoso Admin"
     IncludedPermissionSets = "Contoso User";
 
     Permissions =
-        tabledata "Contoso Sales Setup" = RIMD,       // full CRUD on setup
-        tabledata "Contoso Discount Rule" = D,         // adds Delete
-        xmlport "Contoso Sales Import" = X;            // data import only for admin
+        tabledata "Contoso Sales Setup" = RIMD,
+        tabledata "Contoso Discount Rule" = D,
+        xmlport "Contoso Sales Import" = X;
 }
 ```
+
+Three layers: **Base** (read-only access shared by all roles, not assignable), **User**
+(standard operations, includes Base), **Admin** (full control, includes User).
+
+- `Assignable = false;` — not directly assignable to users
+- `tabledata "Contoso Discount Rule" = IM,` — create + edit (no delete)
+- `tabledata "Contoso Sales Setup" = RIMD,` — full CRUD on setup
+- `xmlport "Contoso Sales Import" = X;` — data import only for admin
 
 **Design rules:**
 - `Assignable = false` for base/internal layers — only assign leaf-level sets to users
@@ -175,13 +179,14 @@ XML `ObjectType` codes: `0` = TableData, `1` = Table, `3` = Report, `5` = Codeun
 Some objects are accessed indirectly (via codeunit calls) and need indirect permission:
 
 ```al
-// In the codeunit that accesses data on behalf of the user
 codeunit 50100 "Contoso Sales Management"
 {
     Permissions =
-        tabledata "Contoso Internal Log" = RIMD;   // indirect — user doesn't access directly
+        tabledata "Contoso Internal Log" = RIMD;
 }
 ```
+
+The codeunit accesses the log on behalf of the user, who never touches it directly.
 
 For test codeunits, set the permission level to validate security:
 
@@ -189,21 +194,20 @@ For test codeunits, set the permission level to validate security:
 codeunit 50200 "Contoso Sales Test"
 {
     Subtype = Test;
-    TestPermissions = Restrictive;   // NonRestrictive | Restrictive | Disabled
+    TestPermissions = Restrictive;
 
     [Test]
     procedure TestUserCanCreateDiscount()
     var
         PermissionsMock: Codeunit "Library - Lower Permissions";
     begin
-        // Simulate a user with only "Contoso User" permissions
         PermissionsMock.SetOutsidePermissionSet("Contoso User");
 
-        // Test that user CAN create discount rule
-        // ...
     end;
 }
 ```
+
+- `TestPermissions = Restrictive;` — NonRestrictive | Restrictive | Disabled
 
 ## Workflow
 

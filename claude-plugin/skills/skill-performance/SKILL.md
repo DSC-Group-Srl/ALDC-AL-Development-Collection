@@ -25,34 +25,45 @@ This skill should be loaded when:
 
 Always filter before finding, and load only needed fields. Order matters.
 
+Good: SetRange first, SetLoadFields before Find.
+
 ```al
-// ✅ Correct: SetRange first, SetLoadFields before Find
 Item.SetRange("Third Party Item Exists", false);
 Item.SetLoadFields("Item Category Code", Description);
 if Item.FindSet() then
     repeat
-        // Only "Item Category Code" and Description loaded from DB
     until Item.Next() = 0;
+```
 
-// ❌ Wrong: SetLoadFields after SetRange (ignored), loads all fields
+Bad: SetLoadFields after SetRange (ignored), loads all fields.
+
+```al
 Item.SetLoadFields("Item Category Code");
 Item.SetRange("Third Party Item Exists", false);
 Item.FindFirst();
+```
 
-// ❌ Wrong: No filter — full table scan
+Bad: No filter — full table scan.
+
+```al
 procedure GetCustomersByCity(CityFilter: Text): Integer
 var
     Customer: Record Customer;
     Count: Integer;
 begin
-    if Customer.FindSet() then       // loads entire Customer table
+    if Customer.FindSet() then
         repeat
             if Customer.City = CityFilter then
                 Count += 1;
         until Customer.Next() = 0;
 end;
+```
 
-// ✅ Correct: Filter pushed to DB
+- `if Customer.FindSet() then` — loads entire Customer table
+
+Good: Filter pushed to DB.
+
+```al
 procedure GetCustomersByCity(CityFilter: Text): Integer
 var
     Customer: Record Customer;
@@ -67,8 +78,9 @@ end;
 
 Avoid manual loops for aggregation — push the sum to the database.
 
+Bad: Loop accumulation — N rows fetched and processed in AL.
+
 ```al
-// ❌ Loop accumulation — N rows fetched and processed in AL
 procedure GetTotalSales(CustomerNo: Code[20]): Decimal
 var
     Entry: Record "Cust. Ledger Entry";
@@ -81,8 +93,11 @@ begin
         until Entry.Next() = 0;
     exit(Total);
 end;
+```
 
-// ✅ CalcSums — single aggregation query at DB level
+Good: CalcSums — single aggregation query at DB level.
+
+```al
 procedure GetTotalSales(CustomerNo: Code[20]): Decimal
 var
     Entry: Record "Cust. Ledger Entry";
@@ -97,15 +112,18 @@ For FlowFields accessed outside a page context, always call `CalcFields` before 
 ```al
 Customer.SetLoadFields("Balance (LCY)");
 Customer.Get(CustomerNo);
-Customer.CalcFields("Balance (LCY)");   // required — not auto-calculated in code
+Customer.CalcFields("Balance (LCY)");
 ```
+
+- `Customer.CalcFields("Balance (LCY)");` — required — not auto-calculated in code
 
 ### Pattern 3: Temporary Tables / Dictionary / List
 
 Pre-load data once, then process in-memory multiple times.
 
+Good: Temporary table — structured record data, multi-pass processing.
+
 ```al
-// ✅ Temporary table — structured record data, multi-pass processing
 procedure ProcessSalesData(var TempSalesLine: Record "Sales Line" temporary)
 var
     SalesLine: Record "Sales Line";
@@ -117,12 +135,14 @@ begin
             TempSalesLine.Insert();
         until SalesLine.Next() = 0;
 
-    // Process in-memory — zero additional DB hits
     ApplyDiscounts(TempSalesLine);
     CalculateTotals(TempSalesLine);
 end;
+```
 
-// ✅ Dictionary — key-value lookup cache
+Good: Dictionary — key-value lookup cache.
+
+```al
 procedure CacheCustomerNames(): Dictionary of [Code[20], Text]
 var
     Customer: Record Customer;
@@ -135,8 +155,11 @@ begin
         until Customer.Next() = 0;
     exit(Cache);
 end;
+```
 
-// ✅ List — simple value collection
+Good: List — simple value collection.
+
+```al
 procedure GetBlockedCustomerNos(): List of [Code[20]]
 var
     Customer: Record Customer;
@@ -156,18 +179,23 @@ end;
 
 Move database operations outside loops; batch writes.
 
+Bad: Nested DB call inside loop — O(n²) database hits.
+
 ```al
-// ❌ Nested DB call inside loop — O(n²) database hits
 if MainTable.FindSet() then
     repeat
         OtherTable.SetRange(Field, MainTable.Field);
-        if OtherTable.FindSet() then          // DB call per iteration
+        if OtherTable.FindSet() then
             repeat
-                // process
             until OtherTable.Next() = 0;
     until MainTable.Next() = 0;
+```
 
-// ✅ Pre-load into temp table, then join in memory
+- `if OtherTable.FindSet() then` — DB call per iteration
+
+Good: Pre-load into temp table, then join in memory.
+
+```al
 if OtherTable.FindSet() then
     repeat
         TempOther := OtherTable;
@@ -177,13 +205,13 @@ if OtherTable.FindSet() then
 if MainTable.FindSet() then
     repeat
         if TempOther.Get(MainTable.Field) then
-            // process — no DB hit
     until MainTable.Next() = 0;
 ```
 
 Batch writes — collect changes, write once:
+Good: Calculate all values first, then single Modify.
+
 ```al
-// ✅ Calculate all values first, then single Modify
 procedure UpdateCustomerStats(CustomerNo: Code[20])
 var
     Customer: Record Customer;
@@ -196,7 +224,7 @@ begin
     if Customer.Get(CustomerNo) then begin
         Customer."Balance (LCY)" := TotalBalance;
         Customer."Last Payment Date" := LastPaymentDate;
-        Customer.Modify(true);   // single write
+        Customer.Modify(true);
     end;
 end;
 ```
@@ -206,11 +234,13 @@ Scale-aware processing:
 procedure UpdatePricesForItems(var Item: Record Item)
 begin
     if Item.Count() > 1000 then
-        UpdatePricesInBatches(Item)    // job queue / chunked
+        UpdatePricesInBatches(Item)
     else
         UpdatePricesDirectly(Item);
 end;
 ```
+
+- `UpdatePricesInBatches(Item)` — job queue / chunked
 
 ### Pattern 5: FlowField Optimization (AL0896)
 

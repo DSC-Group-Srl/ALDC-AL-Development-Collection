@@ -38,17 +38,15 @@ Use the AL LSP server (find-references) to see who else subscribes to the same e
 
 ### Pattern 2: Event Subscriber
 
+Name subscriber codeunits with the `Handler` suffix. The `EventSubscriber` attribute takes:
+`ObjectType` (Table, Codeunit, Page, Report…), `ObjectId` (`Database::"Sales Header"`,
+`Codeunit::"Customer Management"`), `EventName` (the publisher procedure's exact name, e.g.
+`OnBeforeInsert`), `ElementName` (`''` for table/codeunit events, the field name for page field
+triggers), `SkipOnMissingLicense` and `SkipOnMissingPermission` (both `false`: always run).
+
 ```al
-// Subscriber codeunit — name with "Handler" suffix
 codeunit 50100 "Sales Document Events Handler"
 {
-    // Attribute breakdown:
-    //   ObjectType  — Table, Codeunit, Page, Report, etc.
-    //   ObjectId    — Database::"Sales Header" or Codeunit::"Customer Management"
-    //   EventName   — exact name of the publisher procedure (e.g., OnBeforeInsert)
-    //   ElementName — '' for table/codeunit events; field name for page field triggers
-    //   SkipOnMissingLicense  — false (recommended: always run)
-    //   SkipOnMissingPermission — false (recommended: always run)
 
     [EventSubscriber(ObjectType::Table, Database::"Sales Header",
                      OnBeforeInsert, '', false, false)]
@@ -78,16 +76,13 @@ codeunit 50101 "Customer Management"
     var
         IsHandled: Boolean;
     begin
-        // 1. Raise OnBefore — subscribers can validate, modify, or skip
         OnBeforeCreateCustomer(Customer, IsHandled);
         if IsHandled then
             exit(true);
 
-        // 2. Default logic
         if not Customer.Insert(true) then
             exit(false);
 
-        // 3. Raise OnAfter — subscribers can react (logging, integration, etc.)
         OnAfterCreateCustomer(Customer);
         exit(true);
     end;
@@ -97,14 +92,11 @@ codeunit 50101 "Customer Management"
         var Customer: Record Customer;
         var IsHandled: Boolean)
     begin
-        // Empty body — subscribers provide the implementation
-        // IsHandled = true → skip default logic
     end;
 
     [IntegrationEvent(false, false)]
     local procedure OnAfterCreateCustomer(var Customer: Record Customer)
     begin
-        // Empty body — subscribers react after creation
     end;
 }
 ```
@@ -124,7 +116,6 @@ local procedure OnCustomerCreditLimitExceeded(
     Customer: Record Customer;
     RequestedAmount: Decimal)
 begin
-    // Subscribers may send notification, log, or block — user can disable
 end;
 ```
 
@@ -135,26 +126,37 @@ end;
 
 ### Pattern 5: Well-Designed Event Parameters
 
+Good: Rich context, var where modification expected, IsHandled for OnBefore.
+
 ```al
-// ✅ Good — rich context, var where modification expected, IsHandled for OnBefore
 [IntegrationEvent(false, false)]
 local procedure OnBeforePostDocument(
-    var DocumentHeader: Record "Sales Header";   // var — subscriber may modify
-    var DocumentLines: Record "Sales Line";      // var — subscriber may modify
-    PostingDate: Date;                           // value — read-only context
-    var IsHandled: Boolean)                      // var — subscriber may skip default
-begin
-end;
-
-// ✅ Good — results context for OnAfter
-[IntegrationEvent(false, false)]
-local procedure OnAfterPostDocument(
-    DocumentHeader: Record "Sales Header";       // value — read-only (already posted)
-    PostedDocumentNo: Code[20];                  // result reference
-    PostingResult: Boolean)                      // success/failure
+    var DocumentHeader: Record "Sales Header";
+    var DocumentLines: Record "Sales Line";
+    PostingDate: Date;
+    var IsHandled: Boolean)
 begin
 end;
 ```
+
+- `var DocumentHeader: Record "Sales Header";` — var — subscriber may modify
+- `var DocumentLines: Record "Sales Line";` — var — subscriber may modify
+- `PostingDate: Date;` — value — read-only context
+- `var IsHandled: Boolean)` — var — subscriber may skip default
+
+Good: Results context for OnAfter.
+
+```al
+[IntegrationEvent(false, false)]
+local procedure OnAfterPostDocument(
+    DocumentHeader: Record "Sales Header";
+    PostedDocumentNo: Code[20];
+    PostingResult: Boolean)
+begin
+end;
+```
+
+- `DocumentHeader: Record "Sales Header";` — value — read-only (already posted)
 
 **Parameter design rules:**
 - `var Record` — when subscribers should be able to modify the record
@@ -192,7 +194,6 @@ For **creating new integration events** in your codeunit:
 Write the subscriber/publisher structures with `Write`/`Edit` (in VS Code the `teventsub`/`tevent` snippets scaffold these for a human), then fill the body:
 
 ```al
-// Subscriber handler codeunit
 codeunit 50102 "Customer Validation Handler"
 {
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Customer Management",

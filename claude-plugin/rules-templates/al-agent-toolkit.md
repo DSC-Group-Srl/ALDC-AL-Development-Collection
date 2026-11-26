@@ -108,7 +108,7 @@ codeunit {id} "{Agent} Setup"
     procedure GetSummaryPageId(): Integer
 
     [NonDebuggable]
-    procedure GetInstructions(): SecretText  // Load from .resources
+    procedure GetInstructions(): SecretText
 
     procedure GetDefaultProfile(var TempAllProfile: Record "All Profile" temporary)
     procedure GetDefaultAccessControls(var TempAccessControlBuffer: Record "Access Control Buffer" temporary)
@@ -173,7 +173,6 @@ Signature: `procedure GetAgentTaskPageContext(AgentTaskPageContextRequest: Recor
 trigger OnInstallAppPerDatabase()
 begin
     RegisterCapability();
-    // Re-install instructions for existing agents
 end;
 
 local procedure RegisterCapability()
@@ -234,7 +233,6 @@ Use when passing supporting documents (quotes, specifications, contracts) to an 
 **Signature**: `AddAttachment(Name: Text[250]; MediaType: Text; ContentStream: InStream)`
 
 ```al
-// With InStream directly
 procedure CreateTaskWithAttachment(AgentUserId: Guid; var ContentStream: InStream)
 var
     AgentTaskBuilder: Codeunit "Agent Task Builder";
@@ -250,8 +248,11 @@ begin
         .AddTaskMessage(AgentTaskMsgBuilder);
     AgentTaskBuilder.Create();
 end;
+```
 
-// With TempBlob (convenience — convert to InStream first)
+With a TempBlob (convenience: convert to an InStream first):
+
+```al
 procedure CreateTaskFromBlob(AgentUserId: Guid; var DocumentBlob: Codeunit "Temp Blob")
 var
     ContentStream: InStream;
@@ -277,7 +278,6 @@ end;
 `SetRequiresReview` is OnPrem scope only. For Extensions, use `IAgentTaskExecution.AnalyzeAgentTaskMessage` to add error/warning annotations that force human review:
 
 ```al
-// In your IAgentTaskExecution implementation
 procedure AnalyzeAgentTaskMessage(AgentTaskMessage: Record "Agent Task Message"; var Annotations: Record "Agent Annotation")
 var
     AgentMessage: Codeunit "Agent Message";
@@ -285,7 +285,6 @@ var
 begin
     MessageText := AgentMessage.GetText(AgentTaskMessage);
 
-    // Force review for disqualification tasks
     if MessageText.Contains('DISQUALIFICATION') then begin
         Annotations.Severity := Annotations.Severity::Warning;
         Annotations.Message := 'Disqualification requires human approval. Review before proceeding.';
@@ -334,7 +333,6 @@ begin
 
     AgentTaskMsgBuilder.Initialize(CopyStr(UserId(), 1, 250), MessageText);
 
-    // Attach estimate if available
     if EstimateBlob.HasValue() then begin
         EstimateBlob.CreateInStream(ContentStream);
         AgentTaskMsgBuilder.AddAttachment(
@@ -364,11 +362,13 @@ end;
 These methods are documented in the Tasks API but currently restricted to OnPrem scope:
 
 ```al
-// OnPrem only — DO NOT use in Extension development
-AgentTaskMsgBuilder.SetRequiresReview(true);           // Forces human approval
-AgentTaskMsgBuilder.SetSkipMessageSanitization(true);  // Preserves raw JSON/XML
-AgentTaskMsgBuilder.AddToTask(AgentTaskRec);           // Appends to existing task
+AgentTaskMsgBuilder.SetRequiresReview(true);
+AgentTaskMsgBuilder.SetSkipMessageSanitization(true);
+AgentTaskMsgBuilder.AddToTask(AgentTaskRec);
 ```
+
+OnPrem only, never in Extension development: `SetRequiresReview` forces human approval,
+`SetSkipMessageSanitization` preserves raw JSON/XML, `AddToTask` appends to an existing task.
 
 ## Agent Session Detection
 
@@ -380,7 +380,6 @@ var
     AgentMetadataProvider: Enum "Agent Metadata Provider";
 begin
     if not AgentSession.IsAgentSession(AgentMetadataProvider) then exit;
-    // Agent-specific code here
 end;
 ```
 
@@ -397,7 +396,6 @@ begin
     if not AgentSession.IsAgentSession(AgentMetadataProvider::"Lead Qualifier") then
         exit;
 
-    // Lead Qualifier agent-specific code goes here...
 end;
 ```
 
@@ -443,10 +441,11 @@ end;
 
 ### Future: Custom Agent Discovery API (Not Yet Available)
 
-The Tasks API documentation describes `Custom Agent.GetCustomAgents()` for discovering all registered agents at runtime. This API is not yet available in Extension scope:
+The Tasks API documentation describes `Custom Agent.GetCustomAgents()` for discovering all registered agents at runtime. This API is not yet available in Extension scope (not in runtime 17.0 / platform 27.0). Each
+`TempAgentInfo` row carries `"User Security ID"` (the agent's user ID) and `"User Name"` (its
+display name):
 
 ```al
-// FUTURE — Not available in runtime 17.0 / platform 27.0
 local procedure GetAllAgents()
 var
     CustomAgent: Codeunit "Custom Agent";
@@ -456,8 +455,6 @@ begin
 
     if TempAgentInfo.FindSet() then
         repeat
-            // TempAgentInfo."User Security ID" — agent's user ID (Guid)
-            // TempAgentInfo."User Name" — agent's display name
         until TempAgentInfo.Next() = 0;
 end;
 ```

@@ -15,21 +15,25 @@ Use consistent naming patterns for all AL objects to improve discoverability and
 
 ### Examples
 
-```al
-// Good examples (within 26 character limit)
-table 50100 "Customer Ledger Entry"     // 20 chars
-page 50101 "Sales Invoice"              // 13 chars
-codeunit 50102 "Sales Invoice Posting"  // 21 chars
-report 50103 "Customer Statement"       // 18 chars
-```
+Good: Within 26 character limit.
 
 ```al
-// Bad examples (avoid abbreviations, unclear names, or length violations)
-table 50100 "CustLE"                           // Too abbreviated
-page 50101 "SalesInv"                          // Too abbreviated
-table 50104 "Very Long Customer Ledger Entry" // 32 chars - exceeds limit
-codeunit 50102 "SIPoster"                      // Unclear abbreviation
+table 50100 "Customer Ledger Entry"
+page 50101 "Sales Invoice"
+codeunit 50102 "Sales Invoice Posting"
+report 50103 "Customer Statement"
 ```
+
+Bad: Abbreviations, unclear names, or length violations.
+
+```al
+table 50100 "CustLE"
+page 50101 "SalesInv"
+table 50104 "Very Long Customer Ledger Entry"
+codeunit 50102 "SIPoster"
+```
+
+- `table 50104 "Very Long Customer Ledger Entry"` — 32 chars - exceeds limit
 
 ## Rule 2: File Naming Conventions
 
@@ -38,8 +42,9 @@ Establish consistent file naming patterns that clearly identify object types and
 
 ### Examples
 
+Good:
+
 ```al
-// Good examples
 NoSeries.Page.al
 NoSeries.Table.al
 NoSeriesErrorsImpl.Codeunit.al
@@ -51,11 +56,9 @@ ItemLedgerEntry.Report.al
 InventorySetup.PageExt.al
 SalesHeader.TableExt.al
 
-// For implementations and interfaces
 INoSeries.Interface.al
 NoSeriesImpl.Codeunit.al
 
-// For test files
 NoSeriesTests.Codeunit.al
 SalesPostingTests.Codeunit.al
 ```
@@ -67,8 +70,9 @@ Use consistent naming conventions for variables and functions to improve code re
 
 ### Examples
 
+Good: Variables.
+
 ```al
-// Good examples - Variables
 var
   CustomerLedgerEntry: Record "Cust. Ledger Entry";
   TotalAmount: Decimal;
@@ -76,8 +80,9 @@ var
   IsValidTransaction: Boolean;
 ```
 
+Good: Functions.
+
 ```al
-// Good examples - Functions
 procedure CalculateCustomerBalance(CustomerNo: Code[20]): Decimal
 procedure ValidateSalesDocument(var SalesHeader: Record "Sales Header")
 procedure UpdateInventoryQuantity(ItemNo: Code[20]; Quantity: Decimal)
@@ -97,33 +102,39 @@ Where the useful half of "descriptive naming" still applies: the **procedure nam
 
 ### Examples
 
+Good: Publisher parameter names reproduced verbatim; descriptive procedure name.
+
 ```al
-// Good example - publisher parameter names reproduced verbatim; descriptive procedure name
 [EventSubscriber(ObjectType::Table, Database::"Sales Header", 'OnBeforeInsertEvent', '', false, false)]
 local procedure AddDefaultValuesOnBeforeInsertSalesHeader(var Rec: Record "Sales Header"; RunTrigger: Boolean)
 var
-  SalesHeader: Record "Sales Header";   // descriptive alias for readability, if the body needs it
+  SalesHeader: Record "Sales Header";
 begin
   SalesHeader := Rec;
-  // Event handling logic
 end;
+```
 
-// Good example - omitting a parameter the handler does not use is valid
+- `SalesHeader: Record "Sales Header";` — descriptive alias for readability, if the body needs it
+
+Good: Omitting a parameter the handler does not use is valid.
+
+```al
 [EventSubscriber(ObjectType::Table, Database::Customer, 'OnBeforeModifyEvent', '', false, false)]
 local procedure CheckBalanceOnBeforeModifyCustomer(var Rec: Record Customer)
 begin
-  // xRec and RunTrigger omitted on purpose - the handler does not need them
 end;
 ```
 
+Bad: Renaming publisher parameters. Does not bind; the build breaks.
+
 ```al
-// Bad example - renaming publisher parameters. Does not bind; the build breaks.
 [EventSubscriber(ObjectType::Table, Database::"Sales Header", 'OnBeforeInsertEvent', '', false, false)]
 local procedure AddDefaultValuesOnBeforeInsertSalesHeader(var SalesHeader: Record "Sales Header"; RunTrigger: Boolean)
 begin
-  // 'SalesHeader' matches no publisher parameter
 end;
 ```
+
+- 'SalesHeader' matches no publisher parameter
 
 ## Rule 5: Interface and Implementation Naming
 
@@ -132,20 +143,18 @@ Clearly distinguish between interfaces and their implementations using consisten
 
 ### Examples
 
+Good: Within character limits.
+
 ```al
-// Good examples (within character limits)
-// Interface file: ICustomerService.Interface.al
 interface ICustomerService
 {
     procedure GetCustomerBalance(CustomerNo: Code[20]): Decimal;
 }
 
-// Implementation file: CustomerServiceImpl.Codeunit.al
 codeunit 50100 "Customer Service Impl" implements ICustomerService
 {
     procedure GetCustomerBalance(CustomerNo: Code[20]): Decimal
     begin
-        // Implementation logic
     end;
 }
 ```
@@ -162,15 +171,17 @@ Namespaces (AL runtime ≥ 13.0 / BC 24+) name **features**, mirroring the featu
 
 ### Examples
 
-```al
-// Good examples
-namespace Contoso.Sales.Invoice;      // src/Sales/Invoice/
-namespace Contoso.Warehouse.Picking;  // src/Warehouse/Picking/
-```
+Good: each namespace mirrors its folder (`src/Sales/Invoice/`, `src/Warehouse/Picking/`).
 
 ```al
-// Bad examples
-namespace Contoso.Codeunits;          // object type, not a feature
-namespace contoso.sales;              // not PascalCase
-namespace Sales.Invoice;              // missing app-name root segment
+namespace Contoso.Sales.Invoice;
+namespace Contoso.Warehouse.Picking;
+```
+
+Bad: an object type instead of a feature, not PascalCase, missing the app-name root segment.
+
+```al
+namespace Contoso.Codeunits;
+namespace contoso.sales;
+namespace Sales.Invoice;
 ```

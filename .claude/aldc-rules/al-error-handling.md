@@ -15,8 +15,9 @@ Implement proper error handling using TryFunctions to manage exceptions graceful
 
 ### Examples
 
+Good: TryFunction with proper error handling and error labels.
+
 ```al
-// Good example - TryFunction with proper error handling and error labels
 procedure ProcessPayment(Amount: Decimal): Boolean
 var
   PaymentService: Codeunit "Payment Service";
@@ -43,16 +44,15 @@ begin
 end;
 ```
 
+Bad: no error handling (the failure surfaces as an unhandled exception) and a hardcoded message.
+
 ```al
-// Bad example (avoid hardcoded error messages and unhandled errors)
 procedure ProcessPayment(Amount: Decimal)
 var
   PaymentService: Codeunit "Payment Service";
 begin
-  // No error handling - will cause unhandled exceptions
-  // Also avoid hardcoded messages like this:
-  // Message('Payment could not be processed');
   PaymentService.ProcessPayment(Amount);
+  Message('Payment could not be processed');
 end;
 ```
 
@@ -63,8 +63,9 @@ All error messages, warnings, and user messages must use label variables instead
 
 ### Examples
 
+Good: Using error labels.
+
 ```al
-// Good example - Using error labels
 procedure ValidateBusinessLogic(SalesHeader: Record "Sales Header")
 var
   Customer: Record Customer;
@@ -83,17 +84,18 @@ begin
 end;
 ```
 
+Bad: Hardcoded error messages.
+
 ```al
-// Bad example (avoid hardcoded error messages)
 procedure ValidateBusinessLogic(SalesHeader: Record "Sales Header")
 var
   Customer: Record Customer;
 begin
   if not Customer.Get(SalesHeader."Sell-to Customer No.") then
-    Error('Customer not found'); // Hardcoded - avoid this
+    Error('Customer not found');
 
   if Customer.Blocked <> Customer.Blocked::" " then
-    Error('Customer blocked'); // Hardcoded - avoid this
+    Error('Customer blocked');
 end;
 ```
 
@@ -104,13 +106,13 @@ Generated AL code should prioritize correctness over immediate compilation. Code
 
 ### Examples
 
+Good: Correct logic even if function names need verification.
+
 ```al
-// Good example - Correct logic even if function names need verification
 procedure HandleCustomerModification(var Customer: Record Customer)
 var
-  CustomerValidation: Codeunit "Customer Validation"; // May need verification
+  CustomerValidation: Codeunit "Customer Validation";
 begin
-  // Correct business logic - even if codeunit name needs adjustment
   if not CustomerValidation.ValidateCustomerData(Customer) then
     Error(ValidationFailedErr);
 
@@ -118,14 +120,15 @@ begin
 end;
 ```
 
+Good: event subscription with correct intent, even if the codeunit or method names still need
+verification.
+
 ```al
-// Good example - Event subscription with correct intent
 [EventSubscriber(ObjectType::Table, Database::Customer, OnAfterModifyEvent, '', false, false)]
 local procedure OnAfterCustomerModify(var Rec: Record Customer; var xRec: Record Customer; RunTrigger: Boolean)
 var
-  CustomerChangeLog: Codeunit "Customer Change Log"; // Function may need verification
+  CustomerChangeLog: Codeunit "Customer Change Log";
 begin
-  // Correct logic - even if codeunit or method names need adjustment
   CustomerChangeLog.LogCustomerChange(Rec, xRec);
 end;
 ```
@@ -137,25 +140,23 @@ Add custom telemetry for tracking business-critical operations, but only when ex
 
 ### Examples
 
+Good: Custom telemetry (only when user explicitly requests it)
+
 ```al
-// Good example - Custom telemetry (only when user explicitly requests it)
 procedure PostSalesDocument(var SalesHeader: Record "Sales Header")
 var
   TelemetryCustomDimensions: Dictionary of [Text, Text];
   SalesDocPostedMsg: Label 'Sales document posted successfully', Locked = true;
   SalesDocPostFailedMsg: Label 'Sales document posting failed', Locked = true;
 begin
-  // Add context for telemetry
   TelemetryCustomDimensions.Add('DocumentType', Format(SalesHeader."Document Type"));
   TelemetryCustomDimensions.Add('CustomerNo', SalesHeader."Sell-to Customer No.");
 
   if TryPostSalesDocument(SalesHeader) then begin
-    // Log successful operation
     Session.LogMessage('SAL001', SalesDocPostedMsg,
                       Verbosity::Normal, DataClassification::SystemMetadata,
                       TelemetryScope::ExtensionPublisher, TelemetryCustomDimensions);
   end else begin
-    // Log failed operation with error details
     TelemetryCustomDimensions.Add('ErrorText', GetLastErrorText());
     Session.LogMessage('SAL002', SalesDocPostFailedMsg,
                       Verbosity::Error, DataClassification::SystemMetadata,
@@ -171,20 +172,20 @@ end;
 
 ### Examples
 
+Good: Isolated write via Codeunit.Run()
+
 ```al
-// Good example - isolated write via Codeunit.Run()
 codeunit 50100 "Contoso Order Poster"
 {
     TableNo = "Sales Header";
 
     trigger OnRun()
     begin
-        PostOrder(Rec); // writes ledger entries, updates Rec
+        PostOrder(Rec);
     end;
 
     local procedure PostOrder(var SalesHeader: Record "Sales Header")
     begin
-        // ... inserts/modifies records; a mid-way error rolls back cleanly because Run() isolates it
     end;
 }
 
@@ -202,13 +203,17 @@ begin
 end;
 ```
 
+- `PostOrder(Rec);` — writes ledger entries, updates Rec
+
+Bad: Wrapping database writes in a TryFunction.
+
 ```al
-// Bad example (avoid wrapping database writes in a TryFunction)
 [TryFunction]
 local procedure TryPostOrder(var SalesHeader: Record "Sales Header")
 begin
-    // Writes here share the caller's transaction -- a TryFunction is not a safe boundary for this.
     SalesHeader.Insert(true);
     LedgerEntry.Insert(true);
 end;
 ```
+
+- Writes here share the caller's transaction -- a TryFunction is not a safe boundary for this.

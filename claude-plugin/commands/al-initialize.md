@@ -318,7 +318,6 @@ Demonstrate documentation for procedures:
 /// <returns>The total amount including tax</returns>
 procedure CalculateTotalWithTax(var SalesHeader: Record "Sales Header"): Decimal
 begin
-    // Implementation
 end;
 ```
 

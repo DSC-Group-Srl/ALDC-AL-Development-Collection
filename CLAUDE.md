@@ -33,7 +33,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   agents/                   #   14 agents: architect, conductor, developer,
                             #   triage, dredd, agent-builder, demo-architect, 3 conductor
                             #   subagents, 3 doc agents, al-file-reader (Haiku locator)
-  commands/                 #   12 slash commands (/al-spec-create, /al-build, /al-metrics, /al-docs-capture, …)
+  commands/                 #   13 slash commands (/al-spec-create, /al-build, /al-metrics, /al-docs-capture,
+                            #   /al-comment-cleanup, …)
   skills/                   #   33 skills, loaded on demand (incl. skill-test-lane, skill-al-go-devenv,
                             #   skill-bc-issue, skill-app-id-range, skill-code-reader,
                             #   skill-al-go-workflows, skill-plugin-feedback, skill-gitcloner,
@@ -45,7 +46,8 @@ claude-plugin/              # THE PRODUCT — everything below ships to the mark
   tools/                    #   hook scripts: bcquality, al-cli, rules, routing, read-guard,
                             #   conductor-guard, freshdesk-guard, bc-guard, al-go-guard, git (branch
                             #   policy, merge guard: asks before merging a PR someone else opened, post-merge cleanup,
-                            #   main/test sync), voice (plain-talk rule for the main session), claudemd, vscode (workspace folders
+                            #   main/test sync), voice (plain-talk rule for the main session), comment-guard (no comments in code except
+                            #   doc comments: denies the edit, injects the rule at session start, scans for cleanup), claudemd, vscode (workspace folders
                             #   nudge), issue (links a session to its BC Issue from the spec), automode (merges DSC auto-mode
                             #   rules into ~/.claude/settings.json), metrics; testlane/ (shared test env + lock)
   docs/templates/           #   report/plan templates the agents fill in

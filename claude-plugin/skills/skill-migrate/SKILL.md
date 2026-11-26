@@ -53,15 +53,19 @@ Update the three version-sensitive properties in `app.json`:
 
 Replace legacy patterns with modern equivalents:
 
+Bad (deprecated): C/AL style.
+
 ```al
-// ❌ Deprecated — C/AL style
 Record.FIND('-');
 Record.FINDSET(TRUE, TRUE);
 IF Record.FINDFIRST THEN;
 Record.INIT;
 Record.INSERT;
+```
 
-// ✅ Modern — AL patterns
+Good (modern): AL patterns.
+
+```al
 Record.FindSet();
 Record.FindSet(true, true);
 if Record.FindFirst() then;
@@ -69,25 +73,33 @@ Record.Init();
 Record.Insert(true);
 ```
 
+Bad (deprecated): WITH statement (removed in NoImplicitWith)
+
 ```al
-// ❌ Deprecated — WITH statement (removed in NoImplicitWith)
 with SalesHeader do begin
     "Document Type" := "Document Type"::Order;
     "Sell-to Customer No." := CustomerNo;
     Insert(true);
 end;
+```
 
-// ✅ Modern — explicit record reference
+Good (modern): Explicit record reference.
+
+```al
 SalesHeader."Document Type" := SalesHeader."Document Type"::Order;
 SalesHeader."Sell-to Customer No." := CustomerNo;
 SalesHeader.Insert(true);
 ```
 
-```al
-// ❌ Deprecated — TextConst (runtime < 6.0)
-CustomerNotFoundErr@1000 : TextConst 'ENU=Customer %1 not found.';
+Bad (deprecated): TextConst (runtime < 6.0)
 
-// ✅ Modern — Label
+```al
+CustomerNotFoundErr@1000 : TextConst 'ENU=Customer %1 not found.';
+```
+
+Good (modern): Label.
+
+```al
 var
     CustomerNotFoundErr: Label 'Customer %1 not found.';
 ```
@@ -96,8 +108,9 @@ var
 
 When base-app events add or change parameters between versions:
 
+BC 23.x subscriber, 3 parameters:
+
 ```al
-// BC 23.x subscriber — 3 parameters
 [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post",
                  OnBeforePostSalesDoc, '', false, false)]
 local procedure OnBeforePost(
@@ -105,10 +118,12 @@ local procedure OnBeforePost(
     CommitIsSuppressed: Boolean;
     var IsHandled: Boolean)
 begin
-    // ...
 end;
+```
 
-// BC 24.x — same event now has 4 parameters (new PreviewMode added)
+BC 24.x, the same event now has 4 parameters (`PreviewMode` added):
+
+```al
 [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post",
                  OnBeforePostSalesDoc, '', false, false)]
 local procedure OnBeforePost(
@@ -117,7 +132,6 @@ local procedure OnBeforePost(
     PreviewMode: Boolean;
     var IsHandled: Boolean)
 begin
-    // ...
 end;
 ```
 
@@ -129,20 +143,13 @@ end;
 
 ### Pattern 4: Obsolete Object Handling
 
-Handle objects marked `ObsoleteState = Removed` in the target version:
+Handle objects marked `ObsoleteState = Removed` in the target version: find their usages
+(**al-mcp** `al_symbolsearch` for the obsolete table/page/codeunit), replace each with the
+designated successor, and read `ObsoleteReason` for guidance (it typically says "Use codeunit X
+instead"). Example: codeunit 80 "Sales-Post (Yes/No)" is removed in BC 24; call the successor:
 
 ```al
-// Step 1: Find usage of removed objects
-// al_symbolsearch — search for the obsolete table/page/codeunit
-
-// Step 2: Replace with the designated successor
-// Before (removed in BC 24):
-// Codeunit 80 "Sales-Post (Yes/No)" — ObsoleteState = Removed
-// After:
 Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
-
-// Step 3: Check ObsoleteReason for migration guidance
-// ObsoleteReason typically says: "Use codeunit X instead"
 ```
 
 **Process:**
@@ -164,14 +171,13 @@ codeunit 50100 "Contoso Data Upgrade"
     var
         Module: Info;
     begin
-        Module.DataVersion(1);      // check data version tracking
+        Module.DataVersion(1);
         MigrateCustomerLoyaltyData();
         SplitAddressFields();
     end;
 
     trigger OnValidateUpgradePerCompany()
     begin
-        // Pre-upgrade validation — runs before OnUpgradePerCompany
         VerifyDataIntegrity();
     end;
 
@@ -184,7 +190,6 @@ codeunit 50100 "Contoso Data Upgrade"
         if UpgradeTag.HasUpgradeTag(GetLoyaltyMigrationTag()) then
             exit;
 
-        // Migrate data from old field to new table
         Customer.SetFilter("Contoso Legacy Points", '>0');
         if Customer.FindSet() then
             repeat
@@ -204,6 +209,8 @@ codeunit 50100 "Contoso Data Upgrade"
     end;
 }
 ```
+
+- `Module.DataVersion(1);` — check data version tracking
 
 **Upgrade codeunit rules:**
 

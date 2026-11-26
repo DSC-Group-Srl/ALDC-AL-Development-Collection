@@ -15,7 +15,7 @@ decision() {
 }
 
 decision ALLOW "caption typo"        a Edit "    Caption = 'Custmer';" "    Caption = 'Customer';"
-decision ALLOW "comment typo"        a Edit "// tpyo" "// typo"
+decision DENY  "comment typo (comments are not fast-path text)" a Edit "// tpyo" "// typo"
 decision ALLOW "label text"          a Edit "x: Label 'Hi %1', Locked = true;" "x: Label 'Hey %1', Locked = true;"
 decision DENY  "4th edit (budget 3)" a Edit "// a" "// b"
 decision DENY  "logic change"        b Edit "Rec.Delete();" "Rec.Modify();"

@@ -25,8 +25,9 @@ Optimize queries by filtering data as early as possible to reduce data transfer 
 
 ### Examples
 
+Good: Early filtering.
+
 ```al
-// Good example - Early filtering
 procedure GetNumberOfCustomersByCity(CityFilter: Text): Integer
 var
   Customer: Record Customer;
@@ -35,15 +36,15 @@ begin
   Customer.SetRange(Blocked, Customer.Blocked::" ");
   if Customer.FindSet() then
     repeat
-      // Process only filtered customers
     until Customer.Next() = 0;
 
   exit(Customer.Count);
 end;
 ```
 
+Bad: Processing all records.
+
 ```al
-// Bad example (avoid processing all records)
 procedure GetNumberOfCustomersByCity(CityFilter: Text): Integer
 var
   Customer: Record Customer;
@@ -51,7 +52,6 @@ var
 begin
   if Customer.FindSet() then
     repeat
-      // Processing all customers then filtering
       if (Customer.City = CityFilter) and (Customer.Blocked = Customer.Blocked::" ") then
         Count += 1;
     until Customer.Next() = 0;
@@ -59,6 +59,8 @@ begin
   exit(Count);
 end;
 ```
+
+- Processing all customers then filtering
 
 ## Rule 2: Use SetLoadFields for Optimal Data Retrieval
 
@@ -79,29 +81,34 @@ Skip `SetLoadFields` entirely when:
 
 ### Examples
 
+Good: Immediately before the read it governs; filtered field not listed.
+
 ```al
-// Good example - immediately before the read it governs; filtered field not listed
 Item.SetRange("Third Party Item Exists", false);
 Item.SetLoadFields("Item Category Code");
 Item.FindFirst();
 ```
 
+Also good: Same projection, just less readable. Not a finding.
+
 ```al
-// Also correct - same projection, just less readable. Not a finding.
 Item.SetLoadFields("Item Category Code");
 Item.SetRange("Third Party Item Exists", false);
 Item.FindFirst();
 ```
 
+Bad: Partial record feeding a full-load operation.
+
 ```al
-// Bad example - partial record feeding a full-load operation
 Item.SetLoadFields("Item Category Code");
 if Item.FindSet() then
   repeat
-    TempItem := Item;      // copy into a temporary table forces a JIT load of every field
+    TempItem := Item;
     TempItem.Insert();
   until Item.Next() = 0;
 ```
+
+- `TempItem := Item;` — copy into a temporary table forces a JIT load of every field
 
 ## Rule 3: Use Temporary Tables, Dictionaries, and Lists for Performance
 
@@ -111,28 +118,28 @@ Leverage temporary tables, dictionaries, and lists to improve performance in rea
 
 ### Examples
 
+Good: Using temporary tables for structured data.
+
 ```al
-// Good example - Using temporary tables for structured data
 procedure ProcessSalesData(var TempSalesLine: Record "Sales Line" temporary)
 var
   SalesLine: Record "Sales Line";
 begin
-  // Load data into temporary table once
   if SalesLine.FindSet() then
     repeat
       TempSalesLine := SalesLine;
       TempSalesLine.Insert();
     until SalesLine.Next() = 0;
 
-  // Process temporary data multiple times without database hits
   ProcessDiscounts(TempSalesLine);
   CalculateTotals(TempSalesLine);
   ValidateInventory(TempSalesLine);
 end;
 ```
 
+Good: Using dictionaries for key-value temporary data.
+
 ```al
-// Good example - Using dictionaries for key-value temporary data
 procedure CacheCustomerData()
 var
   Customer: Record Customer;
@@ -143,13 +150,13 @@ begin
       CustomerCache.Add(Customer."No.", Customer.Name);
     until Customer.Next() = 0;
 
-  // Use cached data for lookups
   ProcessOrdersWithCache(CustomerCache);
 end;
 ```
 
+Good: Using lists for simple collections.
+
 ```al
-// Good example - Using lists for simple collections
 procedure GetBlockedCustomers(): List of [Code[20]]
 var
   Customer: Record Customer;
@@ -173,8 +180,9 @@ Minimize looping operations and favor set-based approaches when possible to impr
 
 ### Examples
 
+Good: Set-based operation.
+
 ```al
-// Good example - Set-based operation
 procedure GetTotalSalesAmount(CustomerNo: Code[20]): Decimal
 var
   CustLedgerEntry: Record "Cust. Ledger Entry";
@@ -185,8 +193,9 @@ begin
 end;
 ```
 
+Bad: Manual loops for aggregation.
+
 ```al
-// Bad example (avoid manual loops for aggregation)
 procedure GetTotalSalesAmount(CustomerNo: Code[20]): Decimal
 var
   CustLedgerEntry: Record "Cust. Ledger Entry";
@@ -210,37 +219,34 @@ Always analyze and consider performance impact when adding new features or modif
 
 ### Examples
 
+Good: Performance-conscious implementation.
+
 ```al
-// Good example - Performance-conscious implementation
 procedure UpdatePricesForItems(var Item: Record Item)
 var
   ItemCount: Integer;
 begin
-  // Check data volume before processing
   ItemCount := Item.Count();
 
   if ItemCount > 1000 then begin
-    // Use batch processing for large datasets
     UpdatePricesInBatches(Item);
   end else begin
-    // Direct processing for smaller datasets
     UpdatePricesDirectly(Item);
   end;
 end;
 ```
 
+Good: Batched modifications to minimize database writes.
+
 ```al
-// Good example - Batched modifications to minimize database writes
 procedure UpdateCustomerStatistics(CustomerNo: Code[20])
 var
   Customer: Record Customer;
   TotalBalance: Decimal;
   LastPaymentDate: Date;
 begin
-  // Calculate all values first
   CalculateCustomerTotals(CustomerNo, TotalBalance, LastPaymentDate);
 
-  // Single database write with all changes
   Customer.SetLoadFields("Balance (LCY)", "Last Payment Date");
   if Customer.Get(CustomerNo) then begin
     Customer."Balance (LCY)" := TotalBalance;
@@ -258,8 +264,9 @@ Do not call `SetCurrentKey` just out of habit or to "make sure" a lookup is fast
 
 ### Examples
 
+Good: No ordering dependency, let the optimizer pick the index.
+
 ```al
-// Good example - no ordering dependency, let the optimizer pick the index
 procedure GetOpenLines(DocumentNo: Code[20])
 var
   SalesLine: Record "Sales Line";
@@ -268,38 +275,42 @@ begin
   SalesLine.SetRange(Open, true);
   if SalesLine.FindSet() then
     repeat
-      // order doesn't matter here
     until SalesLine.Next() = 0;
 end;
 ```
 
+Good: Ordering is a real requirement, SetCurrentKey is justified.
+
 ```al
-// Good example - ordering is a real requirement, SetCurrentKey is justified
 procedure PrintLinesByDate(DocumentNo: Code[20])
 var
   SalesLine: Record "Sales Line";
 begin
-  SalesLine.SetCurrentKey("Document No.", "Shipment Date"); // report must print in shipment-date order
+  SalesLine.SetCurrentKey("Document No.", "Shipment Date");
   SalesLine.SetRange("Document No.", DocumentNo);
   if SalesLine.FindSet() then
     repeat
-      // printed in the required date order
     until SalesLine.Next() = 0;
 end;
 ```
 
+- `SalesLine.SetCurrentKey("Document No.", "Shipment Date");` — report must print in shipment-date order
+
+Bad: Pinning a key when no ordering is needed.
+
 ```al
-// Bad example (avoid pinning a key when no ordering is needed)
 procedure GetOpenLines(DocumentNo: Code[20])
 var
   SalesLine: Record "Sales Line";
 begin
-  SalesLine.SetCurrentKey("Document No."); // forces this index; optimizer can no longer choose a better one
+  SalesLine.SetCurrentKey("Document No.");
   SalesLine.SetRange("Document No.", DocumentNo);
   SalesLine.SetRange(Open, true);
   if SalesLine.FindSet() then
     repeat
-      // order is irrelevant to this logic
     until SalesLine.Next() = 0;
 end;
 ```
+
+- `SalesLine.SetCurrentKey("Document No.");` — forces this index; optimizer can no longer choose a better one
+- order is irrelevant to this logic

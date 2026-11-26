@@ -76,7 +76,8 @@ pre "main-thread-guard deny (main thread writes .al)" DENY \
   '{"session_id":"s2","tool_name":"Write","tool_input":{"file_path":"C:\\app\\src\\A.Codeunit.al","content":"x"}}' \
   "ALDC routing"
 pre "main-thread-guard fast path stays silent" SILENT \
-  '{"session_id":"s3","tool_name":"Edit","tool_input":{"file_path":"/a/b.al","old_string":"// tpyo","new_string":"// typo"}}'
+  '{"session_id":"s3","tool_name":"Edit","tool_input":{"file_path":"/a/b.al","old_string":"Caption = '\''Tpyo'\'';","new_string":"Caption = '\''Typo'\'';"}}'
+pre "comment-guard deny (subagent adds a comment to .al)" DENY   '{"session_id":"s9","agent_type":"bc-dev:al-developer","agent_id":"z","tool_name":"Edit","tool_input":{"file_path":"/a/b.al","old_string":"X := 1;","new_string":"// set X\nX := 1;"}}'   "no comments in code"
 pre "subagent Edit of .al is allowed" SILENT \
   '{"session_id":"s4","agent_type":"bc-dev:al-developer","agent_id":"y","tool_name":"Edit","tool_input":{"file_path":"/a/b.al","old_string":"a","new_string":"b"}}'
 pre "main thread Write of .md is allowed" SILENT \

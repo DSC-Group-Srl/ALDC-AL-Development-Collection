@@ -23,6 +23,10 @@ This skill should be loaded when:
 
 ### Pattern 1: Given/When/Then Test Structure
 
+The `// [FEATURE]`, `// [SCENARIO]`, `// [GIVEN]`, `// [WHEN]`, `// [THEN]` lines are the only
+comments a test may hold (DSC no-comments rule, guard-enforced). Any other note goes into a
+helper's name or its `///` doc comment.
+
 Every test follows GWT with explicit comments and a descriptive name:
 
 ```al
@@ -68,7 +72,6 @@ codeunit 50100 "Discount Calculation Tests"
     begin
         if IsInitialized then
             exit;
-        // One-time setup: number series, general setup, etc.
         IsInitialized := true;
     end;
 }
@@ -88,7 +91,7 @@ codeunit 50200 "Library - Contoso Sales"
     var
         LibrarySales: Codeunit "Library - Sales";
     begin
-        LibrarySales.CreateCustomer(Customer);   // standard BC library
+        LibrarySales.CreateCustomer(Customer);
         Customer."Credit Limit (LCY)" := 100000;
         Customer.Modify();
     end;
@@ -167,7 +170,6 @@ codeunit 50201 "Sales Order Builder"
     end;
 }
 
-// Usage in test:
 [Test]
 procedure PostOrder_TwoLines_CreatesInvoice()
 var
@@ -180,7 +182,6 @@ begin
         .WithLine('ITEM-A', 10)
         .WithLine('ITEM-B', 5)
         .Build();
-    // ...
 end;
 ```
 
@@ -218,7 +219,6 @@ end;
 [MessageHandler]
 procedure MessageHandler(Msg: Text)
 begin
-    // Absorb expected messages
 end;
 
 [PageHandler]
@@ -385,34 +385,34 @@ REFACTOR phase:
 
 Each test MUST be independent — no shared mutable state between tests:
 
+Good: Initialize procedure resets state.
+
 ```al
-// ✅ Initialize procedure resets state
 local procedure Initialize()
 begin
     if IsInitialized then
         exit;
-    // Setup number series, general posting setup, etc.
-    // Use standard Library codeunits:
-    //   LibraryERM.SetupGenPostingGroups()
-    //   LibrarySales.SetupNoSeries()
+    LibraryERM.SetupGenPostingGroups();
+    LibrarySales.SetupNoSeries();
     IsInitialized := true;
 end;
+```
 
-// ✅ Each test creates its own data
+Good: Each test creates its own data.
+
+```al
 [Test]
 procedure Test_A()
 begin
     Initialize();
-    CreateOwnTestData();  // isolated
-    // ...
+    CreateOwnTestData();
 end;
 
 [Test]
 procedure Test_B()
 begin
     Initialize();
-    CreateOwnTestData();  // independent from Test_A
-    // ...
+    CreateOwnTestData();
 end;
 ```
 

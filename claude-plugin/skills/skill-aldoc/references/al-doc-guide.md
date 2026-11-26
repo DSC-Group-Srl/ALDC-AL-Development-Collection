@@ -41,8 +41,9 @@
 
 ### Table field — correct format
 
+Good: ToolTip and Description as properties.
+
 ```al
-// CORRECT: ToolTip and Description as properties
 field(1; "MyCode"; Code[10])
 {
     Caption = 'Code';
@@ -51,8 +52,11 @@ field(1; "MyCode"; Code[10])
     NotBlank = true;
     DataClassification = CustomerContent;
 }
+```
 
-// WRONG: /// <summary> inside the field body — ignored by aldoc
+Bad: `/// <summary>` inside the field body — ignored by aldoc.
+
+```al
 field(1; "MyCode"; Code[10])
 {
     /// <summary>Primary key identifying the record.</summary>
@@ -64,12 +68,16 @@ field(1; "MyCode"; Code[10])
 
 ### Enum with documented values
 
+Good: `/// <summary>` BEFORE value(), value on single line.
+
 ```al
-// CORRECT: /// <summary> BEFORE value(), value on single line
 /// <summary>Sales-side — shipments or returns to customers.</summary>
 value(1; Customer) { Caption = 'Customer'; }
+```
 
-// WRONG: /// <summary> inside the value block
+Bad: `/// <summary>` inside the value block.
+
+```al
 value(1; Customer)
 {
     /// <summary>Sales-side.</summary>

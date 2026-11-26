@@ -33,16 +33,12 @@ Knowledge base for all Agent SDK task integration patterns. Use this to understa
 
 **Public API contract**:
 ```al
-// Overload 1: Basic task
 procedure AssignTask(AgentUserSecurityID: Guid; TaskTitle: Text[150]; From: Text[250]; Message: Text): Record "Agent Task"
 
-// Overload 2: With ExternalId for tracking/multi-turn
 procedure AssignTask(AgentUserSecurityID: Guid; TaskTitle: Text[150]; ExternalId: Text[2048]; From: Text[250]; Message: Text): Record "Agent Task"
 
-// Overload 3: With attachments
 procedure AssignTask(AgentUserSecurityID: Guid; TaskTitle: Text[150]; From: Text[250]; Message: Text; var TempAttachments: Record "Agent Task File"): Record "Agent Task"
 
-// Lifecycle
 procedure Deactivate(AgentUserSecurityID: Guid)
 procedure IsActive(AgentUserSecurityID: Guid): Boolean
 ```
@@ -180,10 +176,8 @@ var
     AgentSession: Codeunit "Agent Session";
     Provider: Enum "Agent Metadata Provider";
 begin
-    // Detect ANY agent session:
     if not AgentSession.IsAgentSession(Provider) then exit;
 
-    // Or check SPECIFIC agent:
     if not AgentSession.IsAgentSession(Enum::"Agent Metadata Provider"::"{Agent}") then exit;
 end;
 ```

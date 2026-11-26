@@ -30,7 +30,7 @@ page 50100 "Contoso Project Card"
     PageType = Card;
     SourceTable = "Contoso Project";
     Caption = 'Project Card';
-    UsageCategory = None;          // accessed from list, not search
+    UsageCategory = None;
 
     layout
     {
@@ -42,7 +42,7 @@ page 50100 "Contoso Project Card"
                 field("No."; Rec."No.")
                 {
                     ApplicationArea = All;
-                    Importance = Promoted;      // visible in collapsed FastTab
+                    Importance = Promoted;
                 }
                 field(Description; Rec.Description)
                 {
@@ -62,7 +62,7 @@ page 50100 "Contoso Project Card"
             group(Details)
             {
                 Caption = 'Details';
-                Visible = DetailsVisible;       // dynamic visibility
+                Visible = DetailsVisible;
 
                 field("Project Manager"; Rec."Project Manager")
                 {
@@ -139,6 +139,9 @@ page 50100 "Contoso Project Card"
 }
 ```
 
+- `UsageCategory = None;` — accessed from list, not search
+- `Importance = Promoted;` — visible in collapsed FastTab
+
 ### Pattern 2: List Page
 
 Multi-record display with filters and navigation:
@@ -168,7 +171,6 @@ page 50101 "Contoso Project List"
                     StyleExpr = StatusStyleExpr;
                 }
                 field("Starting Date"; Rec."Starting Date") { ApplicationArea = All; }
-                // Limit FlowFields on list pages — max 3-4 for performance
                 field("Total Budget"; Rec."Total Budget") { ApplicationArea = All; }
             }
         }
@@ -214,7 +216,7 @@ page 50102 "Contoso Sales Document"
 
                     trigger OnValidate()
                     begin
-                        CurrPage.Update();      // refresh lines after customer change
+                        CurrPage.Update();
                     end;
                 }
                 field("Document Date"; Rec."Document Date") { ApplicationArea = All; }
@@ -223,21 +225,23 @@ page 50102 "Contoso Sales Document"
             {
                 ApplicationArea = All;
                 SubPageLink = "Document No." = field("No.");
-                UpdatePropagation = Both;       // sync header ↔ lines
+                UpdatePropagation = Both;
             }
         }
     }
 }
 ```
 
+- `CurrPage.Update();` — refresh lines after customer change
+- `UpdatePropagation = Both;` — sync header ↔ lines
+
 ```al
-// Lines subpage
 page 50103 "Contoso Document Subpage"
 {
     PageType = ListPart;
     SourceTable = "Contoso Document Line";
     Caption = 'Lines';
-    AutoSplitKey = true;            // auto-increment Line No.
+    AutoSplitKey = true;
 
     layout
     {
@@ -285,10 +289,9 @@ pageextension 50100 "Customer Card Ext" extends "Customer Card"
         }
         modify(Name)
         {
-            // Change properties of existing fields
             StyleExpr = NameStyleExpr;
         }
-        moveafter("Post Code"; City)        // reorder fields
+        moveafter("Post Code"; City)
     }
 
     actions
@@ -334,27 +337,33 @@ pageextension 50100 "Customer Card Ext" extends "Customer Card"
 
 Control visibility and prominence:
 
+Field importance controls what a collapsed FastTab shows:
+
 ```al
-// Field importance — controls FastTab collapsed behavior
 field(CriticalField; Rec.CriticalField)
 {
     ApplicationArea = All;
-    Importance = Promoted;         // always visible (even when FastTab collapsed)
+    Importance = Promoted;
 }
 field(StandardField; Rec.StandardField)
 {
     ApplicationArea = All;
-    Importance = Standard;         // visible when FastTab expanded (default)
+    Importance = Standard;
 }
 field(RareField; Rec.RareField)
 {
     ApplicationArea = All;
-    Importance = Additional;       // hidden unless "Show more" clicked
+    Importance = Additional;
 }
 ```
 
+- `Importance = Promoted;` — always visible (even when FastTab collapsed)
+- `Importance = Standard;` — visible when FastTab expanded (default)
+- `Importance = Additional;` — hidden unless "Show more" clicked
+
+Promoted actions use the modern `actionref` syntax (BC 22+):
+
 ```al
-// Promoted actions — modern actionref syntax (BC 22+)
 actions
 {
     area(Processing)
